@@ -1,5 +1,4 @@
-﻿import 'package:flutter/material.dart';
-
+﻿
 // --- MODELO PARA CADA DÍA DE RUTINA ---
 class RoutineItem {
   String day;
@@ -17,14 +16,14 @@ class RoutineItem {
   });
 }
 
-class BalancoreMainScreen extends StatefulWidget {
-  const BalancoreMainScreen({super.key});
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
 
   @override
-  State<BalancoreMainScreen> createState() => _BalancoreMainScreenState();
+  State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _BalancoreMainScreenState extends State<BalancoreMainScreen> {
+class _ProfileScreenState extends State<ProfileScreen> {
   int _currentIndex = 2; // Inicia en la pantalla de Rutinas
 
   // --- DATOS DEL PERFIL ---
