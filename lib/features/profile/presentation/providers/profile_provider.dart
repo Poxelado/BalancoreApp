@@ -7,11 +7,26 @@ final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
   return ProfileRepository();
 });
 
-/// Perfil del usuario actual (null si no existe o no está logueado)
 final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
   final user = ref.watch(authStateProvider).value;
   if (user == null) return null;
+  return ref.watch(profileRepositoryProvider).getProfile(user.uid);
+});
 
-  final repo = ref.watch(profileRepositoryProvider);
-  return repo.getProfile(user.uid);
+final weightHistoryProvider = FutureProvider<List<WeightEntry>>((ref) async {
+  final user = ref.watch(authStateProvider).value;
+  if (user == null) return [];
+  return ref.watch(profileRepositoryProvider).getWeightHistory(user.uid);
+});
+
+final routinesProvider = FutureProvider<List<RoutineDay>>((ref) async {
+  final user = ref.watch(authStateProvider).value;
+  if (user == null) return [];
+  return ref.watch(profileRepositoryProvider).getRoutines(user.uid);
+});
+
+final todayLogProvider = FutureProvider<DailyLog>((ref) async {
+  final user = ref.watch(authStateProvider).value;
+  if (user == null) return DailyLog(date: '');
+  return ref.watch(profileRepositoryProvider).getTodayLog(user.uid);
 });

@@ -43,7 +43,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       final age = int.parse(_ageController.text);
 
       final targetCalories = UserProfile.calculateTMB(
-        gender: _gender,
+        sex: _gender,
         weight: weight,
         height: height,
         age: age,
@@ -53,8 +53,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       final profile = UserProfile(
         uid: user.uid,
         email: user.email,
-        gender: _gender,
-        weight: weight,
+        sex: _gender, // puedes renombrar la variable a _sex
+        currentWeight: weight,
         height: height,
         age: age,
         activityLevel: _activityLevel,
@@ -64,6 +64,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       );
 
       await ref.read(profileRepositoryProvider).saveProfile(profile);
+      await ref.read(profileRepositoryProvider).addWeightEntry(
+        user.uid,
+        weight,
+        DateTime.now(),
+      );
+      await ref.read(profileRepositoryProvider).saveAllRoutines(
+        user.uid,
+        // las 7 del default
+        [
+          RoutineDay(day: 'Lunes', title: 'Pecho', duration: '1h 30min', calories: 450),
+          RoutineDay(day: 'Martes', title: 'Espalda', duration: '1h 10min', calories: 380),
+          RoutineDay(day: 'Miércoles', title: 'Descanso', isRestDay: true),
+          RoutineDay(day: 'Jueves', title: 'Pierna', duration: '1h 30min', calories: 520),
+          RoutineDay(day: 'Viernes', title: 'Hombros', duration: '1h', calories: 350),
+          RoutineDay(day: 'Sábado', title: 'Cardio', duration: '45min', calories: 400),
+          RoutineDay(day: 'Domingo', title: 'Descanso', isRestDay: true),
+        ],
+      );
 
       // Invalidar el provider para que AuthWrapper se actualice
       ref.invalidate(userProfileProvider);
@@ -77,6 +95,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
