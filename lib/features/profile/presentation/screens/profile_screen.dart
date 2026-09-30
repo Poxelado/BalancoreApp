@@ -5,6 +5,7 @@ import '../providers/profile_provider.dart';
 import 'profile_tab.dart';
 import 'routine_tab.dart';
 import 'edit_profile_screen.dart';
+import '../providers/profile_provider.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -17,11 +18,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   int _currentIndex = 0;
 
   // ─── Estado local de Calorías (aún no en Firestore) ─────
-  int _targetCalories = 1911;
-  int _consumedCalories = 0;
-  int _proteinGrams = 0;
-  int _carbsGrams = 0;
-  int _fatGrams = 0;
   final _addCalorieController = TextEditingController();
 
   @override
@@ -76,15 +72,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final username = (profile?.username?.isNotEmpty == true)
         ? '@${profile!.username}'
         : '@usuario';
-
-    // Sincronizar meta calórica del perfil si existe
-    if (profile != null && _targetCalories != profile.targetCalories) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          setState(() => _targetCalories = profile.targetCalories);
-        }
-      });
-    }
 
     return Scaffold(
       appBar: AppBar(
@@ -158,133 +145,165 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Widget _buildCalorieScreen() {
-    final progress = _targetCalories > 0
-        ? (_consumedCalories / _targetCalories).clamp(0.0, 1.0)
-        : 0.0;
-    final remaining = _targetCalories - _consumedCalories;
+    final logAsync = ref.watch(todayLogProvider);
+    final profile = ref.watch(userProfileProvider).value;
+    final target = profile?.targetCalories ?? 2000;
 
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: ListView(
-        children: [
-          const Text(
-            'Resumen Nutricional del Día',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF6B1228),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            elevation: 3,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 110,
-                    height: 110,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        SizedBox(
-                          width: 100,
-                          height: 100,
-                          child: CircularProgressIndicator(
-                            value: progress,
-                            strokeWidth: 12,
-                            backgroundColor: Colors.grey.shade200,
-                            color: const Color(0xFF6B1228),
-                          ),
-                        ),
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+    return logAsync.when(
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: Color(0xFF6B1228)),
+      ),
+      error: (e, _) => Center(child: Text('Error: $e')),
+      data: (log) {
+        final consumed = log.consumedCalories;
+        final progress =
+        target > 0 ? (consumed / target).clamp(0.0, 1.0) : 0.0;
+        final remaining = target - consumed;
+
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: ListView(
+            children: [
+              const Text(
+                'Resumen Nutricional del Día',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF6B1228),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Card(
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 110,
+                        height: 110,
+                        child: Stack(
+                          alignment: Alignment.center,
                           children: [
-                            Text(
-                              '$_consumedCalories',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
+                            SizedBox(
+                              width: 100,
+                              height: 100,
+                              child: CircularProgressIndicator(
+                                value: progress,
+                                strokeWidth: 12,
+                                backgroundColor: Colors.grey.shade200,
+                                color: const Color(0xFF6B1228),
                               ),
                             ),
-                            const Text(
-                              'kcal',
-                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  '$consumed',
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const Text(
+                                  'kcal',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
+                      ),
+                      const SizedBox(width: 20),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Meta: $target kcal',
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Restantes: ${remaining >= 0 ? remaining : 0} kcal',
+                              style: TextStyle(
+                                color: remaining < 0 ? Colors.red : Colors.green,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _macroChip('Proteínas', '${log.proteinGrams} g', Colors.orange),
+                  _macroChip('Carbos', '${log.carbsGrams} g', Colors.blue),
+                  _macroChip('Grasas', '${log.fatGrams} g', Colors.redAccent),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _addCalorieController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Calorías (kcal)',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Meta: $_targetCalories kcal',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Restantes: ${remaining >= 0 ? remaining : 0} kcal',
-                          style: TextStyle(
-                            color: remaining < 0 ? Colors.red : Colors.green,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6B1228),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
+                    ),
+                    onPressed: () async {
+                      final v = int.tryParse(_addCalorieController.text);
+                      if (v == null || v <= 0) return;
+
+                      final user = ref.read(authServiceProvider).currentUser;
+                      if (user == null) return;
+
+                      // Guardar en Firestore (suma a lo de hoy)
+                      final newTotal = log.consumedCalories + v;
+                      await ref.read(profileRepositoryProvider).updateTodayLog(
+                        user.uid,
+                        consumedCalories: newTotal,
+                      );
+
+                      // Refrescar datos
+                      ref.invalidate(todayLogProvider);
+                      _addCalorieController.clear();
+                    },
+                    child: const Text(
+                      'Agregar',
+                      style: TextStyle(color: Colors.white),
                     ),
                   ),
                 ],
               ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _macroChip('Proteínas', '$_proteinGrams g', Colors.orange),
-              _macroChip('Carbos', '$_carbsGrams g', Colors.blue),
-              _macroChip('Grasas', '$_fatGrams g', Colors.redAccent),
             ],
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _addCalorieController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Calorías (kcal)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6B1228),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                ),
-                onPressed: () {
-                  final v = int.tryParse(_addCalorieController.text);
-                  if (v != null && v > 0) {
-                    setState(() {
-                      _consumedCalories += v;
-                      _addCalorieController.clear();
-                    });
-                  }
-                },
-                child: const Text('Agregar', style: TextStyle(color: Colors.white)),
-              ),
-            ],
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
