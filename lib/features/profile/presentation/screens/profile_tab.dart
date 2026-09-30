@@ -4,9 +4,21 @@ import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import 'weight_history_screen.dart';
 import 'edit_profile_screen.dart';
+import 'daily_history_screen.dart';
+
 
 class ProfileTab extends ConsumerWidget {
   const ProfileTab({super.key});
+
+  String _initials(UserProfile profile) {
+    final name =
+        profile.displayName ?? profile.username ?? profile.email ?? 'U';
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length >= 2 && parts[0].isNotEmpty && parts[1].isNotEmpty) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return name.isNotEmpty ? name[0].toUpperCase() : 'U';
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -22,32 +34,16 @@ class ProfileTab extends ConsumerWidget {
           return const Center(child: Text('No hay perfil'));
         }
 
-        final username = profile.username?.isNotEmpty == true
-            ? '@${profile.username}'
-            : '@usuario';
-
         return CustomScrollView(
           slivers: [
-            // ─── Mini barra superior ───────────────────────
+            // ─── Avatar + stats ────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                 child: Row(
                   children: [
-                    Expanded(
-                      child: Text(
-                        username,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    // Editar perfil
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined),
-                      tooltip: 'Editar perfil',
-                      onPressed: () {
+                    GestureDetector(
+                      onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -55,59 +51,28 @@ class ProfileTab extends ConsumerWidget {
                           ),
                         );
                       },
-                    ),
-                    // Ajustes (próximamente)
-                    IconButton(
-                      icon: const Icon(Icons.settings_outlined),
-                      tooltip: 'Ajustes',
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Ajustes — próximamente'),
+                      child: CircleAvatar(
+                        radius: 40,
+                        backgroundColor:
+                        const Color(0xFF6B1228).withValues(alpha: 0.15),
+                        child: Text(
+                          _initials(profile),
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF6B1228),
                           ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // ─── Header: avatar + stats ────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor: const Color(0xFF6B1228).withValues(alpha: 0.15),
-                      // Si más adelante hay photoUrl de otro lado, se puede usar
-                      backgroundImage: profile.photoUrl != null
-                          ? NetworkImage(profile.photoUrl!)
-                          : null,
-                      child: profile.photoUrl == null
-                          ? Text(
-                        _initials(profile),
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF6B1228),
                         ),
-                      )
-                          : null,
+                      ),
                     ),
                     const SizedBox(width: 20),
                     Expanded(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
+                          _StatColumn(value: '0', label: 'Entrenos'),
                           _StatColumn(
-                            value: '0',
-                            label: 'Entrenos',
-                          ),
-                          _StatColumn(
-                            value: '${profile.currentWeight.toStringAsFixed(0)}',
+                            value: profile.currentWeight.toStringAsFixed(0),
                             label: 'kg',
                           ),
                           _StatColumn(
@@ -122,25 +87,27 @@ class ProfileTab extends ConsumerWidget {
               ),
             ),
 
-            // Nombre + bio
+            // ─── Nombre + bio + datos ─────────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      profile.displayName ?? 'Usuario',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
+                    if (profile.displayName != null &&
+                        profile.displayName!.isNotEmpty)
+                      Text(
+                        profile.displayName!,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
                       ),
-                    ),
                     if (profile.bio != null && profile.bio!.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
                         profile.bio!,
-                        style: const TextStyle(fontSize: 13, color: Colors.black87),
+                        style: const TextStyle(fontSize: 13),
                       ),
                     ],
                     const SizedBox(height: 4),
@@ -153,7 +120,7 @@ class ProfileTab extends ConsumerWidget {
               ),
             ),
 
-            // ─── Botones: Próximamente | Peso ──────────────
+            // ─── Botones Próximamente | Peso ───────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -162,17 +129,18 @@ class ProfileTab extends ConsumerWidget {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Escaneo corporal — próximamente'),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const DailyHistoryScreen(),
                             ),
                           );
                         },
-                        icon: const Icon(Icons.accessibility_new, size: 18),
-                        label: const Text('Próximamente'),
+                        icon: const Icon(Icons.history, size: 18),
+                        label: const Text('Historial'),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.grey.shade700,
-                          side: BorderSide(color: Colors.grey.shade400),
+                          foregroundColor: const Color(0xFF6B1228),
+                          side: const BorderSide(color: Color(0xFF6B1228)),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
@@ -202,7 +170,7 @@ class ProfileTab extends ConsumerWidget {
               ),
             ),
 
-            // ─── Filtro temporal del historial ─────────────
+            // ─── Historial ─────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -226,7 +194,6 @@ class ProfileTab extends ConsumerWidget {
               ),
             ),
 
-            // ─── Grid de entrenamientos (placeholder) ─────
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               sliver: SliverGrid(
@@ -238,11 +205,11 @@ class ProfileTab extends ConsumerWidget {
                 ),
                 delegate: SliverChildBuilderDelegate(
                       (context, index) {
-                    // Placeholder hasta que registremos entrenos reales
                     return _WorkoutCardPlaceholder(
                       date: _placeholderDates[index % _placeholderDates.length],
-                      duration: _placeholderDurations[index % _placeholderDurations.length],
-                      isEmpty: index > 2, // solo 3 de ejemplo “con datos”
+                      duration: _placeholderDurations[
+                      index % _placeholderDurations.length],
+                      isEmpty: index > 2,
                     );
                   },
                   childCount: 6,
@@ -258,20 +225,8 @@ class ProfileTab extends ConsumerWidget {
   }
 }
 
-// Fechas de ejemplo (solo visual)
 const _placeholderDates = ['22/09', '20/09', '18/09', '15/09', '12/09', '10/09'];
 const _placeholderDurations = ['50m', '1h 2m', '45m', '38m', '1h', '40m'];
-
-// ─── Widgets auxiliares ───────────────────────────────────
-
-String _initials(UserProfile profile) {
-  final name = profile.displayName ?? profile.username ?? profile.email ?? 'U';
-  final parts = name.trim().split(RegExp(r'\s+'));
-  if (parts.length >= 2) {
-    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-  }
-  return name.isNotEmpty ? name[0].toUpperCase() : 'U';
-}
 
 class _StatColumn extends StatelessWidget {
   final String value;
@@ -287,10 +242,7 @@ class _StatColumn extends StatelessWidget {
           value,
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 11, color: Colors.grey),
-        ),
+        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
       ],
     );
   }
@@ -309,9 +261,7 @@ class _PeriodChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: selected
-              ? const Color(0xFF6B1228)
-              : Colors.grey.shade200,
+          color: selected ? const Color(0xFF6B1228) : Colors.grey.shade200,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
@@ -363,7 +313,7 @@ class _WorkoutCardPlaceholder extends StatelessWidget {
               size: 48,
               color: isEmpty
                   ? Colors.grey.shade300
-                  : const Color(0xFF6B1228).withValues(alpha: 0.8),
+                  : const Color(0xFF6B1228).withValues(alpha: 0.85),
             ),
           ),
           Padding(

@@ -104,12 +104,36 @@ class ProfileRepository {
     return DailyLog.fromMap(doc.data()!);
   }
 
-  Future<void> updateTodayLog(String uid, {int? waterGlasses, double? sleepHours}) async {
+  Future<void> updateTodayLog(
+      String uid, {
+        int? waterGlasses,
+        double? sleepHours,
+        int? consumedCalories,
+        int? proteinGrams,
+        int? carbsGrams,
+        int? fatGrams,
+      }) async {
     final key = _todayKey();
     final ref = _userDoc(uid).doc(uid).collection('dailyLogs').doc(key);
     final data = <String, dynamic>{'date': key};
     if (waterGlasses != null) data['waterGlasses'] = waterGlasses;
     if (sleepHours != null) data['sleepHours'] = sleepHours;
+    if (consumedCalories != null) data['consumedCalories'] = consumedCalories;
+    if (proteinGrams != null) data['proteinGrams'] = proteinGrams;
+    if (carbsGrams != null) data['carbsGrams'] = carbsGrams;
+    if (fatGrams != null) data['fatGrams'] = fatGrams;
     await ref.set(data, SetOptions(merge: true));
+  }
+
+  /// Historial de los últimos N días (más reciente primero)
+  Future<List<DailyLog>> getDailyLogsHistory(String uid, {int days = 30}) async {
+    final snap = await _userDoc(uid)
+        .doc(uid)
+        .collection('dailyLogs')
+        .orderBy('date', descending: true)
+        .limit(days)
+        .get();
+
+    return snap.docs.map((d) => DailyLog.fromMap(d.data())).toList();
   }
 }

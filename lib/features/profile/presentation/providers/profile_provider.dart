@@ -30,3 +30,13 @@ final todayLogProvider = FutureProvider<DailyLog>((ref) async {
   if (user == null) return DailyLog(date: '');
   return ref.watch(profileRepositoryProvider).getTodayLog(user.uid);
 });
+
+final dailyLogsHistoryProvider =
+FutureProvider.family<List<DailyLog>, int>((ref, days) async {
+  final user = ref.watch(authStateProvider).value;
+  if (user == null) return [];
+  return ref.watch(profileRepositoryProvider).getDailyLogsHistory(
+    user.uid,
+    days: days,
+  );
+});
