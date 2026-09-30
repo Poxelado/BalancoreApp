@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import 'weight_history_screen.dart';
-
+import 'edit_profile_screen.dart';
 
 class ProfileTab extends ConsumerWidget {
   const ProfileTab({super.key});
@@ -22,278 +22,235 @@ class ProfileTab extends ConsumerWidget {
           return const Center(child: Text('No hay perfil'));
         }
 
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // ─── Header (foto + email) ─────────────────────
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 36,
-                  backgroundColor: const Color(0xFF6B1228).withValues(alpha: 0.15),
-                  backgroundImage: profile.photoUrl != null
-                      ? NetworkImage(profile.photoUrl!)
-                      : null,
-                  child: profile.photoUrl == null
-                      ? const Icon(Icons.person, size: 36, color: Color(0xFF6B1228))
-                      : null,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        profile.displayName ?? 'Usuario',
+        final username = profile.username?.isNotEmpty == true
+            ? '@${profile.username}'
+            : '@usuario';
+
+        return CustomScrollView(
+          slivers: [
+            // ─── Mini barra superior ───────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        username,
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                    ),
+                    // Editar perfil
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined),
+                      tooltip: 'Editar perfil',
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => EditProfileScreen(profile: profile),
+                          ),
+                        );
+                      },
+                    ),
+                    // Ajustes (próximamente)
+                    IconButton(
+                      icon: const Icon(Icons.settings_outlined),
+                      tooltip: 'Ajustes',
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Ajustes — próximamente'),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // ─── Header: avatar + stats ────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 40,
+                      backgroundColor: const Color(0xFF6B1228).withValues(alpha: 0.15),
+                      // Si más adelante hay photoUrl de otro lado, se puede usar
+                      backgroundImage: profile.photoUrl != null
+                          ? NetworkImage(profile.photoUrl!)
+                          : null,
+                      child: profile.photoUrl == null
+                          ? Text(
+                        _initials(profile),
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF6B1228),
+                        ),
+                      )
+                          : null,
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _StatColumn(
+                            value: '0',
+                            label: 'Entrenos',
+                          ),
+                          _StatColumn(
+                            value: '${profile.currentWeight.toStringAsFixed(0)}',
+                            label: 'kg',
+                          ),
+                          _StatColumn(
+                            value: '${profile.targetCalories}',
+                            label: 'kcal meta',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Nombre + bio
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      profile.displayName ?? 'Usuario',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                    if (profile.bio != null && profile.bio!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
                       Text(
-                        profile.email ?? '',
-                        style: const TextStyle(fontSize: 13, color: Colors.grey),
+                        profile.bio!,
+                        style: const TextStyle(fontSize: 13, color: Colors.black87),
                       ),
                     ],
-                  ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${profile.sex} · ${profile.height.toStringAsFixed(0)} cm · ${profile.activityLevel}',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // ─── Datos compactos ───────────────────────────
-            const Text(
-              'Tus datos',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF6B1228),
               ),
-            ),
-            const SizedBox(height: 8),
-
-            _DataTile(
-              icon: Icons.wc,
-              label: 'Sexo',
-              value: profile.sex,
-              onTap: () => _editSex(context, ref, profile),
-            ),
-            _DataTile(
-              icon: Icons.monitor_weight_outlined,
-              label: 'Peso',
-              value: '${profile.currentWeight.toStringAsFixed(1)} kg',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const WeightHistoryScreen(),
-                  ),
-                );
-              },
-              trailing: const Icon(Icons.show_chart, size: 20, color: Colors.grey),
-            ),
-            _DataTile(
-              icon: Icons.height,
-              label: 'Altura',
-              value: '${profile.height.toStringAsFixed(0)} cm',
-              onTap: () => _editNumber(
-                context,
-                ref,
-                profile,
-                field: 'height',
-                label: 'Altura (cm)',
-              ),
-            ),
-            _DataTile(
-              icon: Icons.cake_outlined,
-              label: 'Edad',
-              value: '${profile.age} años',
-              onTap: () => _editNumber(
-                context,
-                ref,
-                profile,
-                field: 'age',
-                label: 'Edad',
-              ),
-            ),
-            _DataTile(
-              icon: Icons.fitness_center,
-              label: 'Nivel de ejercicio',
-              value: profile.activityLevel,
-              onTap: () => _editActivity(context, ref, profile),
-            ),
-            _DataTile(
-              icon: Icons.local_fire_department,
-              label: 'Meta calórica',
-              value: '${profile.targetCalories} kcal',
-              onTap: null, // se recalcula al cambiar otros datos
             ),
 
-            const SizedBox(height: 24),
-            const Text(
-              'Historial de entrenamientos',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF6B1228),
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Card(
+            // ─── Botones: Próximamente | Peso ──────────────
+            SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(
-                  child: Text(
-                    'Próximamente: aquí aparecerán\ntus entrenamientos registrados',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
-                  ),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Escaneo corporal — próximamente'),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.accessibility_new, size: 18),
+                        label: const Text('Próximamente'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.grey.shade700,
+                          side: BorderSide(color: Colors.grey.shade400),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const WeightHistoryScreen(),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.monitor_weight_outlined, size: 18),
+                        label: const Text('Peso'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF6B1228),
+                          side: const BorderSide(color: Color(0xFF6B1228)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
-        );
-      },
-    );
-  }
 
-  // ─── Recalcular TMB y guardar ───────────────────────────
-
-  Future<void> _recalculateAndSave(WidgetRef ref, UserProfile profile) async {
-    final newCalories = UserProfile.calculateTMB(
-      sex: profile.sex,
-      weight: profile.currentWeight,
-      height: profile.height,
-      age: profile.age,
-      activityLevel: profile.activityLevel,
-    );
-    final updated = profile.copyWith(targetCalories: newCalories);
-    await ref.read(profileRepositoryProvider).saveProfile(updated);
-    ref.invalidate(userProfileProvider);
-  }
-
-  // ─── Editar sexo ────────────────────────────────────────
-
-  void _editSex(BuildContext context, WidgetRef ref, UserProfile profile) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: const Text('Masculino'),
-                trailing: profile.sex == 'Masculino'
-                    ? const Icon(Icons.check, color: Color(0xFF6B1228))
-                    : null,
-                onTap: () async {
-                  final updated = profile.copyWith(sex: 'Masculino');
-                  await _recalculateAndSave(ref, updated);
-                  if (ctx.mounted) Navigator.pop(ctx);
-                },
+            // ─── Filtro temporal del historial ─────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Row(
+                  children: [
+                    const Text(
+                      'Historial de entrenamientos',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF6B1228),
+                      ),
+                    ),
+                    const Spacer(),
+                    _PeriodChip(label: '1M', selected: true),
+                    _PeriodChip(label: '3M'),
+                    _PeriodChip(label: '6M'),
+                    _PeriodChip(label: '1A'),
+                  ],
+                ),
               ),
-              ListTile(
-                title: const Text('Femenino'),
-                trailing: profile.sex == 'Femenino'
-                    ? const Icon(Icons.check, color: Color(0xFF6B1228))
-                    : null,
-                onTap: () async {
-                  final updated = profile.copyWith(sex: 'Femenino');
-                  await _recalculateAndSave(ref, updated);
-                  if (ctx.mounted) Navigator.pop(ctx);
-                },
+            ),
+
+            // ─── Grid de entrenamientos (placeholder) ─────
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                  childAspectRatio: 0.72,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                    // Placeholder hasta que registremos entrenos reales
+                    return _WorkoutCardPlaceholder(
+                      date: _placeholderDates[index % _placeholderDates.length],
+                      duration: _placeholderDurations[index % _placeholderDurations.length],
+                      isEmpty: index > 2, // solo 3 de ejemplo “con datos”
+                    );
+                  },
+                  childCount: 6,
+                ),
               ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // ─── Editar nivel de actividad ──────────────────────────
-
-  void _editActivity(BuildContext context, WidgetRef ref, UserProfile profile) {
-    const levels = ['Sedentario', 'Moderado', 'Experto'];
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: levels.map((level) {
-              return ListTile(
-                title: Text(level),
-                trailing: profile.activityLevel == level
-                    ? const Icon(Icons.check, color: Color(0xFF6B1228))
-                    : null,
-                onTap: () async {
-                  final updated = profile.copyWith(activityLevel: level);
-                  await _recalculateAndSave(ref, updated);
-                  if (ctx.mounted) Navigator.pop(ctx);
-                },
-              );
-            }).toList(),
-          ),
-        );
-      },
-    );
-  }
-
-  // ─── Editar número (altura / edad) ──────────────────────
-
-  void _editNumber(
-      BuildContext context,
-      WidgetRef ref,
-      UserProfile profile, {
-        required String field,
-        required String label,
-      }) {
-    final controller = TextEditingController(
-      text: field == 'height'
-          ? profile.height.toStringAsFixed(0)
-          : profile.age.toString(),
-    );
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: Text('Editar $label'),
-          content: TextField(
-            controller: controller,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: label,
-              border: const OutlineInputBorder(),
             ),
-            autofocus: true,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6B1228),
-              ),
-              onPressed: () async {
-                final value = num.tryParse(controller.text);
-                if (value == null) return;
 
-                final UserProfile updated;
-                if (field == 'height') {
-                  updated = profile.copyWith(height: value.toDouble());
-                } else {
-                  updated = profile.copyWith(age: value.toInt());
-                }
-
-                await _recalculateAndSave(ref, updated);
-                if (ctx.mounted) Navigator.pop(ctx);
-              },
-              child: const Text('Guardar', style: TextStyle(color: Colors.white)),
-            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ],
         );
       },
@@ -301,45 +258,127 @@ class ProfileTab extends ConsumerWidget {
   }
 }
 
-// ─── Tile reutilizable ────────────────────────────────────
+// Fechas de ejemplo (solo visual)
+const _placeholderDates = ['22/09', '20/09', '18/09', '15/09', '12/09', '10/09'];
+const _placeholderDurations = ['50m', '1h 2m', '45m', '38m', '1h', '40m'];
 
-class _DataTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
+// ─── Widgets auxiliares ───────────────────────────────────
+
+String _initials(UserProfile profile) {
+  final name = profile.displayName ?? profile.username ?? profile.email ?? 'U';
+  final parts = name.trim().split(RegExp(r'\s+'));
+  if (parts.length >= 2) {
+    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+  }
+  return name.isNotEmpty ? name[0].toUpperCase() : 'U';
+}
+
+class _StatColumn extends StatelessWidget {
   final String value;
-  final VoidCallback? onTap;
-  final Widget? trailing;
+  final String label;
 
-  const _DataTile({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.onTap,
-    this.trailing,
+  const _StatColumn({required this.value, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, color: Colors.grey),
+        ),
+      ],
+    );
+  }
+}
+
+class _PeriodChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+
+  const _PeriodChip({required this.label, this.selected = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: selected
+              ? const Color(0xFF6B1228)
+              : Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : Colors.grey.shade700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkoutCardPlaceholder extends StatelessWidget {
+  final String date;
+  final String duration;
+  final bool isEmpty;
+
+  const _WorkoutCardPlaceholder({
+    required this.date,
+    required this.duration,
+    this.isEmpty = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(icon, color: const Color(0xFF6B1228)),
-      title: Text(
-        label,
-        style: const TextStyle(fontSize: 13, color: Colors.grey),
+    return Container(
+      decoration: BoxDecoration(
+        color: isEmpty ? Colors.grey.shade100 : const Color(0xFF1A1A2E),
+        borderRadius: BorderRadius.circular(12),
       ),
-      subtitle: Text(
-        value,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: Colors.black87,
-        ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              date,
+              style: TextStyle(
+                fontSize: 10,
+                color: isEmpty ? Colors.grey : Colors.white70,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Icon(
+              Icons.accessibility_new,
+              size: 48,
+              color: isEmpty
+                  ? Colors.grey.shade300
+                  : const Color(0xFF6B1228).withValues(alpha: 0.8),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+              isEmpty ? '—' : duration,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: isEmpty ? Colors.grey : Colors.white,
+              ),
+            ),
+          ),
+        ],
       ),
-      trailing: trailing ??
-          (onTap != null
-              ? const Icon(Icons.edit, size: 18, color: Colors.grey)
-              : null),
-      onTap: onTap,
     );
   }
 }

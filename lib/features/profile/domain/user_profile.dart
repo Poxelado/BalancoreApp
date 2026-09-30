@@ -2,6 +2,8 @@ class UserProfile {
   final String uid;
   final String? email;
   final String? displayName;
+  final String? username;  // sin el @, ej: "mrextremista"
+  final String? bio;
   final String? photoUrl;
   final String sex; // "Masculino" | "Femenino"
   final double currentWeight; // kg
@@ -15,6 +17,8 @@ class UserProfile {
 
   UserProfile({
     required this.uid,
+    this.username,
+    this.bio,
     this.email,
     this.displayName,
     this.photoUrl,
@@ -32,6 +36,8 @@ class UserProfile {
   Map<String, dynamic> toMap() {
     return {
       'uid': uid,
+      'username': username,
+      'bio': bio,
       'email': email,
       'displayName': displayName,
       'photoUrl': photoUrl,
@@ -50,6 +56,8 @@ class UserProfile {
   factory UserProfile.fromMap(Map<String, dynamic> map) {
     return UserProfile(
       uid: map['uid'] ?? '',
+      username: map['username'],
+      bio: map['bio'],
       email: map['email'],
       displayName: map['displayName'],
       photoUrl: map['photoUrl'],
@@ -69,6 +77,8 @@ class UserProfile {
 
   UserProfile copyWith({
     String? displayName,
+    String? username,
+    String? bio,
     String? photoUrl,
     String? sex,
     double? currentWeight,
@@ -80,6 +90,8 @@ class UserProfile {
   }) {
     return UserProfile(
       uid: uid,
+      username: username ?? this.username,
+      bio: bio ?? this.bio,
       email: email,
       displayName: displayName ?? this.displayName,
       photoUrl: photoUrl ?? this.photoUrl,
