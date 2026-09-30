@@ -1,4 +1,6 @@
-﻿
+﻿import 'package:flutter/material.dart';
+
+
 // --- MODELO PARA CADA DÍA DE RUTINA ---
 class RoutineItem {
   String day;
