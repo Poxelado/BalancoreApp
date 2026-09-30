@@ -1,20 +1,23 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
-// Estado de autenticación
-final authStateProvider = StreamProvider<User?>((ref) {
-  return FirebaseAuth.instance.authStateChanges();
-});
-
-// Provider del servicio de autenticación
 final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService();
 });
 
+final authStateProvider = StreamProvider<User?>((ref) {
+  return ref.watch(authServiceProvider).authStateChanges;
+});
+
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
-  // Registro con email y contraseña
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  User? get currentUser => _auth.currentUser;
+
+  // ─── Email ───────────────────────────────────────────────
   Future<UserCredential?> registerWithEmail({
     required String email,
     required String password,
@@ -29,7 +32,6 @@ class AuthService {
     }
   }
 
-  // Login con email y contraseña
   Future<UserCredential?> loginWithEmail({
     required String email,
     required String password,
@@ -44,12 +46,29 @@ class AuthService {
     }
   }
 
-  // Cerrar sesión
-  Future<void> signOut() async {
-    await _auth.signOut();
+  // ─── Google ──────────────────────────────────────────────
+  Future<UserCredential?> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return null; // Usuario canceló
+
+      final GoogleSignInAuthentication googleAuth =
+      await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      return await _auth.signInWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthException(e);
+    } catch (e) {
+      throw 'Error al iniciar con Google: $e';
+    }
   }
 
-  // Recuperar contraseña
+  // ─── Otros ───────────────────────────────────────────────
   Future<void> resetPassword(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email.trim());
@@ -58,7 +77,13 @@ class AuthService {
     }
   }
 
-  // Manejo de errores en español
+  Future<void> signOut() async {
+    await Future.wait([
+      _auth.signOut(),
+      _googleSignIn.signOut(),
+    ]);
+  }
+
   String _handleAuthException(FirebaseAuthException e) {
     switch (e.code) {
       case 'email-already-in-use':
@@ -71,8 +96,12 @@ class AuthService {
         return 'No existe una cuenta con este correo.';
       case 'wrong-password':
         return 'Contraseña incorrecta.';
+      case 'invalid-credential':
+        return 'Credenciales incorrectas.';
       case 'too-many-requests':
         return 'Demasiados intentos. Intenta más tarde.';
+      case 'account-exists-with-different-credential':
+        return 'Ya existe una cuenta con este correo usando otro método.';
       default:
         return 'Ocurrió un error: ${e.message}';
     }

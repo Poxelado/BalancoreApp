@@ -28,21 +28,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
-
     try {
       await ref.read(authServiceProvider).loginWithEmail(
         email: _emailController.text,
         password: _passwordController.text,
       );
-      // Si llega aquí, el login fue exitoso.
-      // Más adelante redirigiremos automáticamente con authStateProvider.
+      // La redirección se hará automáticamente con authStateProvider
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loginWithGoogle() async {
+    setState(() => _isLoading = true);
+    try {
+      final result = await ref.read(authServiceProvider).signInWithGoogle();
+      if (result == null && mounted) {
+        // Usuario canceló → no mostramos error
+        return;
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -110,7 +124,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                        _obscurePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
                       ),
                       onPressed: () {
                         setState(() => _obscurePassword = !_obscurePassword);
@@ -124,21 +140,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 8),
 
                 // Olvidé mi contraseña
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {
-                      // Lo implementamos después
+                      // TODO: pantalla de recuperar contraseña
                     },
                     child: const Text('¿Olvidaste tu contraseña?'),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 8),
 
-                // Botón Ingresar
+                // Botón Ingresar (Email)
                 ElevatedButton(
                   onPressed: _isLoading ? null : _login,
                   style: ElevatedButton.styleFrom(
@@ -157,6 +172,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       : const Text(
                     'Ingresar',
                     style: TextStyle(fontSize: 16, color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Separador
+                Row(
+                  children: [
+                    const Expanded(child: Divider()),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(
+                        'o',
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
+                    ),
+                    const Expanded(child: Divider()),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Botón Google
+                OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _loginWithGoogle,
+                  icon: const Icon(Icons.g_mobiledata, size: 28), // temporal
+                  // Mejor: Image.asset('assets/google_logo.png', height: 24),
+                  label: const Text('Continuar con Google'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(color: Colors.grey.shade400),
+                    foregroundColor: Colors.black87,
                   ),
                 ),
                 const SizedBox(height: 24),

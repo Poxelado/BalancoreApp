@@ -9,19 +9,17 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
   # UI
   cupertino_icons: ^1.0.8
   google_fonts: ^6.2.1
-
   # Estado
   flutter_riverpod: ^2.6.1
-
   # Firebase
   firebase_core: ^3.8.1
   firebase_auth: ^5.3.4
   cloud_firestore: ^5.5.1
   firebase_storage: ^12.3.7
+  # Google Sign-In
   google_sign_in: ^6.2.2
 
 dev_dependencies:
