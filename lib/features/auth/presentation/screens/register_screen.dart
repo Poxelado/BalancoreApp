@@ -33,18 +33,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     try {
       await ref.read(authServiceProvider).registerWithEmail(
-        email: _emailController.text,
+        email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
+      // Importante: volver a la ruta raíz.
+      // AuthWrapper detectará el nuevo usuario y mostrará Onboarding.
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cuenta creada correctamente'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context); // Vuelve al login
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
       if (mounted) {

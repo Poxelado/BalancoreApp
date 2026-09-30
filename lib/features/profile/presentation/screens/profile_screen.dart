@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 // --- MODELO PARA CADA DÍA DE RUTINA ---
 class RoutineItem {
@@ -18,32 +19,29 @@ class RoutineItem {
   });
 }
 
-class ProfileScreen extends StatefulWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   int _currentIndex = 2; // Inicia en la pantalla de Rutinas
 
   // --- DATOS DEL PERFIL ---
   final TextEditingController _weightController = TextEditingController(text: '65');
   final TextEditingController _heightController = TextEditingController(text: '170');
   final TextEditingController _ageController = TextEditingController(text: '25');
-
   String _gender = 'Masculino';
   String _activityLevel = 'Sedentario';
 
   // --- CALORÍAS Y MACROS ---
   int _targetCalories = 1911;
   int _consumedCalories = 0;
-
   int _proteinGrams = 0;
   int _carbsGrams = 0;
   int _fatGrams = 0;
-
   final TextEditingController _addCalorieController = TextEditingController();
   final TextEditingController _addProteinController = TextEditingController();
   final TextEditingController _addCarbsController = TextEditingController();
@@ -52,7 +50,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // Hidratación y Sueño
   int _waterGlasses = 0;
   final int _waterGoal = 8;
-
   double _sleepHours = 7.0;
   final double _sleepGoal = 8.0;
 
@@ -69,6 +66,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _calculateTMB();
+  }
+
+  @override
+  void dispose() {
+    _weightController.dispose();
+    _heightController.dispose();
+    _ageController.dispose();
+    _addCalorieController.dispose();
+    _addProteinController.dispose();
+    _addCarbsController.dispose();
+    _addFatController.dispose();
+    super.dispose();
   }
 
   void _calculateTMB() {
@@ -95,6 +104,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
+  Future<void> _signOut() async {
+    await ref.read(authServiceProvider).signOut();
+    // AuthWrapper detecta user == null y muestra LoginScreen automáticamente
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -105,6 +119,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            tooltip: 'Cerrar sesión',
+            onPressed: _signOut,
+          ),
+        ],
       ),
       body: _buildPage(_currentIndex),
       bottomNavigationBar: BottomNavigationBar(
@@ -135,10 +156,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // --- PANTALLA 1: PERFIL ---
   Widget _buildProfileScreen() {
+    final user = ref.watch(authStateProvider).value;
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: ListView(
         children: [
+          // Email del usuario logueado
+          if (user != null) ...[
+            Text(
+              'Sesión: ${user.email ?? "Usuario"}',
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+          ],
           const Text(
             'Cuéntanos sobre ti',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF6B1228)),
@@ -204,7 +235,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
               setState(() => _currentIndex = 1);
             },
             child: const Text('Continuar', style: TextStyle(color: Colors.white, fontSize: 16)),
-          )
+          ),
+          const SizedBox(height: 16),
+          // Botón de cerrar sesión también aquí (opcional)
+          OutlinedButton.icon(
+            onPressed: _signOut,
+            icon: const Icon(Icons.logout, color: Color(0xFF6B1228)),
+            label: const Text('Cerrar sesión', style: TextStyle(color: Color(0xFF6B1228))),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFF6B1228)),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+          ),
         ],
       ),
     );
@@ -458,7 +500,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: item.isRestDay ? Colors.blueGrey.shade100 : const Color(0xFF6B1228).withValues(alpha: 0.15),
+                      backgroundColor: item.isRestDay
+                          ? Colors.blueGrey.shade100
+                          : const Color(0xFF6B1228).withValues(alpha: 0.15),
                       child: Icon(
                         item.isRestDay ? Icons.bed : Icons.fitness_center,
                         color: item.isRestDay ? Colors.blueGrey : const Color(0xFF6B1228),
@@ -491,7 +535,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final dayController = TextEditingController(text: item?.day ?? '');
     final titleController = TextEditingController(text: item?.title ?? '');
     final durationController = TextEditingController(text: item?.duration ?? '');
-    final caloriesController = TextEditingController(text: item != null && !item.isRestDay ? item.calories.toString() : '');
+    final caloriesController = TextEditingController(
+      text: item != null && !item.isRestDay ? item.calories.toString() : '',
+    );
     bool isRest = item?.isRestDay ?? false;
 
     showDialog(
@@ -507,7 +553,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     TextField(
                       controller: dayController,
-                      decoration: const InputDecoration(labelText: 'Día (ej. Lunes, Sábado)', border: OutlineInputBorder()),
+                      decoration: const InputDecoration(
+                        labelText: 'Día (ej. Lunes, Sábado)',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     SwitchListTile(
@@ -517,9 +566,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onChanged: (val) {
                         setDialogState(() {
                           isRest = val;
-                          if (isRest) {
-                            titleController.text = 'Descanso';
-                          }
+                          if (isRest) titleController.text = 'Descanso';
                         });
                       },
                     ),
@@ -527,18 +574,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     if (!isRest) ...[
                       TextField(
                         controller: titleController,
-                        decoration: const InputDecoration(labelText: 'Enfoque / Ejercicio (ej. Pecho, Cardio)', border: OutlineInputBorder()),
+                        decoration: const InputDecoration(
+                          labelText: 'Enfoque / Ejercicio (ej. Pecho, Cardio)',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: durationController,
-                        decoration: const InputDecoration(labelText: 'Duración (ej. 1h 30min)', border: OutlineInputBorder()),
+                        decoration: const InputDecoration(
+                          labelText: 'Duración (ej. 1h 30min)',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: caloriesController,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: 'Calorías estimadas (kcal)', border: OutlineInputBorder()),
+                        decoration: const InputDecoration(
+                          labelText: 'Calorías estimadas (kcal)',
+                          border: OutlineInputBorder(),
+                        ),
                       ),
                     ]
                   ],
@@ -549,9 +605,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red),
                     onPressed: () {
-                      setState(() {
-                        _routines.removeAt(index);
-                      });
+                      setState(() => _routines.removeAt(index));
                       Navigator.pop(context);
                     },
                   ),
@@ -563,16 +617,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6B1228)),
                   onPressed: () {
                     if (dayController.text.isEmpty) return;
-
                     setState(() {
                       final newItem = RoutineItem(
                         day: dayController.text,
-                        title: isRest ? 'Descanso' : (titleController.text.isEmpty ? 'Ejercicio' : titleController.text),
+                        title: isRest
+                            ? 'Descanso'
+                            : (titleController.text.isEmpty ? 'Ejercicio' : titleController.text),
                         duration: isRest ? '' : durationController.text,
                         calories: isRest ? 0 : (int.tryParse(caloriesController.text) ?? 0),
                         isRestDay: isRest,
                       );
-
                       if (index != null) {
                         _routines[index] = newItem;
                       } else {
@@ -606,7 +660,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
         ),
         const SizedBox(height: 4),
@@ -638,9 +695,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: _addProteinController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Proteínas (g)')),
-              TextField(controller: _addCarbsController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Carbohidratos (g)')),
-              TextField(controller: _addFatController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Grasas (g)')),
+              TextField(
+                controller: _addProteinController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Proteínas (g)'),
+              ),
+              TextField(
+                controller: _addCarbsController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Carbohidratos (g)'),
+              ),
+              TextField(
+                controller: _addFatController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Grasas (g)'),
+              ),
             ],
           ),
           actions: [

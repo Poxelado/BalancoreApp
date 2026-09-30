@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import 'login_screen.dart';
+import 'onboarding_screen.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
+import '../../../profile/presentation/providers/profile_provider.dart';
 
 class AuthWrapper extends ConsumerWidget {
   const AuthWrapper({super.key});
@@ -13,25 +15,37 @@ class AuthWrapper extends ConsumerWidget {
 
     return authState.when(
       data: (user) {
-        if (user != null) {
-          // Usuario logueado → va a la app principal
-          return const ProfileScreen();
-        } else {
-          // No hay usuario → va al Login
+        if (user == null) {
           return const LoginScreen();
         }
+
+        // Usuario logueado → verificar si completó onboarding
+        final profileAsync = ref.watch(userProfileProvider);
+
+        return profileAsync.when(
+          data: (profile) {
+            if (profile == null || !profile.onboardingCompleted) {
+              return const OnboardingScreen();
+            }
+            return const ProfileScreen();
+          },
+          loading: () => const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(color: Color(0xFF6B1228)),
+            ),
+          ),
+          error: (e, _) => Scaffold(
+            body: Center(child: Text('Error al cargar perfil: $e')),
+          ),
+        );
       },
       loading: () => const Scaffold(
         body: Center(
-          child: CircularProgressIndicator(
-            color: Color(0xFF6B1228),
-          ),
+          child: CircularProgressIndicator(color: Color(0xFF6B1228)),
         ),
       ),
-      error: (error, stack) => Scaffold(
-        body: Center(
-          child: Text('Error: $error'),
-        ),
+      error: (error, _) => Scaffold(
+        body: Center(child: Text('Error: $error')),
       ),
     );
   }
