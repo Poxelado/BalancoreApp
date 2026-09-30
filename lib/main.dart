@@ -6,8 +6,9 @@ import 'app.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inicializar Firebase
   await Firebase.initializeApp();
+  // Si más adelante usas FlutterFire CLI, cambia a:
+  // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(
     const ProviderScope(
