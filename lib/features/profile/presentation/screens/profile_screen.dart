@@ -1,8 +1,8 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import 'profile_tab.dart';
-import 'routine_tab.dart';
+import 'package:balancore/features/profile/presentation/screens/profile_tab.dart';
+import 'package:balancore/features/profile/presentation/screens/routine_tab.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
