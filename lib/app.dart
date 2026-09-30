@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'core/theme/app_theme.dart';
-import 'features/profile/presentation/screens/profile_screen.dart';
+import 'features/auth/presentation/screens/auth_wrapper.dart';
 
 class BalancoreApp extends StatelessWidget {
   const BalancoreApp({super.key});
@@ -12,8 +12,8 @@ class BalancoreApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system, // Más adelante lo controlaremos con Riverpod
-      home: const ProfileScreen(), // Temporalmente, luego cambiaremos esto
+      themeMode: ThemeMode.system,
+      home: const AuthWrapper(),
     );
   }
 }

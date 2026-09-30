@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "150456494873",
+    "project_id": "balancore",
+    "storage_bucket": "balancore.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:150456494873:android:3a45fb8f4a17d791f27388",
+        "android_client_info": {
+          "package_name": "com.example.balancore"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAC5I4x_Dk7RwcE78dVK9gqwWmVLl_3CVk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
