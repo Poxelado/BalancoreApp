@@ -4,9 +4,9 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../profile/domain/user_profile.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import '../../domain/exercise.dart';
+import 'edit_routine_exercise_screen.dart';
 import 'exercise_detail_screen.dart';
 
-/// Editar un día de la rutina semanal (título, descanso, ejercicios).
 class EditRoutineDayScreen extends ConsumerStatefulWidget {
   final RoutineDay day;
 
@@ -19,7 +19,6 @@ class EditRoutineDayScreen extends ConsumerStatefulWidget {
 
 class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
   late TextEditingController _titleCtrl;
-  late TextEditingController _durationCtrl;
   late bool _isRestDay;
   late List<RoutineExercise> _exercises;
   bool _saving = false;
@@ -28,7 +27,6 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
   void initState() {
     super.initState();
     _titleCtrl = TextEditingController(text: widget.day.title);
-    _durationCtrl = TextEditingController(text: widget.day.duration);
     _isRestDay = widget.day.isRestDay;
     _exercises = List<RoutineExercise>.from(widget.day.exercises);
   }
@@ -36,9 +34,11 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
   @override
   void dispose() {
     _titleCtrl.dispose();
-    _durationCtrl.dispose();
     super.dispose();
   }
+
+  String get _autoDuration =>
+      RoutineExercise.estimateDayDuration(_exercises);
 
   Future<void> _save() async {
     setState(() => _saving = true);
@@ -51,7 +51,7 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
         title: _titleCtrl.text.trim().isEmpty
             ? widget.day.title
             : _titleCtrl.text.trim(),
-        duration: _durationCtrl.text.trim(),
+        duration: _isRestDay ? '' : _autoDuration,
         calories: widget.day.calories,
         isRestDay: _isRestDay,
         description: widget.day.description,
@@ -60,6 +60,20 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
       );
 
       await ref.read(profileRepositoryProvider).saveRoutine(user.uid, updated);
+
+      // Memoria de pesos/series por ejercicio
+      if (!_isRestDay) {
+        for (final ex in _exercises) {
+          await ref.read(profileRepositoryProvider).saveExerciseDefault(
+            uid: user.uid,
+            exerciseId: ex.exerciseId,
+            plannedSets: ex.effectiveSets,
+            restSeconds: ex.restSeconds,
+            notes: ex.notes,
+          );
+        }
+      }
+
       ref.invalidate(routinesProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -75,6 +89,19 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
       }
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _openExerciseEditor(int index) async {
+    final result = await Navigator.push<RoutineExercise>(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            EditRoutineExerciseScreen(exercise: _exercises[index]),
+      ),
+    );
+    if (result != null) {
+      setState(() => _exercises[index] = result);
     }
   }
 
@@ -97,62 +124,56 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
       MaterialPageRoute(builder: (_) => const _PickExerciseScreen()),
     );
     if (picked == null) return;
+
+    // Recuperar memoria (pesos / descanso) si existía
+    final user = ref.read(authServiceProvider).currentUser;
+    List<PlannedSet> planned = [
+      const PlannedSet(weight: 0, reps: 10),
+      const PlannedSet(weight: 0, reps: 10),
+      const PlannedSet(weight: 0, reps: 10),
+    ];
+    var rest = 60;
+    var notes = '';
+
+    if (user != null) {
+      final data = await ref
+          .read(profileRepositoryProvider)
+          .getExerciseDefault(user.uid, picked.id);
+      if (data != null) {
+        rest = data['restSeconds'] as int? ?? 60;
+        notes = (data['notes'] as String?) ?? '';
+        final raw = data['plannedSets'];
+        if (raw is List && raw.isNotEmpty) {
+          planned = [
+            for (final item in raw)
+              if (item is Map)
+                PlannedSet.fromMap(Map<String, dynamic>.from(item)),
+          ];
+          if (planned.isEmpty) {
+            planned = [
+              const PlannedSet(weight: 0, reps: 10),
+              const PlannedSet(weight: 0, reps: 10),
+              const PlannedSet(weight: 0, reps: 10),
+            ];
+          }
+        }
+      }
+    }
+
     setState(() {
       _exercises.add(
         RoutineExercise(
           exerciseId: picked.id,
           exerciseName: picked.name,
           muscleGroup: picked.muscleGroup,
-          sets: 3,
-          reps: 10,
+          sets: planned.length,
+          reps: planned.first.reps,
+          plannedSets: planned,
+          restSeconds: rest,
+          notes: notes,
         ),
       );
       _isRestDay = false;
-    });
-  }
-
-  Future<void> _editExercise(int index) async {
-    final ex = _exercises[index];
-    final setsCtrl = TextEditingController(text: '${ex.sets}');
-    final repsCtrl = TextEditingController(text: '${ex.reps}');
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ex.exerciseName),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: setsCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Series'),
-            ),
-            TextField(
-              controller: repsCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Reps'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    setState(() {
-      _exercises[index] = ex.copyWith(
-        sets: int.tryParse(setsCtrl.text) ?? ex.sets,
-        reps: int.tryParse(repsCtrl.text) ?? ex.reps,
-      );
     });
   }
 
@@ -173,17 +194,11 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
               width: 18,
               height: 18,
               child: CircularProgressIndicator(
-                color: Colors.white,
-                strokeWidth: 2,
-              ),
+                  color: Colors.white, strokeWidth: 2),
             )
-                : const Text(
-              'Guardar',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+                : const Text('Guardar',
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -199,7 +214,6 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
               if (v) _titleCtrl.text = 'Descanso';
             }),
           ),
-          const SizedBox(height: 8),
           TextField(
             controller: _titleCtrl,
             enabled: !_isRestDay,
@@ -208,26 +222,27 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
               border: OutlineInputBorder(),
             ),
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _durationCtrl,
-            enabled: !_isRestDay,
-            decoration: const InputDecoration(
-              labelText: 'Duración (ej. 1h 30min)',
-              border: OutlineInputBorder(),
-            ),
-          ),
           if (!_isRestDay) ...[
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
+            // Duración automática (solo lectura)
+            InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Duración estimada (auto)',
+                border: OutlineInputBorder(),
+                helperText: '1 min por serie + descansos entre series',
+              ),
+              child: Text(
+                _autoDuration.isEmpty ? '—' : _autoDuration,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Text(
                   'Ejercicios (${_exercises.length})',
                   style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: primary,
-                    fontSize: 16,
-                  ),
+                      fontWeight: FontWeight.bold, color: primary, fontSize: 16),
                 ),
                 const Spacer(),
                 TextButton.icon(
@@ -237,14 +252,12 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
             if (_exercises.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Center(
                   child: Text(
-                    'Sin ejercicios.\nPulsa Añadir para elegir de la biblioteca.',
-                    textAlign: TextAlign.center,
+                    'Sin ejercicios. Pulsa Añadir.',
                     style: TextStyle(color: Colors.grey),
                   ),
                 ),
@@ -263,47 +276,51 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
                 },
                 itemBuilder: (context, index) {
                   final ex = _exercises[index];
+                  final n = ex.effectiveSets.length;
+                  final restM = ex.restSeconds ~/ 60;
+                  final restS = ex.restSeconds % 60;
+                  final restLabel = restM > 0
+                      ? (restS > 0 ? '${restM}min ${restS}s' : '${restM}min')
+                      : '${restS}s';
+                  final firstW = n > 0 ? ex.effectiveSets.first.weight : 0.0;
+                  final weightHint = firstW > 0
+                      ? '${firstW == firstW.roundToDouble() ? firstW.toInt() : firstW} kg'
+                      : 'sin peso';
+
                   return Card(
                     key: ValueKey('${ex.exerciseId}_$index'),
                     child: ListTile(
                       leading: const Icon(Icons.drag_handle),
-                      title: InkWell(
-                        onTap: () => _openDetail(ex),
-                        child: Text(
-                          ex.exerciseName,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: primary,
-                            decoration: TextDecoration.underline,
-                            decorationColor: primary.withValues(alpha: 0.4),
-                          ),
-                        ),
+                      title: Text(
+                        ex.exerciseName,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                       subtitle: Text(
                         '${ex.muscleGroup.isEmpty ? '—' : ex.muscleGroup}'
-                            ' · ${ex.sets}×${ex.reps}',
+                            ' · $n series · $weightHint · descanso $restLabel',
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            tooltip: 'Ver detalle',
+                            tooltip: 'Detalle',
                             icon: const Icon(Icons.info_outline),
                             onPressed: () => _openDetail(ex),
                           ),
                           IconButton(
+                            tooltip: 'Series y pesos',
                             icon: const Icon(Icons.edit_outlined),
-                            onPressed: () => _editExercise(index),
+                            onPressed: () => _openExerciseEditor(index),
                           ),
                           IconButton(
                             icon: const Icon(Icons.delete_outline,
                                 color: Colors.red),
-                            onPressed: () {
-                              setState(() => _exercises.removeAt(index));
-                            },
+                            onPressed: () =>
+                                setState(() => _exercises.removeAt(index)),
                           ),
                         ],
                       ),
+                      onTap: () => _openExerciseEditor(index),
                     ),
                   );
                 },
@@ -315,22 +332,20 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
   }
 }
 
-class _PickExerciseScreen extends ConsumerStatefulWidget {
+class _PickExerciseScreen extends StatefulWidget {
   const _PickExerciseScreen();
 
   @override
-  ConsumerState<_PickExerciseScreen> createState() =>
-      _PickExerciseScreenState();
+  State<_PickExerciseScreen> createState() => _PickExerciseScreenState();
 }
 
-class _PickExerciseScreenState extends ConsumerState<_PickExerciseScreen> {
+class _PickExerciseScreenState extends State<_PickExerciseScreen> {
   String _query = '';
 
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
-    final all = ExerciseCatalog.builtIn;
-    final filtered = all.where((e) {
+    final filtered = ExerciseCatalog.builtIn.where((e) {
       if (_query.isEmpty) return true;
       return e.name.toLowerCase().contains(_query.toLowerCase()) ||
           e.muscleGroup.toLowerCase().contains(_query.toLowerCase());

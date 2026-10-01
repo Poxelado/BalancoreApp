@@ -89,7 +89,32 @@ class ProfileRepository {
     ];
   }
 
+  CollectionReference _exerciseDefaults(String uid) =>
+      _userDoc(uid).doc(uid).collection('exerciseDefaults');
 
+  Future<Map<String, dynamic>?> getExerciseDefault(
+      String uid,
+      String exerciseId,
+      ) async {
+    final doc = await _exerciseDefaults(uid).doc(exerciseId).get();
+    if (!doc.exists || doc.data() == null) return null;
+    return Map<String, dynamic>.from(doc.data() as Map);
+  }
+
+  Future<void> saveExerciseDefault({
+    required String uid,
+    required String exerciseId,
+    required List<PlannedSet> plannedSets,
+    required int restSeconds,
+    String notes = '',
+  }) async {
+    await _exerciseDefaults(uid).doc(exerciseId).set({
+      'plannedSets': plannedSets.map((s) => s.toMap()).toList(),
+      'restSeconds': restSeconds,
+      'notes': notes,
+      'updatedAt': DateTime.now().toIso8601String(),
+    }, SetOptions(merge: true));
+  }
   // ─── Daily Log (agua + sueño + comidas) ─────────────────
   String _todayKey() {
     final now = DateTime.now();
