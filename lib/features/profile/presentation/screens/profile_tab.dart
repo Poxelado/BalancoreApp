@@ -6,6 +6,7 @@ import 'weight_history_screen.dart';
 import 'edit_profile_screen.dart';
 import 'daily_history_screen.dart';
 import '../../../training/presentation/screens/workout_session_screen.dart';
+import '../../../training/presentation/screens/edit_workout_history_screen.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 class ProfileTab extends ConsumerStatefulWidget {
@@ -95,15 +96,15 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
                     ],
                   ),
                 ),
-                if (!s.completed)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: FilledButton.icon(
-                            onPressed: () async {
-                              Navigator.pop(ctx);
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: () async {
+                            Navigator.pop(ctx);
+                            if (!s.completed) {
                               final day = RoutineDay(
                                 day: s.dayName,
                                 title: s.title,
@@ -130,49 +131,76 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
                                   ),
                                 ),
                               );
-                              ref.invalidate(workoutHistoryProvider(_periodDays));
-                              ref.invalidate(activeWorkoutSessionProvider);
-                            },
-                            icon: const Icon(Icons.play_arrow),
-                            label: const Text('Continuar'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        OutlinedButton(
-                          onPressed: () async {
-                            final ok = await showDialog<bool>(
-                              context: context,
-                              builder: (d) => AlertDialog(
-                                title: const Text('Eliminar sesión'),
-                                content: const Text(
-                                  '¿Borrar esta sesión en curso?',
+                            } else {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      EditWorkoutHistoryScreen(session: s),
                                 ),
-                                actions: [
-                                  TextButton(
-                                      onPressed: () => Navigator.pop(d, false),
-                                      child: const Text('No')),
-                                  TextButton(
-                                      onPressed: () => Navigator.pop(d, true),
-                                      child: const Text('Eliminar',
-                                          style: TextStyle(color: Colors.red))),
-                                ],
-                              ),
-                            );
-                            if (ok != true) return;
-                            final user =
-                                ref.read(authServiceProvider).currentUser;
-                            if (user == null) return;
-                            await ref
-                                .read(profileRepositoryProvider)
-                                .deleteWorkoutSession(user.uid, s.id);
-                            if (ctx.mounted) Navigator.pop(ctx);
-                            ref.invalidate(workoutHistoryProvider(_periodDays));
+                              );
+                            }
+                            ref.invalidate(
+                                workoutHistoryProvider(_periodDays));
                             ref.invalidate(activeWorkoutSessionProvider);
                           },
-                          child: const Icon(Icons.delete_outline,
-                              color: Colors.red),
+                          icon: Icon(
+                              !s.completed ? Icons.play_arrow : Icons.edit),
+                          label:
+                          Text(!s.completed ? 'Continuar' : 'Editar'),
                         ),
-                      ],
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: () async {
+                          final ok = await showDialog<bool>(
+                            context: context,
+                            builder: (d) => AlertDialog(
+                              title: const Text('Eliminar sesión'),
+                              content: Text(
+                                s.completed
+                                    ? '¿Borrar este entrenamiento del historial?'
+                                    : '¿Borrar esta sesión en curso?',
+                              ),
+                              actions: [
+                                TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(d, false),
+                                    child: const Text('No')),
+                                TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(d, true),
+                                    child: const Text('Eliminar',
+                                        style: TextStyle(
+                                            color: Colors.red))),
+                              ],
+                            ),
+                          );
+                          if (ok != true) return;
+                          final user =
+                              ref.read(authServiceProvider).currentUser;
+                          if (user == null) return;
+                          await ref
+                              .read(profileRepositoryProvider)
+                              .deleteWorkoutSession(user.uid, s.id);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          ref.invalidate(
+                              workoutHistoryProvider(_periodDays));
+                          ref.invalidate(activeWorkoutSessionProvider);
+                        },
+                        child: const Icon(Icons.delete_outline,
+                            color: Colors.red),
+                      ),
+                    ],
+                  ),
+                ),
+                if (s.notes.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    child: Text(
+                      '📝 ${s.notes}',
+                      style: const TextStyle(
+                          fontSize: 13, fontStyle: FontStyle.italic),
                     ),
                   ),
                 Padding(
@@ -214,7 +242,9 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                         subtitle: Text(
-                          '${e.muscleGroup.isEmpty ? 'Ejercicio' : e.muscleGroup} · $done/${e.sets.length} series',
+                          e.notes.isNotEmpty
+                              ? '📝 ${e.notes}'
+                              : '${e.muscleGroup.isEmpty ? 'Ejercicio' : e.muscleGroup} · $done/${e.sets.length} series',
                         ),
                         trailing: Icon(
                           done == e.sets.length && e.sets.isNotEmpty

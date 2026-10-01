@@ -581,12 +581,14 @@ class WorkoutExerciseLog {
   final String exerciseId;
   final String exerciseName;
   final String muscleGroup;
+  final String notes;
   final List<WorkoutSetLog> sets;
 
   const WorkoutExerciseLog({
     required this.exerciseId,
     required this.exerciseName,
     this.muscleGroup = '',
+    this.notes = '',
     this.sets = const [],
   });
 
@@ -594,6 +596,7 @@ class WorkoutExerciseLog {
     'exerciseId': exerciseId,
     'exerciseName': exerciseName,
     'muscleGroup': muscleGroup,
+    'notes': notes,
     'sets': sets.map((s) => s.toMap()).toList(),
   };
 
@@ -611,15 +614,20 @@ class WorkoutExerciseLog {
       exerciseId: map['exerciseId']?.toString() ?? '',
       exerciseName: map['exerciseName'] ?? '',
       muscleGroup: map['muscleGroup'] ?? '',
+      notes: map['notes']?.toString() ?? '',
       sets: sets,
     );
   }
 
-  WorkoutExerciseLog copyWith({List<WorkoutSetLog>? sets}) {
+  WorkoutExerciseLog copyWith({
+    List<WorkoutSetLog>? sets,
+    String? notes,
+  }) {
     return WorkoutExerciseLog(
       exerciseId: exerciseId,
       exerciseName: exerciseName,
       muscleGroup: muscleGroup,
+      notes: notes ?? this.notes,
       sets: sets ?? this.sets,
     );
   }
@@ -636,6 +644,7 @@ class WorkoutSession {
   final bool completed;
   final bool isPaused;
   final int elapsedSeconds;
+  final String notes;
   final List<WorkoutExerciseLog> exercises;
 
   const WorkoutSession({
@@ -647,6 +656,7 @@ class WorkoutSession {
     this.completed = false,
     this.isPaused = false,
     this.elapsedSeconds = 0,
+    this.notes = '',
     this.exercises = const [],
   });
 
@@ -728,6 +738,7 @@ class WorkoutSession {
     'completed': completed,
     'isPaused': isPaused,
     'elapsedSeconds': elapsedSeconds,
+    'notes': notes,
     'exercises': exercises.map((e) => e.toMap()).toList(),
   };
 
@@ -754,6 +765,7 @@ class WorkoutSession {
       completed: map['completed'] ?? false,
       isPaused: map['isPaused'] ?? false,
       elapsedSeconds: map['elapsedSeconds'] ?? 0,
+      notes: map['notes']?.toString() ?? '',
       exercises: exercises,
     );
   }
@@ -763,6 +775,7 @@ class WorkoutSession {
     bool? completed,
     bool? isPaused,
     int? elapsedSeconds,
+    String? notes,
     List<WorkoutExerciseLog>? exercises,
   }) {
     return WorkoutSession(
@@ -774,6 +787,7 @@ class WorkoutSession {
       completed: completed ?? this.completed,
       isPaused: isPaused ?? this.isPaused,
       elapsedSeconds: elapsedSeconds ?? this.elapsedSeconds,
+      notes: notes ?? this.notes,
       exercises: exercises ?? this.exercises,
     );
   }

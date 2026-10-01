@@ -371,6 +371,70 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
     }
   }
 
+
+  Future<void> _editExerciseNotes() async {
+    final ex = _session.exercises[_exerciseIndex];
+    final ctrl = TextEditingController(text: ex.notes);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Notas · ${ex.exerciseName}'),
+        content: TextField(
+          controller: ctrl,
+          maxLines: 4,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'Forma, molestias, tips...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Guardar')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final list = List<WorkoutExerciseLog>.from(_session.exercises);
+    list[_exerciseIndex] = ex.copyWith(notes: ctrl.text.trim());
+    setState(() => _session = _session.copyWith(exercises: list));
+    await _persist();
+  }
+
+  Future<void> _editSessionNotes() async {
+    final ctrl = TextEditingController(text: _session.notes);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Notas de la sesión'),
+        content: TextField(
+          controller: ctrl,
+          maxLines: 4,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'Cómo te sentiste hoy...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Guardar')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    setState(() => _session = _session.copyWith(notes: ctrl.text.trim()));
+    await _persist();
+  }
+
   void _openSettings() {
     final restCtrl = TextEditingController(text: '$_restSecondsDefault');
     showModalBottomSheet(
@@ -520,6 +584,15 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                     onPressed: _togglePause,
                   ),
                   IconButton(
+                    tooltip: 'Notas de sesión',
+                    icon: Icon(
+                      _session.notes.isEmpty
+                          ? Icons.comment_outlined
+                          : Icons.comment,
+                    ),
+                    onPressed: _editSessionNotes,
+                  ),
+                  IconButton(
                     icon: const Icon(Icons.settings_outlined),
                     onPressed: _openSettings,
                   ),
@@ -594,17 +667,48 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-              child: Column(
+              padding: const EdgeInsets.fromLTRB(16, 4, 8, 8),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(ex.exerciseName,
-                      style: const TextStyle(
-                          fontSize: 22, fontWeight: FontWeight.bold)),
-                  if (ex.muscleGroup.isNotEmpty)
-                    Text(ex.muscleGroup,
-                        style: TextStyle(
-                            color: Colors.grey.shade500, fontSize: 13)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(ex.exerciseName,
+                            style: const TextStyle(
+                                fontSize: 22, fontWeight: FontWeight.bold)),
+                        if (ex.muscleGroup.isNotEmpty)
+                          Text(ex.muscleGroup,
+                              style: TextStyle(
+                                  color: Colors.grey.shade500, fontSize: 13)),
+                        if (ex.notes.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              ex.notes,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic,
+                                color: Colors.grey.shade400,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Notas del ejercicio',
+                    icon: Icon(
+                      ex.notes.isEmpty
+                          ? Icons.note_add_outlined
+                          : Icons.sticky_note_2,
+                      color: primary,
+                    ),
+                    onPressed: _editExerciseNotes,
+                  ),
                 ],
               ),
             ),
