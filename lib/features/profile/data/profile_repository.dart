@@ -127,6 +127,23 @@ class ProfileRepository {
 
   /// Historial de los últimos N días (más reciente primero)
 
+  Future<void> deleteUserData(String uid) async {
+    final userRef = _userDoc(uid).doc(uid);
+    final subs = ['weightHistory', 'routines', 'dailyLogs'];
+    for (final name in subs) {
+      final snap = await userRef.collection(name).get();
+      if (snap.docs.isEmpty) continue;
+      final batch = _db.batch();
+      for (final doc in snap.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    }
+    final doc = await userRef.get();
+    if (doc.exists) {
+      await userRef.delete();
+    }
+  }
 
   Future<List<DailyLog>> getDailyLogsHistory(String uid, {int days = 30}) async {
     final snap = await _userDoc(uid)

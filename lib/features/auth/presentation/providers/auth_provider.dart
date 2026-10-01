@@ -17,7 +17,6 @@ class AuthService {
   Stream<User?> get authStateChanges => _auth.authStateChanges();
   User? get currentUser => _auth.currentUser;
 
-  // ─── Email ───────────────────────────────────────────────
   Future<UserCredential?> registerWithEmail({
     required String email,
     required String password,
@@ -46,11 +45,10 @@ class AuthService {
     }
   }
 
-  // ─── Google ──────────────────────────────────────────────
   Future<UserCredential?> signInWithGoogle() async {
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return null; // Usuario canceló
+      if (googleUser == null) return null;
 
       final GoogleSignInAuthentication googleAuth =
       await googleUser.authentication;
@@ -68,21 +66,6 @@ class AuthService {
     }
   }
 
-  // ─── Otros ───────────────────────────────────────────────
-  Future<void> deleteAccount() async {
-    final user = _auth.currentUser;
-    if (user == null) throw 'No hay usuario autenticado';
-    try {
-      await user.delete();
-      await _googleSignIn.signOut();
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'requires-recent-login') {
-        throw 'Por seguridad, cierra sesión, vuelve a iniciar sesión e intenta eliminar la cuenta de nuevo.';
-      }
-      throw _handleAuthException(e);
-    }
-  }
-
   Future<void> resetPassword(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email.trim());
@@ -96,6 +79,20 @@ class AuthService {
       _auth.signOut(),
       _googleSignIn.signOut(),
     ]);
+  }
+
+  Future<void> deleteAccount() async {
+    final user = _auth.currentUser;
+    if (user == null) throw 'No hay usuario autenticado';
+    try {
+      await user.delete();
+      await _googleSignIn.signOut();
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        throw 'Por seguridad, cierra sesión, vuelve a iniciar sesión e intenta eliminar la cuenta de nuevo.';
+      }
+      throw _handleAuthException(e);
+    }
   }
 
   String _handleAuthException(FirebaseAuthException e) {

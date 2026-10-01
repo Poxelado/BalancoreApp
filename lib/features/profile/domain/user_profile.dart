@@ -2,15 +2,19 @@ class UserProfile {
   final String uid;
   final String? email;
   final String? displayName;
-  final String? username;  // sin el @, ej: "mrextremista"
+  final String? username;
   final String? bio;
   final String? photoUrl;
-  final String sex; // "Masculino" | "Femenino"
-  final double currentWeight; // kg
-  final double height; // cm
+  final String sex;
+  final double currentWeight;
+  final double height;
   final int age;
   final String activityLevel;
+  final String goal;
   final int targetCalories;
+  final int targetProtein;
+  final int targetCarbs;
+  final int targetFat;
   final bool onboardingCompleted;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -27,11 +31,29 @@ class UserProfile {
     required this.height,
     required this.age,
     required this.activityLevel,
+    this.goal = 'Mantenimiento',
     required this.targetCalories,
+    this.targetProtein = 0,
+    this.targetCarbs = 0,
+    this.targetFat = 0,
     this.onboardingCompleted = false,
     this.createdAt,
     this.updatedAt,
   });
+
+  static const activityLevels = [
+    'Sedentario',
+    'Ligero',
+    'Moderado',
+    'Activo',
+    'Muy activo',
+  ];
+
+  static const goals = [
+    'Perder grasa',
+    'Mantenimiento',
+    'Ganar músculo',
+  ];
 
   Map<String, dynamic> toMap() {
     return {
@@ -46,9 +68,14 @@ class UserProfile {
       'height': height,
       'age': age,
       'activityLevel': activityLevel,
+      'goal': goal,
       'targetCalories': targetCalories,
+      'targetProtein': targetProtein,
+      'targetCarbs': targetCarbs,
+      'targetFat': targetFat,
       'onboardingCompleted': onboardingCompleted,
-      'createdAt': createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
+      'createdAt':
+      createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
       'updatedAt': DateTime.now().toIso8601String(),
     };
   }
@@ -68,10 +95,18 @@ class UserProfile {
       height: (map['height'] as num?)?.toDouble() ?? 170,
       age: map['age'] ?? 25,
       activityLevel: map['activityLevel'] ?? 'Sedentario',
+      goal: map['goal'] ?? 'Mantenimiento',
       targetCalories: map['targetCalories'] ?? 2000,
+      targetProtein: map['targetProtein'] ?? 0,
+      targetCarbs: map['targetCarbs'] ?? 0,
+      targetFat: map['targetFat'] ?? 0,
       onboardingCompleted: map['onboardingCompleted'] ?? false,
-      createdAt: map['createdAt'] != null ? DateTime.tryParse(map['createdAt']) : null,
-      updatedAt: map['updatedAt'] != null ? DateTime.tryParse(map['updatedAt']) : null,
+      createdAt: map['createdAt'] != null
+          ? DateTime.tryParse(map['createdAt'])
+          : null,
+      updatedAt: map['updatedAt'] != null
+          ? DateTime.tryParse(map['updatedAt'])
+          : null,
     );
   }
 
@@ -85,7 +120,11 @@ class UserProfile {
     double? height,
     int? age,
     String? activityLevel,
+    String? goal,
     int? targetCalories,
+    int? targetProtein,
+    int? targetCarbs,
+    int? targetFat,
     bool? onboardingCompleted,
   }) {
     return UserProfile(
@@ -100,7 +139,11 @@ class UserProfile {
       height: height ?? this.height,
       age: age ?? this.age,
       activityLevel: activityLevel ?? this.activityLevel,
+      goal: goal ?? this.goal,
       targetCalories: targetCalories ?? this.targetCalories,
+      targetProtein: targetProtein ?? this.targetProtein,
+      targetCarbs: targetCarbs ?? this.targetCarbs,
+      targetFat: targetFat ?? this.targetFat,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
@@ -113,18 +156,45 @@ class UserProfile {
     required double height,
     required int age,
     required String activityLevel,
+    String goal = 'Mantenimiento',
   }) {
-    double tmb = sex == 'Masculino'
+    final tmb = sex == 'Masculino'
         ? (10 * weight) + (6.25 * height) - (5 * age) + 5
         : (10 * weight) + (6.25 * height) - (5 * age) - 161;
 
-    double multiplier = switch (activityLevel) {
+    final multiplier = switch (activityLevel) {
+      'Ligero' => 1.375,
       'Moderado' => 1.55,
-      'Experto' => 1.9,
+      'Activo' => 1.725,
+      'Muy activo' || 'Experto' => 1.9,
       _ => 1.2,
     };
 
-    return (tmb * multiplier).round();
+    final tdee = tmb * multiplier;
+    final adjusted = switch (goal) {
+      'Perder grasa' => tdee * 0.85,
+      'Ganar músculo' => tdee * 1.10,
+      _ => tdee,
+    };
+    return adjusted.round().clamp(1200, 6000);
+  }
+
+  static ({int protein, int carbs, int fat}) calculateMacros({
+    required double weight,
+    required int calories,
+    required String goal,
+  }) {
+    final proteinPerKg = switch (goal) {
+      'Perder grasa' => 2.2,
+      'Ganar músculo' => 2.0,
+      _ => 1.8,
+    };
+    final protein = (weight * proteinPerKg).round();
+    final fatPct = goal == 'Perder grasa' ? 0.25 : 0.28;
+    final fat = ((calories * fatPct) / 9).round();
+    final carbs =
+    ((calories - protein * 4 - fat * 9) / 4).round().clamp(0, 1000);
+    return (protein: protein, carbs: carbs, fat: fat);
   }
 }
 
@@ -151,7 +221,7 @@ class WeightEntry {
 }
 
 class RoutineDay {
-  final String day; // lunes, martes, ...
+  final String day;
   final String title;
   final String duration;
   final int calories;
@@ -193,7 +263,7 @@ class RoutineDay {
 }
 
 class DailyLog {
-  final String date; // yyyy-MM-dd
+  final String date;
   final int waterGlasses;
   final double sleepHours;
   final int consumedCalories;

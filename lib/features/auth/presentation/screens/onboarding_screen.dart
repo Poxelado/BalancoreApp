@@ -13,27 +13,57 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _weightController = TextEditingController(text: '65');
+  final _pageController = PageController();
+  final _nameController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _weightController = TextEditingController(text: '70');
   final _heightController = TextEditingController(text: '170');
   final _ageController = TextEditingController(text: '25');
 
-  String _gender = 'Masculino';
+  int _page = 0;
+  String _sex = 'Masculino';
   String _activityLevel = 'Sedentario';
+  String _goal = 'Mantenimiento';
   bool _isLoading = false;
 
   @override
   void dispose() {
+    _pageController.dispose();
+    _nameController.dispose();
+    _usernameController.dispose();
     _weightController.dispose();
     _heightController.dispose();
     _ageController.dispose();
     super.dispose();
   }
 
+  int get _previewCalories {
+    final w = double.tryParse(_weightController.text) ?? 70;
+    final h = double.tryParse(_heightController.text) ?? 170;
+    final a = int.tryParse(_ageController.text) ?? 25;
+    return UserProfile.calculateTMB(
+      sex: _sex,
+      weight: w,
+      height: h,
+      age: a,
+      activityLevel: _activityLevel,
+      goal: _goal,
+    );
+  }
+
+  ({int protein, int carbs, int fat}) get _previewMacros {
+    final w = double.tryParse(_weightController.text) ?? 70;
+    return UserProfile.calculateMacros(
+      weight: w,
+      calories: _previewCalories,
+      goal: _goal,
+    );
+  }
+
   Future<void> _saveAndContinue() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
-
     try {
       final user = ref.read(authServiceProvider).currentUser;
       if (user == null) throw 'No hay usuario autenticado';
@@ -42,23 +72,39 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       final height = double.parse(_heightController.text);
       final age = int.parse(_ageController.text);
 
-      final targetCalories = UserProfile.calculateTMB(
-        sex: _gender,
+      final calories = UserProfile.calculateTMB(
+        sex: _sex,
         weight: weight,
         height: height,
         age: age,
         activityLevel: _activityLevel,
+        goal: _goal,
+      );
+      final macros = UserProfile.calculateMacros(
+        weight: weight,
+        calories: calories,
+        goal: _goal,
       );
 
       final profile = UserProfile(
         uid: user.uid,
         email: user.email,
-        sex: _gender, // puedes renombrar la variable a _sex
+        displayName: _nameController.text.trim().isEmpty
+            ? null
+            : _nameController.text.trim(),
+        username: _usernameController.text.trim().isEmpty
+            ? null
+            : _usernameController.text.trim().replaceAll('@', ''),
+        sex: _sex,
         currentWeight: weight,
         height: height,
         age: age,
         activityLevel: _activityLevel,
-        targetCalories: targetCalories,
+        goal: _goal,
+        targetCalories: calories,
+        targetProtein: macros.protein,
+        targetCarbs: macros.carbs,
+        targetFat: macros.fat,
         onboardingCompleted: true,
         createdAt: DateTime.now(),
       );
@@ -69,26 +115,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         weight,
         DateTime.now(),
       );
-      await ref.read(profileRepositoryProvider).saveAllRoutines(
-        user.uid,
-        // las 7 del default
-        [
-          RoutineDay(day: 'Lunes', title: 'Pecho', duration: '1h 30min', calories: 450),
-          RoutineDay(day: 'Martes', title: 'Espalda', duration: '1h 10min', calories: 380),
-          RoutineDay(day: 'Miércoles', title: 'Descanso', isRestDay: true),
-          RoutineDay(day: 'Jueves', title: 'Pierna', duration: '1h 30min', calories: 520),
-          RoutineDay(day: 'Viernes', title: 'Hombros', duration: '1h', calories: 350),
-          RoutineDay(day: 'Sábado', title: 'Cardio', duration: '45min', calories: 400),
-          RoutineDay(day: 'Domingo', title: 'Descanso', isRestDay: true),
-        ],
-      );
 
-      // Invalidar el provider para que AuthWrapper se actualice
       ref.invalidate(userProfileProvider);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+          SnackBar(content: Text('$e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -96,138 +128,411 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
+  void _next() {
+    if (_page == 0) {
+      // Validar nombre opcional, username opcional — pasar a datos
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    } else if (_page == 1) {
+      if (!_formKey.currentState!.validate()) return;
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    } else {
+      _saveAndContinue();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: ListView(
-              children: [
-                const SizedBox(height: 16),
-                const Text(
-                  '¡Bienvenido a Balancore!',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF6B1228),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Cuéntanos un poco sobre ti para calcular tu plan',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 15, color: Colors.grey),
-                ),
-                const SizedBox(height: 32),
-
-                // Género
-                const Text('Género', style: TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'Masculino', label: Text('Masculino'), icon: Icon(Icons.male)),
-                    ButtonSegment(value: 'Femenino', label: Text('Femenino'), icon: Icon(Icons.female)),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                child: Row(
+                  children: [
+                    if (_page > 0)
+                      IconButton(
+                        onPressed: () => _pageController.previousPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOut,
+                        ),
+                        icon: const Icon(Icons.arrow_back),
+                      )
+                    else
+                      const SizedBox(width: 48),
+                    Expanded(
+                      child: Text(
+                        'Configura tu perfil',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 48),
                   ],
-                  selected: {_gender},
-                  onSelectionChanged: (s) => setState(() => _gender = s.first),
                 ),
-                const SizedBox(height: 20),
-
-                // Peso
-                TextFormField(
-                  controller: _weightController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Peso (kg)',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.monitor_weight_outlined),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Ingresa tu peso';
-                    if (double.tryParse(v) == null) return 'Número inválido';
-                    return null;
-                  },
+              ),
+              // Indicador de pasos
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  children: List.generate(3, (i) {
+                    return Expanded(
+                      child: Container(
+                        height: 4,
+                        margin: EdgeInsets.only(right: i < 2 ? 6 : 0),
+                        decoration: BoxDecoration(
+                          color: i <= _page
+                              ? primary
+                              : Colors.grey.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    );
+                  }),
                 ),
-                const SizedBox(height: 16),
-
-                // Altura
-                TextFormField(
-                  controller: _heightController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Estatura (cm)',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.height),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Ingresa tu estatura';
-                    if (double.tryParse(v) == null) return 'Número inválido';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Edad
-                TextFormField(
-                  controller: _ageController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Edad',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.cake_outlined),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Ingresa tu edad';
-                    if (int.tryParse(v) == null) return 'Número inválido';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-
-                // Nivel de actividad
-                const Text('Nivel de ejercicio diario', style: TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  value: _activityLevel,
-                  decoration: const InputDecoration(border: OutlineInputBorder()),
-                  items: const [
-                    DropdownMenuItem(value: 'Sedentario', child: Text('Sedentario (poco o ningún ejercicio)')),
-                    DropdownMenuItem(value: 'Moderado', child: Text('Moderado (3-5 días/semana)')),
-                    DropdownMenuItem(value: 'Experto', child: Text('Experto (entrenamiento intenso)')),
+              ),
+              Expanded(
+                child: PageView(
+                  controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  onPageChanged: (i) => setState(() => _page = i),
+                  children: [
+                    _buildIdentityPage(primary),
+                    _buildBodyPage(primary),
+                    _buildGoalPage(primary),
                   ],
-                  onChanged: (v) {
-                    if (v != null) setState(() => _activityLevel = v);
-                  },
                 ),
-                const SizedBox(height: 32),
-
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _saveAndContinue,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6B1228),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                  )
-                      : const Text(
-                    'Continuar',
-                    style: TextStyle(fontSize: 16, color: Colors.white),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _next,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primary,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                        : Text(
+                      _page < 2 ? 'Continuar' : 'Empezar en Balancore',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildIdentityPage(Color primary) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            '¿Cómo te llamamos?',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Estos datos se verán en tu perfil. Puedes cambiarlos después.',
+            style: TextStyle(color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 24),
+          TextFormField(
+            controller: _nameController,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(
+              labelText: 'Nombre (opcional)',
+              prefixIcon: Icon(Icons.person_outline),
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _usernameController,
+            decoration: const InputDecoration(
+              labelText: 'Usuario (opcional)',
+              prefixIcon: Icon(Icons.alternate_email),
+              border: OutlineInputBorder(),
+              hintText: 'sin espacios',
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text('Sexo', style: TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: _sexChip('Masculino', primary)),
+              const SizedBox(width: 12),
+              Expanded(child: _sexChip('Femenino', primary)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sexChip(String value, Color primary) {
+    final selected = _sex == value;
+    return InkWell(
+      onTap: () => setState(() => _sex = value),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: selected ? primary.withValues(alpha: 0.15) : null,
+          border: Border.all(color: selected ? primary : Colors.grey.shade400),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          value,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: selected ? primary : null,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBodyPage(Color primary) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Tus datos corporales',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Los usamos para calcular tus calorías y macros objetivo.',
+            style: TextStyle(color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 24),
+          TextFormField(
+            controller: _ageController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Edad',
+              prefixIcon: Icon(Icons.cake_outlined),
+              border: OutlineInputBorder(),
+              suffixText: 'años',
+            ),
+            validator: (v) {
+              final n = int.tryParse(v ?? '');
+              if (n == null || n < 12 || n > 100) return 'Edad entre 12 y 100';
+              return null;
+            },
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _weightController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Peso actual',
+              prefixIcon: Icon(Icons.monitor_weight_outlined),
+              border: OutlineInputBorder(),
+              suffixText: 'kg',
+            ),
+            validator: (v) {
+              final n = double.tryParse(v ?? '');
+              if (n == null || n < 30 || n > 300) return 'Peso no válido';
+              return null;
+            },
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _heightController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Altura',
+              prefixIcon: Icon(Icons.height),
+              border: OutlineInputBorder(),
+              suffixText: 'cm',
+            ),
+            validator: (v) {
+              final n = double.tryParse(v ?? '');
+              if (n == null || n < 100 || n > 250) return 'Altura no válida';
+              return null;
+            },
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Nivel de actividad',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          ...UserProfile.activityLevels.map((level) {
+            final selected = _activityLevel == level;
+            final subtitle = switch (level) {
+              'Sedentario' => 'Poco o nada de ejercicio',
+              'Ligero' => '1–3 días / semana',
+              'Moderado' => '3–5 días / semana',
+              'Activo' => '6–7 días / semana',
+              _ => 'Entrenamiento intenso diario',
+            };
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: selected ? primary : Colors.grey.shade300,
+                  ),
+                ),
+                selected: selected,
+                selectedTileColor: primary.withValues(alpha: 0.08),
+                title: Text(level),
+                subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
+                trailing: selected
+                    ? Icon(Icons.check_circle, color: primary)
+                    : null,
+                onTap: () => setState(() => _activityLevel = level),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGoalPage(Color primary) {
+    final macros = _previewMacros;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Tu objetivo',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Ajusta las calorías según lo que quieras lograr.',
+            style: TextStyle(color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 16),
+          ...UserProfile.goals.map((g) {
+            final selected = _goal == g;
+            final subtitle = switch (g) {
+              'Perder grasa' => 'Déficit ~15 % sobre tu gasto',
+              'Ganar músculo' => 'Superávit ~10 % sobre tu gasto',
+              _ => 'Mantener peso actual',
+            };
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: selected ? primary : Colors.grey.shade300,
+                  ),
+                ),
+                selected: selected,
+                selectedTileColor: primary.withValues(alpha: 0.08),
+                title: Text(g),
+                subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
+                trailing: selected
+                    ? Icon(Icons.check_circle, color: primary)
+                    : null,
+                onTap: () => setState(() => _goal = g),
+              ),
+            );
+          }),
+          const SizedBox(height: 24),
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  Text(
+                    'Tu plan diario estimado',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: primary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '$_previewCalories',
+                    style: TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.bold,
+                      color: primary,
+                    ),
+                  ),
+                  const Text('kcal / día', style: TextStyle(color: Colors.grey)),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _macroPreview('Prot', '${macros.protein} g', Colors.orange),
+                      _macroPreview('Carb', '${macros.carbs} g', Colors.blue),
+                      _macroPreview('Grasa', '${macros.fat} g', Colors.redAccent),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Podrás ajustar todo en tu perfil.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _macroPreview(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: color)),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+      ],
     );
   }
 }

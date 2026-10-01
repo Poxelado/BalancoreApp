@@ -25,6 +25,51 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     super.dispose();
   }
 
+  Future<void> _confirmDeleteAccount() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar cuenta'),
+        content: const Text(
+          'Se borrarán tu perfil, historial de peso, rutinas y registros diarios. '
+              'Esta acción no se puede deshacer.\n\n'
+              'Si iniciaste sesión hace rato, puede que debas volver a entrar antes de eliminar.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+
+    try {
+      final user = ref.read(authServiceProvider).currentUser;
+      if (user == null) return;
+      final uid = user.uid;
+      await ref.read(profileRepositoryProvider).deleteUserData(uid);
+      await ref.read(authServiceProvider).deleteAccount();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cuenta eliminada')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   void _openSettings() {
     showModalBottomSheet(
       context: context,
@@ -142,6 +187,33 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const SizedBox(height: 8),
                     const Divider(height: 1),
                     ListTile(
+                      leading: const Icon(Icons.privacy_tip_outlined),
+                      title: const Text('Privacidad'),
+                      subtitle: const Text(
+                        'Tus datos se guardan en tu cuenta de Firebase',
+                      ),
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (dCtx) => AlertDialog(
+                            title: const Text('Privacidad'),
+                            content: const Text(
+                              'Balancore almacena tu perfil, peso, rutinas y '
+                                  'registros diarios en Firestore asociados a tu usuario. '
+                                  'Puedes eliminar tu cuenta y esos datos desde Ajustes.\n\n'
+                                  'No vendemos tu información a terceros.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(dCtx),
+                                child: const Text('Entendido'),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                    ListTile(
                       leading: const Icon(Icons.logout, color: Colors.red),
                       title: const Text(
                         'Cerrar sesión',
@@ -150,6 +222,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       onTap: () async {
                         Navigator.pop(ctx);
                         await ref.read(authServiceProvider).signOut();
+                      },
+                    ),
+                    ListTile(
+                      leading:
+                      const Icon(Icons.delete_forever, color: Colors.red),
+                      title: const Text(
+                        'Eliminar cuenta',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                      subtitle: const Text(
+                        'Borra perfil y datos de forma permanente',
+                      ),
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        await _confirmDeleteAccount();
                       },
                     ),
                     const SizedBox(height: 8),
