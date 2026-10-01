@@ -224,14 +224,59 @@ class WeightEntry {
   }
 }
 
+class RoutineExercise {
+  final String exerciseId;
+  final String exerciseName;
+  final String muscleGroup;
+  final int sets;
+  final int reps;
+
+  const RoutineExercise({
+    required this.exerciseId,
+    required this.exerciseName,
+    this.muscleGroup = '',
+    this.sets = 3,
+    this.reps = 10,
+  });
+
+  Map<String, dynamic> toMap() => {
+    'exerciseId': exerciseId,
+    'exerciseName': exerciseName,
+    'muscleGroup': muscleGroup,
+    'sets': sets,
+    'reps': reps,
+  };
+
+  factory RoutineExercise.fromMap(Map<String, dynamic> map) {
+    return RoutineExercise(
+      exerciseId: map['exerciseId']?.toString() ?? '',
+      exerciseName: map['exerciseName'] ?? '',
+      muscleGroup: map['muscleGroup'] ?? '',
+      sets: map['sets'] ?? 3,
+      reps: map['reps'] ?? 10,
+    );
+  }
+
+  RoutineExercise copyWith({int? sets, int? reps, String? exerciseName}) {
+    return RoutineExercise(
+      exerciseId: exerciseId,
+      exerciseName: exerciseName ?? this.exerciseName,
+      muscleGroup: muscleGroup,
+      sets: sets ?? this.sets,
+      reps: reps ?? this.reps,
+    );
+  }
+}
+
 class RoutineDay {
-  final String day;
+  final String day; // Lunes ... Domingo
   final String title;
   final String duration;
   final int calories;
   final bool isRestDay;
   final String? description;
   final String? imageUrl;
+  final List<RoutineExercise> exercises;
 
   RoutineDay({
     required this.day,
@@ -241,6 +286,7 @@ class RoutineDay {
     this.isRestDay = false,
     this.description,
     this.imageUrl,
+    this.exercises = const [],
   });
 
   Map<String, dynamic> toMap() => {
@@ -251,9 +297,21 @@ class RoutineDay {
     'isRestDay': isRestDay,
     'description': description,
     'imageUrl': imageUrl,
+    'exercises': exercises.map((e) => e.toMap()).toList(),
   };
 
   factory RoutineDay.fromMap(Map<String, dynamic> map) {
+    final raw = map['exercises'];
+    final exercises = <RoutineExercise>[];
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is Map) {
+          exercises.add(
+            RoutineExercise.fromMap(Map<String, dynamic>.from(item)),
+          );
+        }
+      }
+    }
     return RoutineDay(
       day: map['day'] ?? '',
       title: map['title'] ?? '',
@@ -262,6 +320,27 @@ class RoutineDay {
       isRestDay: map['isRestDay'] ?? false,
       description: map['description'],
       imageUrl: map['imageUrl'],
+      exercises: exercises,
+    );
+  }
+
+  RoutineDay copyWith({
+    String? title,
+    String? duration,
+    int? calories,
+    bool? isRestDay,
+    String? description,
+    List<RoutineExercise>? exercises,
+  }) {
+    return RoutineDay(
+      day: day,
+      title: title ?? this.title,
+      duration: duration ?? this.duration,
+      calories: calories ?? this.calories,
+      isRestDay: isRestDay ?? this.isRestDay,
+      description: description ?? this.description,
+      imageUrl: imageUrl,
+      exercises: exercises ?? this.exercises,
     );
   }
 }

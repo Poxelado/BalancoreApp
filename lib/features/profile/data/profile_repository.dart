@@ -50,12 +50,22 @@ class ProfileRepository {
   Future<List<RoutineDay>> getRoutines(String uid) async {
     final snap = await _userDoc(uid).doc(uid).collection('routines').get();
     if (snap.docs.isEmpty) {
-      // Crear rutina por defecto (Lun-Dom)
-      return _defaultRoutines();
+      final defaults = _defaultRoutines();
+      await saveAllRoutines(uid, defaults);
+      return defaults;
     }
-    final list = snap.docs.map((d) => RoutineDay.fromMap(d.data())).toList();
-    // Ordenar por día de la semana
-    const order = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+    final list = snap.docs
+        .map((d) => RoutineDay.fromMap(d.data() as Map<String, dynamic>))
+        .toList();
+    const order = [
+      'Lunes',
+      'Martes',
+      'Miércoles',
+      'Jueves',
+      'Viernes',
+      'Sábado',
+      'Domingo'
+    ];
     list.sort((a, b) => order.indexOf(a.day).compareTo(order.indexOf(b.day)));
     return list;
   }
@@ -242,7 +252,7 @@ class ProfileRepository {
   /// Borra el documento de perfil y subcolecciones del usuario.
   Future<void> deleteUserData(String uid) async {
     final userRef = _userDoc(uid).doc(uid);
-    final subs = ['weightHistory', 'routines', 'dailyLogs', 'savedFoods', 'customExercises', 'favoriteExercises'];
+    final subs = ['weightHistory', 'routines', 'dailyLogs', 'savedFoods'];
     for (final name in subs) {
       final snap = await userRef.collection(name).get();
       if (snap.docs.isEmpty) continue;

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../training/presentation/screens/weekly_routine_screen.dart';
 import '../../../training/presentation/screens/exercise_library_screen.dart';
 
 class RoutineTab extends ConsumerStatefulWidget {
@@ -114,26 +115,45 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
         const SizedBox(height: 24),
 
 
-        // ─── Biblioteca de ejercicios ─────────────────────
+        // ─── Accesos entrenamiento ────────────────────────
         Card(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            leading: Icon(Icons.menu_book_outlined,
-                color: Theme.of(context).colorScheme.primary),
-            title: const Text(
-              'Biblioteca de ejercicios',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: const Text('Catálogo, favoritos y ejercicios propios'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const ExerciseLibraryScreen(),
-                ),
-              );
-            },
+          child: Column(
+            children: [
+              ListTile(
+                leading: Icon(Icons.calendar_view_week,
+                    color: Theme.of(context).colorScheme.primary),
+                title: const Text('Configurar semana',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text('Plantillas y ejercicios por día'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const WeeklyRoutineScreen(),
+                    ),
+                  ).then((_) => ref.invalidate(routinesProvider));
+                },
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: Icon(Icons.menu_book_outlined,
+                    color: Theme.of(context).colorScheme.primary),
+                title: const Text('Biblioteca de ejercicios',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text('Catálogo y favoritos'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ExerciseLibraryScreen(),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 24),
@@ -264,13 +284,16 @@ class _RoutineCard extends StatelessWidget {
             const Spacer(),
             if (!routine.isRestDay) ...[
               Text(
-                routine.duration,
+                routine.duration.isEmpty
+                    ? '${routine.exercises.length} ejercicios'
+                    : '${routine.duration} · ${routine.exercises.length} ej.',
                 style: const TextStyle(color: Colors.white70, fontSize: 14),
               ),
-              Text(
-                '${routine.calories} kcal',
-                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
-              ),
+              if (routine.calories > 0)
+                Text(
+                  '${routine.calories} kcal est.',
+                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                ),
             ] else
               const Text(
                 'Día de recuperación',
