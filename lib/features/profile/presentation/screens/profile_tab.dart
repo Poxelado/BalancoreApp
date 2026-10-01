@@ -256,6 +256,18 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
                               ? Colors.green
                               : primary,
                         ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ExerciseDetailScreen(
+                                exerciseId: e.exerciseId,
+                                exerciseName: e.exerciseName,
+                                muscleGroup: e.muscleGroup,
+                              ),
+                            ),
+                          );
+                        },
                       );
                     },
                   ),
