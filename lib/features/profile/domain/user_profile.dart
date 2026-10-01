@@ -691,6 +691,8 @@ class WorkoutExerciseLog {
   final String muscleGroup;
   final String notes;
   final List<WorkoutSetLog> sets;
+  /// Descanso entre series de este ejercicio (segundos).
+  final int restSeconds;
 
   const WorkoutExerciseLog({
     required this.exerciseId,
@@ -698,6 +700,7 @@ class WorkoutExerciseLog {
     this.muscleGroup = '',
     this.notes = '',
     this.sets = const [],
+    this.restSeconds = 60,
   });
 
   Map<String, dynamic> toMap() => {
@@ -706,6 +709,7 @@ class WorkoutExerciseLog {
     'muscleGroup': muscleGroup,
     'notes': notes,
     'sets': sets.map((s) => s.toMap()).toList(),
+    'restSeconds': restSeconds,
   };
 
   factory WorkoutExerciseLog.fromMap(Map<String, dynamic> map) {
@@ -724,12 +728,14 @@ class WorkoutExerciseLog {
       muscleGroup: _str(map['muscleGroup']),
       notes: _str(map['notes']),
       sets: sets,
+      restSeconds: map['restSeconds'] ?? 60,
     );
   }
 
   WorkoutExerciseLog copyWith({
     List<WorkoutSetLog>? sets,
     String? notes,
+    int? restSeconds,
   }) {
     return WorkoutExerciseLog(
       exerciseId: exerciseId,
@@ -737,6 +743,7 @@ class WorkoutExerciseLog {
       muscleGroup: muscleGroup,
       notes: notes ?? this.notes,
       sets: sets ?? this.sets,
+      restSeconds: restSeconds ?? this.restSeconds,
     );
   }
 
@@ -796,6 +803,7 @@ class WorkoutSession {
         exerciseName: e.exerciseName,
         muscleGroup: e.muscleGroup,
         notes: e.notes,
+        restSeconds: e.restSeconds, // ← ESTA LÍNEA NUEVA
         sets: [
           for (var i = 0; i < planned.length; i++)
             WorkoutSetLog(

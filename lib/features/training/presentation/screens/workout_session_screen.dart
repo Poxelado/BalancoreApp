@@ -255,7 +255,12 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
 
   void _startRest() {
     _restTimer?.cancel();
-    setState(() => _restRemaining = _restSecondsDefault);
+    // Usa el descanso configurado en la rutina para ESTE ejercicio
+    final exerciseRest = _session.exercises.isNotEmpty
+        ? _session.exercises[_exerciseIndex].restSeconds
+        : 60;
+    final seconds = exerciseRest > 0 ? exerciseRest : 60;
+    setState(() => _restRemaining = seconds);
     _restTimer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (!mounted) return;
       if (_restRemaining == null) {
