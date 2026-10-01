@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../profile/domain/user_profile.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
+import 'exercise_detail_screen.dart';
 
 const _kRestSecondsKey = 'balancore_rest_seconds';
 
@@ -675,27 +676,24 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(ex.exerciseName,
-                            style: const TextStyle(
-                                fontSize: 22, fontWeight: FontWeight.bold)),
-                        if (ex.muscleGroup.isNotEmpty)
-                          Text(ex.muscleGroup,
-                              style: TextStyle(
-                                  color: Colors.grey.shade500, fontSize: 13)),
-                        if (ex.notes.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              ex.notes,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontStyle: FontStyle.italic,
-                                color: Colors.grey.shade400,
+                        InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ExerciseDetailScreen(
+                                  exerciseId: ex.exerciseId,
+                                  exerciseName: ex.exerciseName,
+                                  muscleGroup: ex.muscleGroup,
+                                ),
                               ),
-                            ),
+                            );
+                          },
+                          child: Text(
+                            ex.exerciseName,
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                           ),
+                        )
                       ],
                     ),
                   ),

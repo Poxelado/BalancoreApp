@@ -8,6 +8,7 @@ import 'daily_history_screen.dart';
 import '../../../training/presentation/screens/workout_session_screen.dart';
 import '../../../training/presentation/screens/edit_workout_history_screen.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../training/presentation/screens/exercise_detail_screen.dart';
 
 class ProfileTab extends ConsumerStatefulWidget {
   const ProfileTab({super.key});
