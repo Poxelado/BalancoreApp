@@ -72,12 +72,12 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
     final favAsync = ref.watch(favoriteExerciseIdsProvider);
     final isFav = favAsync.valueOrNull?.contains(widget.exerciseId) ?? false;
 
-    final statsArgs = (
-    exerciseId: widget.exerciseId,
-    name: widget.exerciseName,
-    days: _periodDays > 365 ? 400 : _periodDays,
+    final statsKey = strengthStatsKey(
+      exerciseId: widget.exerciseId,
+      name: widget.exerciseName,
+      days: _periodDays > 365 ? 400 : _periodDays,
     );
-    final statsAsync = ref.watch(exerciseStrengthStatsProvider(statsArgs));
+    final statsAsync = ref.watch(exerciseStrengthStatsProvider(statsKey));
 
     return Scaffold(
       appBar: AppBar(
