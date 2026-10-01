@@ -266,6 +266,67 @@ class RoutineDay {
   }
 }
 
+class SavedFood {
+  final String id;
+  final String name;
+  final int calories;
+  final int proteinGrams;
+  final int carbsGrams;
+  final int fatGrams;
+  final String? defaultMealType;
+  final int useCount;
+  final String? updatedAt;
+
+  SavedFood({
+    required this.id,
+    required this.name,
+    required this.calories,
+    this.proteinGrams = 0,
+    this.carbsGrams = 0,
+    this.fatGrams = 0,
+    this.defaultMealType,
+    this.useCount = 0,
+    this.updatedAt,
+  });
+
+  Map<String, dynamic> toMap() => {
+    'name': name,
+    'calories': calories,
+    'proteinGrams': proteinGrams,
+    'carbsGrams': carbsGrams,
+    'fatGrams': fatGrams,
+    'defaultMealType': defaultMealType,
+    'useCount': useCount,
+    'updatedAt': updatedAt ?? DateTime.now().toIso8601String(),
+  };
+
+  factory SavedFood.fromMap(String id, Map<String, dynamic> map) {
+    return SavedFood(
+      id: id,
+      name: map['name'] ?? '',
+      calories: map['calories'] ?? 0,
+      proteinGrams: map['proteinGrams'] ?? 0,
+      carbsGrams: map['carbsGrams'] ?? 0,
+      fatGrams: map['fatGrams'] ?? 0,
+      defaultMealType: map['defaultMealType'],
+      useCount: map['useCount'] ?? 0,
+      updatedAt: map['updatedAt']?.toString(),
+    );
+  }
+
+  MealEntry toMeal({required String mealType, String? mealId}) {
+    return MealEntry(
+      id: mealId ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      name: name,
+      mealType: mealType,
+      calories: calories,
+      proteinGrams: proteinGrams,
+      carbsGrams: carbsGrams,
+      fatGrams: fatGrams,
+    );
+  }
+}
+
 class MealEntry {
   final String id;
   final String name;

@@ -40,3 +40,15 @@ FutureProvider.family<List<DailyLog>, int>((ref, days) async {
     days: days,
   );
 });
+
+final savedFoodsProvider = FutureProvider<List<SavedFood>>((ref) async {
+  final user = ref.watch(authStateProvider).value;
+  if (user == null) return [];
+  return ref.watch(profileRepositoryProvider).getSavedFoods(user.uid);
+});
+
+final recentMealsProvider = FutureProvider<List<MealEntry>>((ref) async {
+  final user = ref.watch(authStateProvider).value;
+  if (user == null) return [];
+  return ref.watch(profileRepositoryProvider).getRecentMeals(user.uid);
+});

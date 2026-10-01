@@ -178,10 +178,71 @@ class ProfileRepository {
   }
 
 
+
+  /// Actualiza una comida existente por id y recalcula totales.
+  Future<void> updateMeal(String uid, MealEntry updated) async {
+    final log = await getTodayLog(uid);
+    final meals = log.meals.map((m) {
+      return m.id == updated.id ? updated : m;
+    }).toList();
+    await _saveLogWithMeals(uid, meals);
+  }
+
+  // ─── Alimentos guardados (biblioteca personal) ──────────
+  CollectionReference _savedFoods(String uid) =>
+      _userDoc(uid).doc(uid).collection('savedFoods');
+
+  Future<List<SavedFood>> getSavedFoods(String uid) async {
+    final snap = await _savedFoods(uid).orderBy('name').get();
+    return snap.docs
+        .map((d) => SavedFood.fromMap(d.id, d.data() as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<String> saveFood(String uid, SavedFood food) async {
+    final data = food.toMap();
+    if (food.id.isEmpty) {
+      final ref = await _savedFoods(uid).add(data);
+      return ref.id;
+    }
+    await _savedFoods(uid).doc(food.id).set(data, SetOptions(merge: true));
+    return food.id;
+  }
+
+  Future<void> deleteSavedFood(String uid, String foodId) async {
+    await _savedFoods(uid).doc(foodId).delete();
+  }
+
+  Future<void> incrementFoodUse(String uid, String foodId) async {
+    final ref = _savedFoods(uid).doc(foodId);
+    await ref.set({
+      'useCount': FieldValue.increment(1),
+      'updatedAt': DateTime.now().toIso8601String(),
+    }, SetOptions(merge: true));
+  }
+
+  /// Comidas recientes de los últimos [days] días (únicas por nombre).
+  Future<List<MealEntry>> getRecentMeals(String uid, {int days = 14}) async {
+    final logs = await getDailyLogsHistory(uid, days: days);
+    final seen = <String>{};
+    final recent = <MealEntry>[];
+    for (final log in logs) {
+      for (final meal in log.meals) {
+        final key = meal.name.trim().toLowerCase();
+        if (key.isEmpty || seen.contains(key)) continue;
+        seen.add(key);
+        recent.add(meal);
+        if (recent.length >= 20) return recent;
+      }
+    }
+    return recent;
+  }
+
+
   /// Borra el documento de perfil y subcolecciones del usuario.
   Future<void> deleteUserData(String uid) async {
     final userRef = _userDoc(uid).doc(uid);
-    final subs = ['weightHistory', 'routines', 'dailyLogs'];
+    final subs = ['weightHistory', 'routines', 'dailyLogs', 'savedFoods'];
     for (final name in subs) {
       final snap = await userRef.collection(name).get();
       if (snap.docs.isEmpty) continue;
