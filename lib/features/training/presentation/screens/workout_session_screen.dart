@@ -133,6 +133,10 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
       _session,
     );
     ref.invalidate(todayWorkoutSessionProvider);
+    ref.invalidate(workoutHistoryProvider(30));
+    ref.invalidate(workoutHistoryProvider(90));
+    ref.invalidate(workoutHistoryProvider(180));
+    ref.invalidate(workoutHistoryProvider(365));
   }
 
   String _key(WorkoutExerciseLog ex, WorkoutSetLog s) =>

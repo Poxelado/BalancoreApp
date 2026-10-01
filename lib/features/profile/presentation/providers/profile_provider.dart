@@ -70,3 +70,17 @@ final todayRoutineProvider = FutureProvider<RoutineDay?>((ref) async {
     return null;
   }
 });
+
+
+final workoutHistoryProvider =
+FutureProvider.family<List<WorkoutSession>, int>((ref, days) async {
+  final user = ref.watch(authStateProvider).value;
+  if (user == null) return [];
+  final list = await ref
+      .watch(profileRepositoryProvider)
+      .getWorkoutHistory(user.uid, limit: 120);
+  final cutoff = DateTime.now().subtract(Duration(days: days));
+  return list
+      .where((s) => s.startedAt.isAfter(cutoff) || s.startedAt.isAtSameMomentAs(cutoff))
+      .toList();
+});
