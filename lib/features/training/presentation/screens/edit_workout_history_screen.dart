@@ -1,150 +1,274 @@
-import '../../profile/domain/user_profile.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../profile/domain/user_profile.dart';
+import '../../../profile/presentation/providers/profile_provider.dart';
 
-/// Punto de progreso de un ejercicio en una sesión.
-class StrengthPoint {
-  final DateTime date;
-  final String sessionId;
-  final double maxWeight;
-  final int repsAtMax;
-  final double volume; // sum(weight * reps) series con peso
-  final int completedSets;
+/// Editar una sesión ya guardada (historial).
+class EditWorkoutHistoryScreen extends ConsumerStatefulWidget {
+  final WorkoutSession session;
 
-  const StrengthPoint({
-    required this.date,
-    required this.sessionId,
-    required this.maxWeight,
-    required this.repsAtMax,
-    required this.volume,
-    required this.completedSets,
-  });
+  const EditWorkoutHistoryScreen({super.key, required this.session});
+
+  @override
+  ConsumerState<EditWorkoutHistoryScreen> createState() =>
+      _EditWorkoutHistoryScreenState();
 }
 
-class ExerciseStrengthStats {
-  final String exerciseId;
-  final String exerciseName;
-  final List<StrengthPoint> points; // orden cronológico
+class _EditWorkoutHistoryScreenState
+    extends ConsumerState<EditWorkoutHistoryScreen> {
+  late WorkoutSession _session;
+  late TextEditingController _sessionNotesCtrl;
+  late TextEditingController _titleCtrl;
+  bool _saving = false;
 
-  const ExerciseStrengthStats({
-    required this.exerciseId,
-    required this.exerciseName,
-    required this.points,
-  });
-
-  double get bestWeight {
-    if (points.isEmpty) return 0;
-    return points.map((p) => p.maxWeight).reduce((a, b) => a > b ? a : b);
+  @override
+  void initState() {
+    super.initState();
+    _session = widget.session;
+    _sessionNotesCtrl = TextEditingController(text: _session.notes);
+    _titleCtrl = TextEditingController(text: _session.title);
   }
 
-  StrengthPoint? get bestWeightPoint {
-    if (points.isEmpty) return null;
-    return points.reduce((a, b) => a.maxWeight >= b.maxWeight ? a : b);
+  @override
+  void dispose() {
+    _sessionNotesCtrl.dispose();
+    _titleCtrl.dispose();
+    super.dispose();
   }
 
-  double get bestVolume {
-    if (points.isEmpty) return 0;
-    return points.map((p) => p.volume).reduce((a, b) => a > b ? a : b);
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      final user = ref.read(authServiceProvider).currentUser;
+      if (user == null) return;
+
+      final toSave = WorkoutSession(
+        id: _session.id,
+        dayName: _session.dayName,
+        title: _titleCtrl.text.trim().isEmpty
+            ? _session.title
+            : _titleCtrl.text.trim(),
+        startedAt: _session.startedAt,
+        finishedAt: _session.finishedAt,
+        completed: _session.completed,
+        isPaused: _session.isPaused,
+        elapsedSeconds: _session.elapsedSeconds,
+        notes: _sessionNotesCtrl.text.trim(),
+        exercises: _session.exercises,
+      );
+
+      await ref
+          .read(profileRepositoryProvider)
+          .saveWorkoutSession(user.uid, toSave);
+
+      for (final d in [30, 90, 180, 365]) {
+        ref.invalidate(workoutHistoryProvider(d));
+      }
+      ref.invalidate(activeWorkoutSessionProvider);
+
+      if (mounted) Navigator.pop(context, true);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
-  double get avgVolume {
-    if (points.isEmpty) return 0;
-    final s = points.fold<double>(0, (a, p) => a + p.volume);
-    return s / points.length;
-  }
-
-  double get totalVolume =>
-      points.fold<double>(0, (a, p) => a + p.volume);
-
-  List<StrengthPoint> inPeriod(int days) {
-    final cutoff = DateTime.now().subtract(Duration(days: days));
-    return points.where((p) => !p.date.isBefore(cutoff)).toList();
-  }
-}
-
-class StrengthStatsBuilder {
-  /// Agrega historial de sesiones → stats por exerciseId.
-  static Map<String, ExerciseStrengthStats> fromSessions(
-      List<WorkoutSession> sessions,
-      ) {
-    // exerciseId -> name, list of points
-    final names = <String, String>{};
-    final byEx = <String, List<StrengthPoint>>{};
-
-    final ordered = List<WorkoutSession>.from(sessions)
-      ..sort((a, b) => a.startedAt.compareTo(b.startedAt));
-
-    for (final session in ordered) {
-      for (final ex in session.exercises) {
-        final id = ex.exerciseId.isNotEmpty
-            ? ex.exerciseId
-            : 'name:${ex.exerciseName}';
-        names[id] = ex.exerciseName;
-
-        double maxW = 0;
-        int repsAtMax = 0;
-        double volume = 0;
-        int completed = 0;
-
-        for (final s in ex.sets) {
-          final w = s.weight;
-          final r = s.reps;
-          if (s.completed || w > 0) {
-            volume += w * r;
-            if (s.completed) completed++;
-            if (w > maxW) {
-              maxW = w;
-              repsAtMax = r;
-            }
-          }
-        }
-
-        // Solo registrar si hubo algo levantado o series hechas
-        if (maxW <= 0 && completed == 0 && volume <= 0) continue;
-
-        byEx.putIfAbsent(id, () => []);
-        byEx[id]!.add(
-          StrengthPoint(
-            date: session.startedAt,
-            sessionId: session.id,
-            maxWeight: maxW,
-            repsAtMax: repsAtMax,
-            volume: volume,
-            completedSets: completed,
+  Future<void> _editExerciseNotes(int index) async {
+    final ex = _session.exercises[index];
+    final ctrl = TextEditingController(text: ex.notes);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Notas · ${ex.exerciseName}'),
+        content: TextField(
+          controller: ctrl,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            hintText: 'Notas de este ejercicio...',
+            border: OutlineInputBorder(),
           ),
-        );
-      }
-    }
-
-    return {
-      for (final e in byEx.entries)
-        e.key: ExerciseStrengthStats(
-          exerciseId: e.key,
-          exerciseName: names[e.key] ?? e.key,
-          points: e.value,
         ),
-    };
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final list = List<WorkoutExerciseLog>.from(_session.exercises);
+    list[index] = ex.copyWith(notes: ctrl.text.trim());
+    setState(() => _session = _session.copyWith(exercises: list));
   }
 
-  static ExerciseStrengthStats? forExercise(
-      List<WorkoutSession> sessions, {
-        required String exerciseId,
-        String? exerciseName,
-      }) {
-    final all = fromSessions(sessions);
-    if (all.containsKey(exerciseId)) return all[exerciseId];
-    if (exerciseName != null) {
-      final key = 'name:$exerciseName';
-      if (all.containsKey(key)) return all[key];
-      // match by name
-      for (final s in all.values) {
-        if (s.exerciseName.toLowerCase() == exerciseName.toLowerCase()) {
-          return s;
-        }
-      }
-    }
-    return ExerciseStrengthStats(
-      exerciseId: exerciseId,
-      exerciseName: exerciseName ?? exerciseId,
-      points: const [],
+  Future<void> _editSet(int exIndex, int setIndex) async {
+    final s = _session.exercises[exIndex].sets[setIndex];
+    final wCtrl = TextEditingController(
+      text: s.weight > 0 ? '${s.weight}' : '',
+    );
+    final rCtrl = TextEditingController(text: '${s.reps}');
+    var completed = s.completed;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: Text('Serie ${s.setNumber}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: wCtrl,
+                keyboardType:
+                const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Peso (kg)'),
+              ),
+              TextField(
+                controller: rCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Reps'),
+              ),
+              SwitchListTile(
+                title: const Text('Completada'),
+                value: completed,
+                contentPadding: EdgeInsets.zero,
+                onChanged: (v) => setLocal(() => completed = v),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true) return;
+
+    final exercises = List<WorkoutExerciseLog>.from(_session.exercises);
+    final sets = List<WorkoutSetLog>.from(exercises[exIndex].sets);
+    sets[setIndex] = s.copyWith(
+      weight: double.tryParse(wCtrl.text.replaceAll(',', '.')) ?? 0,
+      reps: int.tryParse(rCtrl.text) ?? s.reps,
+      completed: completed,
+    );
+    exercises[exIndex] = exercises[exIndex].copyWith(sets: sets);
+    setState(() => _session = _session.copyWith(exercises: exercises));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Editar entrenamiento'),
+        backgroundColor: primary,
+        foregroundColor: Colors.white,
+        actions: [
+          TextButton(
+            onPressed: _saving ? null : _save,
+            child: _saving
+                ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 2,
+              ),
+            )
+                : const Text(
+              'Guardar',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          TextField(
+            controller: _titleCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Título',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _sessionNotesCtrl,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Notas de la sesión',
+              border: OutlineInputBorder(),
+              hintText: 'Cómo te sentiste, etc.',
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Ejercicios',
+            style: TextStyle(fontWeight: FontWeight.bold, color: primary),
+          ),
+          const SizedBox(height: 8),
+          ..._session.exercises.asMap().entries.map((entry) {
+            final i = entry.key;
+            final e = entry.value;
+            return Card(
+              margin: const EdgeInsets.only(bottom: 10),
+              child: ExpansionTile(
+                title: Text(
+                  e.exerciseName,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  e.notes.isEmpty
+                      ? '${e.completedSets}/${e.sets.length} series'
+                      : '📝 ${e.notes}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.notes),
+                  onPressed: () => _editExerciseNotes(i),
+                ),
+                children: [
+                  ...e.sets.asMap().entries.map((se) {
+                    final si = se.key;
+                    final s = se.value;
+                    return ListTile(
+                      dense: true,
+                      title: Text(
+                        'Serie ${s.setNumber}: ${s.weight} kg × ${s.reps}',
+                      ),
+                      trailing: Icon(
+                        s.completed
+                            ? Icons.check_circle
+                            : Icons.check_circle_outline,
+                        color: s.completed ? Colors.green : Colors.grey,
+                        size: 20,
+                      ),
+                      onTap: () => _editSet(i, si),
+                    );
+                  }),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 }

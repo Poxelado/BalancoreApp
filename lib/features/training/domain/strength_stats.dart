@@ -1,4 +1,4 @@
-import '../../../profile/domain/user_profile.dart';
+import '../../profile/domain/user_profile.dart';
 
 /// Punto de progreso de un ejercicio en una sesión.
 class StrengthPoint {
@@ -6,7 +6,7 @@ class StrengthPoint {
   final String sessionId;
   final double maxWeight;
   final int repsAtMax;
-  final double volume; // sum(weight * reps) series con peso
+  final double volume;
   final int completedSets;
 
   const StrengthPoint({
@@ -22,7 +22,7 @@ class StrengthPoint {
 class ExerciseStrengthStats {
   final String exerciseId;
   final String exerciseName;
-  final List<StrengthPoint> points; // orden cronológico
+  final List<StrengthPoint> points;
 
   const ExerciseStrengthStats({
     required this.exerciseId,
@@ -51,8 +51,7 @@ class ExerciseStrengthStats {
     return s / points.length;
   }
 
-  double get totalVolume =>
-      points.fold<double>(0, (a, p) => a + p.volume);
+  double get totalVolume => points.fold<double>(0, (a, p) => a + p.volume);
 
   List<StrengthPoint> inPeriod(int days) {
     final cutoff = DateTime.now().subtract(Duration(days: days));
@@ -61,11 +60,9 @@ class ExerciseStrengthStats {
 }
 
 class StrengthStatsBuilder {
-  /// Agrega historial de sesiones → stats por exerciseId.
   static Map<String, ExerciseStrengthStats> fromSessions(
       List<WorkoutSession> sessions,
       ) {
-    // exerciseId -> name, list of points
     final names = <String, String>{};
     final byEx = <String, List<StrengthPoint>>{};
 
@@ -97,7 +94,6 @@ class StrengthStatsBuilder {
           }
         }
 
-        // Solo registrar si hubo algo levantado o series hechas
         if (maxW <= 0 && completed == 0 && volume <= 0) continue;
 
         byEx.putIfAbsent(id, () => []);
@@ -124,23 +120,30 @@ class StrengthStatsBuilder {
     };
   }
 
-  static ExerciseStrengthStats? forExercise(
+  /// Siempre devuelve un objeto (lista vacía si no hay datos).
+  static ExerciseStrengthStats forExercise(
       List<WorkoutSession> sessions, {
         required String exerciseId,
         String? exerciseName,
       }) {
     final all = fromSessions(sessions);
-    if (all.containsKey(exerciseId)) return all[exerciseId];
-    if (exerciseName != null) {
+
+    if (all.containsKey(exerciseId)) {
+      return all[exerciseId]!;
+    }
+
+    if (exerciseName != null && exerciseName.isNotEmpty) {
       final key = 'name:$exerciseName';
-      if (all.containsKey(key)) return all[key];
-      // match by name
+      if (all.containsKey(key)) {
+        return all[key]!;
+      }
       for (final s in all.values) {
         if (s.exerciseName.toLowerCase() == exerciseName.toLowerCase()) {
           return s;
         }
       }
     }
+
     return ExerciseStrengthStats(
       exerciseId: exerciseId,
       exerciseName: exerciseName ?? exerciseId,

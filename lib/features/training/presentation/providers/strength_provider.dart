@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import '../../domain/strength_stats.dart';
 
-/// Args: "exerciseId|name|days"  (evita problemas con records en family)
+/// Key: "exerciseId|name|days"
 final exerciseStrengthStatsProvider =
 FutureProvider.family<ExerciseStrengthStats, String>((ref, key) async {
   final parts = key.split('|');
@@ -11,10 +11,11 @@ FutureProvider.family<ExerciseStrengthStats, String>((ref, key) async {
   final days = parts.length > 2 ? int.tryParse(parts[2]) ?? 90 : 90;
 
   final sessions = await ref.watch(workoutHistoryProvider(days).future);
+  // forExercise siempre devuelve ExerciseStrengthStats (nunca null)
   return StrengthStatsBuilder.forExercise(
     sessions,
     exerciseId: exerciseId,
-    exerciseName: name,
+    exerciseName: name.isEmpty ? null : name,
   );
 });
 
