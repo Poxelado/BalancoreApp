@@ -665,7 +665,8 @@ class WorkoutSession {
     return names[n.weekday - 1];
   }
 
-  factory WorkoutSession.fromRoutine(RoutineDay routine) {
+  factory WorkoutSession.fromRoutine(RoutineDay routine, {DateTime? date}) {
+    final d = date ?? DateTime.now();
     final exercises = routine.exercises
         .map(
           (e) => WorkoutExerciseLog(
@@ -686,12 +687,30 @@ class WorkoutSession {
         .toList();
 
     return WorkoutSession(
-      id: dateKey(),
+      id: dateKey(d),
       dayName: routine.day,
       title: routine.title,
       startedAt: DateTime.now(),
       exercises: exercises,
     );
+  }
+
+  /// Fecha del día de la semana dentro de la semana actual.
+  static DateTime dateOfWeekday(String dayName) {
+    const names = [
+      'Lunes',
+      'Martes',
+      'Miércoles',
+      'Jueves',
+      'Viernes',
+      'Sábado',
+      'Domingo'
+    ];
+    final target = names.indexOf(dayName) + 1;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (target < 1) return today;
+    return today.add(Duration(days: target - now.weekday));
   }
 
   Map<String, dynamic> toMap() => {

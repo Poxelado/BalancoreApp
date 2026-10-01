@@ -6,6 +6,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../training/presentation/screens/weekly_routine_screen.dart';
 import '../../../training/presentation/screens/exercise_library_screen.dart';
 import '../../../training/presentation/screens/edit_routine_day_screen.dart';
+import '../../../training/presentation/screens/workout_session_screen.dart';
 
 class RoutineTab extends ConsumerStatefulWidget {
   const RoutineTab({super.key});
@@ -36,18 +37,149 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
     ref.invalidate(todayLogProvider);
   }
 
+  Future<void> _startWorkout(RoutineDay day) async {
+    if (day.isRestDay) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Este día es de descanso')),
+      );
+      return;
+    }
+    if (day.exercises.isEmpty) {
+      final go = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(day.day),
+          content: const Text(
+            'Este día no tiene ejercicios.\n¿Quieres editarlo ahora?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Editar'),
+            ),
+          ],
+        ),
+      );
+      if (go == true && mounted) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => EditRoutineDayScreen(day: day)),
+        );
+        ref.invalidate(routinesProvider);
+      }
+      return;
+    }
+
+    final sessionDate = WorkoutSession.dateOfWeekday(day.day);
+    final key = WorkoutSession.dateKey(sessionDate);
+    final user = ref.read(authServiceProvider).currentUser;
+    WorkoutSession? existing;
+    if (user != null) {
+      existing = await ref
+          .read(profileRepositoryProvider)
+          .getWorkoutSession(user.uid, key);
+      if (existing != null && existing.completed) {
+        existing = null; // nueva sesión si ya terminó
+      }
+    }
+
+    if (!mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => WorkoutSessionScreen(
+          routine: day,
+          existing: existing,
+          sessionDate: sessionDate,
+        ),
+      ),
+    );
+    ref.invalidate(todayWorkoutSessionProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
     final logAsync = ref.watch(todayLogProvider);
     final routinesAsync = ref.watch(routinesProvider);
+    final primary = Theme.of(context).colorScheme.primary;
+    final todayName = WorkoutSession.weekdayName();
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // ─── Carrusel pequeño: Agua / Sueño ───────────────
+        // ═══ 1) RUTINA SEMANAL (arriba de todo) ═══════════
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Tu rutina semanal',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: primary,
+                ),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Editar semana',
+              icon: Icon(Icons.edit, color: primary),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const WeeklyRoutineScreen(),
+                  ),
+                ).then((_) => ref.invalidate(routinesProvider));
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 250,
+          child: routinesAsync.when(
+            loading: () => Center(child: CircularProgressIndicator(color: primary)),
+            error: (e, _) => Text('Error: $e'),
+            data: (routines) {
+              if (routines.isEmpty) {
+                return const Center(child: Text('No hay rutinas'));
+              }
+              // Empezar en el día de hoy si existe
+              final todayIndex = routines.indexWhere((r) => r.day == todayName);
+              return PageView.builder(
+                controller: PageController(
+                  viewportFraction: 0.88,
+                  initialPage: todayIndex >= 0 ? todayIndex : 0,
+                ),
+                itemCount: routines.length,
+                itemBuilder: (context, index) {
+                  final r = routines[index];
+                  final isToday = r.day == todayName;
+                  return _RoutineCard(
+                    routine: r,
+                    isToday: isToday,
+                    onTap: () => _showDayPreview(context, ref, r),
+                    onStart: r.isRestDay ? null : () => _startWorkout(r),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // ═══ 2) Agua / Sueño ══════════════════════════════
         Text(
           'Hoy',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: primary,
+          ),
         ),
         const SizedBox(height: 8),
         SizedBox(
@@ -79,18 +211,22 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
                           icon: Icons.bedtime,
                           iconColor: Colors.indigo,
                           title: 'Sueño',
-                          value: '${log.sleepHours.toStringAsFixed(1)} / 8 hrs',
-                          onMinus: log.sleepHours >= 0.5
-                              ? () => _updateSleep(log.sleepHours - 0.5)
+                          value: '${log.sleepHours.toStringAsFixed(1)} h',
+                          onMinus: log.sleepHours > 0
+                              ? () => _updateSleep(
+                            (log.sleepHours - 0.5).clamp(0, 24),
+                          )
                               : null,
-                          onPlus: log.sleepHours < 24
-                              ? () => _updateSleep(log.sleepHours + 0.5)
+                          onPlus: log.sleepHours < 16
+                              ? () => _updateSleep(
+                            (log.sleepHours + 0.5).clamp(0, 24),
+                          )
                               : null,
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(2, (i) {
@@ -100,8 +236,8 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
                         margin: const EdgeInsets.symmetric(horizontal: 3),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: _habitsPage == i
-                              ? Theme.of(context).colorScheme.primary
+                          color: i == _habitsPage
+                              ? primary
                               : Colors.grey.shade300,
                         ),
                       );
@@ -112,82 +248,30 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
             },
           ),
         ),
-
         const SizedBox(height: 24),
 
-
-        // ─── Accesos entrenamiento ────────────────────────
+        // ═══ 3) Biblioteca ════════════════════════════════
         Card(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: Column(
-            children: [
-              ListTile(
-                leading: Icon(Icons.calendar_view_week,
-                    color: Theme.of(context).colorScheme.primary),
-                title: const Text('Configurar semana',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Plantillas y ejercicios por día'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const WeeklyRoutineScreen(),
-                    ),
-                  ).then((_) => ref.invalidate(routinesProvider));
-                },
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: Icon(Icons.menu_book_outlined,
-                    color: Theme.of(context).colorScheme.primary),
-                title: const Text('Biblioteca de ejercicios',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Catálogo y favoritos'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const ExerciseLibraryScreen(),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-
-        // ─── Carrusel grande: Rutina semanal ──────────────
-        Text(
-          'Tu rutina semanal',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 220,
-          child: routinesAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Text('Error: $e'),
-            data: (routines) {
-              if (routines.isEmpty) {
-                return const Center(child: Text('No hay rutinas'));
-              }
-              return PageView.builder(
-                controller: PageController(viewportFraction: 0.85),
-                itemCount: routines.length,
-                itemBuilder: (context, index) {
-                  final r = routines[index];
-                  return _RoutineCard(
-                    routine: r,
-                    onTap: () => _showDayPreview(context, ref, r),
-                  );
-                },
+          child: ListTile(
+            leading: Icon(Icons.menu_book_outlined, color: primary),
+            title: const Text(
+              'Biblioteca de ejercicios',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: const Text('Catálogo, favoritos y ejercicios propios'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ExerciseLibraryScreen(),
+                ),
               );
             },
           ),
         ),
+        const SizedBox(height: 12),
       ],
     );
   }
@@ -454,15 +538,28 @@ class _HabitCard extends StatelessWidget {
 class _RoutineCard extends StatelessWidget {
   final RoutineDay routine;
   final VoidCallback? onTap;
+  final VoidCallback? onStart;
+  final bool isToday;
 
-  const _RoutineCard({required this.routine, this.onTap});
+  const _RoutineCard({
+    required this.routine,
+    this.onTap,
+    this.onStart,
+    this.isToday = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: isToday
+            ? BorderSide(color: Colors.white.withValues(alpha: 0.8), width: 2)
+            : BorderSide.none,
+      ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -472,24 +569,53 @@ class _RoutineCard extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: routine.isRestDay
-                  ? [Colors.blueGrey.shade300, Colors.blueGrey.shade500]
-                  : [Theme.of(context).colorScheme.primary, Theme.of(context).colorScheme.primary],
+                  ? [Colors.blueGrey.shade400, Colors.blueGrey.shade600]
+                  : [primary, primary],
             ),
           ),
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                routine.day,
-                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              Row(
+                children: [
+                  Text(
+                    routine.day,
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                  if (isToday) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'HOY',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  Icon(
+                    Icons.touch_app,
+                    color: Colors.white.withValues(alpha: 0.7),
+                    size: 16,
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
-                routine.title,
+                routine.isRestDay ? 'Descanso' : routine.title,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 26,
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -499,26 +625,30 @@ class _RoutineCard extends StatelessWidget {
                   routine.duration.isEmpty
                       ? '${routine.exercises.length} ejercicios'
                       : '${routine.duration} · ${routine.exercises.length} ej.',
-                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
                 ),
-                if (routine.calories > 0)
-                  Text(
-                    '${routine.calories} kcal est.',
-                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: onStart,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: primary,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    icon: const Icon(Icons.play_arrow, size: 20),
+                    label: const Text(
+                      'Empezar entrenamiento',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
+                ),
               ] else
                 const Text(
                   'Día de recuperación',
                   style: TextStyle(color: Colors.white70, fontSize: 14),
                 ),
-              Align(
-                alignment: Alignment.bottomRight,
-                child: Icon(
-                  Icons.touch_app,
-                  color: Colors.white.withValues(alpha: 0.7),
-                  size: 18,
-                ),
-              ),
             ],
           ),
         ),

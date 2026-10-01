@@ -7,11 +7,13 @@ import '../../../profile/presentation/providers/profile_provider.dart';
 class WorkoutSessionScreen extends ConsumerStatefulWidget {
   final RoutineDay routine;
   final WorkoutSession? existing;
+  final DateTime? sessionDate;
 
   const WorkoutSessionScreen({
     super.key,
     required this.routine,
     this.existing,
+    this.sessionDate,
   });
 
   @override
@@ -29,7 +31,10 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
     if (widget.existing != null && !widget.existing!.completed) {
       _session = widget.existing!;
     } else {
-      _session = WorkoutSession.fromRoutine(widget.routine);
+      _session = WorkoutSession.fromRoutine(
+        widget.routine,
+        date: widget.sessionDate,
+      );
     }
   }
 
