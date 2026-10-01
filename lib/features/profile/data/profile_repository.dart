@@ -242,7 +242,7 @@ class ProfileRepository {
   /// Borra el documento de perfil y subcolecciones del usuario.
   Future<void> deleteUserData(String uid) async {
     final userRef = _userDoc(uid).doc(uid);
-    final subs = ['weightHistory', 'routines', 'dailyLogs', 'savedFoods'];
+    final subs = ['weightHistory', 'routines', 'dailyLogs', 'savedFoods', 'customExercises', 'favoriteExercises'];
     for (final name in subs) {
       final snap = await userRef.collection(name).get();
       if (snap.docs.isEmpty) continue;
