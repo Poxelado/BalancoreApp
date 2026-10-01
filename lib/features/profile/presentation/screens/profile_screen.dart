@@ -1,11 +1,12 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/theme_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/profile_provider.dart';
 import 'profile_tab.dart';
 import 'routine_tab.dart';
 import 'edit_profile_screen.dart';
-import '../providers/profile_provider.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -16,8 +17,6 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   int _currentIndex = 0;
-
-  // ─── Estado local de Calorías (aún no en Firestore) ─────
   final _addCalorieController = TextEditingController();
 
   @override
@@ -29,37 +28,136 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void _openSettings() {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'Ajustes',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        return Consumer(
+          builder: (context, ref, _) {
+            final prefs = ref.watch(themePreferencesProvider);
+            final primary = Theme.of(context).colorScheme.primary;
+
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text(
+                        'Ajustes',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Color de la app',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.color
+                                ?.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: AppColorTheme.values.map((colorTheme) {
+                          final selected = prefs.colorTheme == colorTheme;
+                          return GestureDetector(
+                            onTap: () {
+                              ref
+                                  .read(themePreferencesProvider.notifier)
+                                  .setColorTheme(colorTheme);
+                            },
+                            child: Column(
+                              children: [
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: colorTheme.primary,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: selected
+                                          ? Colors.white
+                                          : Colors.transparent,
+                                      width: 3,
+                                    ),
+                                    boxShadow: selected
+                                        ? [
+                                      BoxShadow(
+                                        color: colorTheme.primary
+                                            .withValues(alpha: 0.45),
+                                        blurRadius: 8,
+                                        spreadRadius: 1,
+                                      ),
+                                    ]
+                                        : null,
+                                  ),
+                                  child: selected
+                                      ? const Icon(
+                                    Icons.check,
+                                    color: Colors.white,
+                                    size: 22,
+                                  )
+                                      : null,
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  colorTheme.label,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: selected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                    color: selected ? primary : null,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.logout, color: Colors.red),
+                      title: const Text(
+                        'Cerrar sesión',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        await ref.read(authServiceProvider).signOut();
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                 ),
               ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.logout, color: Colors.red),
-                title: const Text(
-                  'Cerrar sesión',
-                  style: TextStyle(color: Colors.red),
-                ),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  await ref.read(authServiceProvider).signOut();
-                },
-              ),
-              // Aquí irán más opciones más adelante
-              const SizedBox(height: 8),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -68,14 +166,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(userProfileProvider).value;
+    final themePrefs = ref.watch(themePreferencesProvider);
+    final primary = Theme.of(context).colorScheme.primary;
     final isProfileTab = _currentIndex == 0;
     final username = (profile?.username?.isNotEmpty == true)
         ? '@${profile!.username}'
         : '@usuario';
 
+    final isDark = themePrefs.themeMode == ThemeMode.dark ||
+        (themePrefs.themeMode == ThemeMode.system &&
+            MediaQuery.platformBrightnessOf(context) == Brightness.dark);
+
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF6B1228),
+        backgroundColor: primary,
         foregroundColor: Colors.white,
         centerTitle: !isProfileTab,
         title: isProfileTab
@@ -96,6 +200,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
         actions: isProfileTab
             ? [
+          // Solo visible en el apartado de perfil
+          IconButton(
+            icon: Icon(
+              isDark
+                  ? Icons.light_mode_outlined
+                  : Icons.dark_mode_outlined,
+              color: Colors.white,
+            ),
+            tooltip: isDark ? 'Tema claro' : 'Tema oscuro',
+            onPressed: () {
+              ref
+                  .read(themePreferencesProvider.notifier)
+                  .toggleLightDark();
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.edit_outlined, color: Colors.white),
             tooltip: 'Editar perfil',
@@ -110,7 +229,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.settings_outlined, color: Colors.white),
+            icon:
+            const Icon(Icons.settings_outlined, color: Colors.white),
             tooltip: 'Ajustes',
             onPressed: _openSettings,
           ),
@@ -120,12 +240,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       body: _buildPage(_currentIndex),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        selectedItemColor: const Color(0xFF6B1228),
+        selectedItemColor: primary,
         onTap: (i) => setState(() => _currentIndex = i),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
-          BottomNavigationBarItem(icon: Icon(Icons.pie_chart), label: 'Calorías'),
-          BottomNavigationBarItem(icon: Icon(Icons.fitness_center), label: 'Rutina'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.pie_chart),
+            label: 'Calorías',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.fitness_center),
+            label: 'Rutina',
+          ),
         ],
       ),
     );
@@ -148,10 +274,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final logAsync = ref.watch(todayLogProvider);
     final profile = ref.watch(userProfileProvider).value;
     final target = profile?.targetCalories ?? 2000;
+    final primary = Theme.of(context).colorScheme.primary;
 
     return logAsync.when(
-      loading: () => const Center(
-        child: CircularProgressIndicator(color: Color(0xFF6B1228)),
+      loading: () => Center(
+        child: CircularProgressIndicator(color: primary),
       ),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (log) {
@@ -164,12 +291,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           padding: const EdgeInsets.all(16),
           child: ListView(
             children: [
-              const Text(
+              Text(
                 'Resumen Nutricional del Día',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF6B1228),
+                  color: primary,
                 ),
               ),
               const SizedBox(height: 16),
@@ -195,7 +322,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 value: progress,
                                 strokeWidth: 12,
                                 backgroundColor: Colors.grey.shade200,
-                                color: const Color(0xFF6B1228),
+                                color: primary,
                               ),
                             ),
                             Column(
@@ -227,13 +354,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           children: [
                             Text(
                               'Meta: $target kcal',
-                              style: const TextStyle(fontWeight: FontWeight.w600),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             const SizedBox(height: 6),
                             Text(
                               'Restantes: ${remaining >= 0 ? remaining : 0} kcal',
                               style: TextStyle(
-                                color: remaining < 0 ? Colors.red : Colors.green,
+                                color:
+                                remaining < 0 ? Colors.red : Colors.green,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -248,7 +378,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _macroChip('Proteínas', '${log.proteinGrams} g', Colors.orange),
+                  _macroChip(
+                    'Proteínas',
+                    '${log.proteinGrams} g',
+                    Colors.orange,
+                  ),
                   _macroChip('Carbos', '${log.carbsGrams} g', Colors.blue),
                   _macroChip('Grasas', '${log.fatGrams} g', Colors.redAccent),
                 ],
@@ -269,7 +403,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const SizedBox(width: 12),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6B1228),
+                      backgroundColor: primary,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 16,
@@ -282,14 +416,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       final user = ref.read(authServiceProvider).currentUser;
                       if (user == null) return;
 
-                      // Guardar en Firestore (suma a lo de hoy)
                       final newTotal = log.consumedCalories + v;
                       await ref.read(profileRepositoryProvider).updateTodayLog(
                         user.uid,
                         consumedCalories: newTotal,
                       );
 
-                      // Refrescar datos
                       ref.invalidate(todayLogProvider);
                       _addCalorieController.clear();
                     },

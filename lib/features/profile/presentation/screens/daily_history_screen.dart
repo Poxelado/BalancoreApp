@@ -20,7 +20,7 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Historial diario'),
-        backgroundColor: const Color(0xFF6B1228),
+        backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
       ),
       body: Column(
@@ -45,8 +45,8 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
           const Divider(height: 1),
           Expanded(
             child: historyAsync.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(color: Color(0xFF6B1228)),
+              loading: () => Center(
+                child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
               ),
               error: (e, _) => Center(child: Text('Error: $e')),
               data: (logs) {
@@ -85,7 +85,7 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
       child: ChoiceChip(
         label: Text(label),
         selected: selected,
-        selectedColor: const Color(0xFF6B1228),
+        selectedColor: Theme.of(context).colorScheme.primary,
         labelStyle: TextStyle(
           color: selected ? Colors.white : Colors.black87,
           fontWeight: FontWeight.w600,
@@ -123,10 +123,10 @@ class _DayCard extends StatelessWidget {
           children: [
             Text(
               _dateLabel,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 15,
-                color: Color(0xFF6B1228),
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
             const SizedBox(height: 12),

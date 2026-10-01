@@ -6,7 +6,6 @@ import 'weight_history_screen.dart';
 import 'edit_profile_screen.dart';
 import 'daily_history_screen.dart';
 
-
 class ProfileTab extends ConsumerWidget {
   const ProfileTab({super.key});
 
@@ -23,10 +22,11 @@ class ProfileTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(userProfileProvider);
+    final primary = Theme.of(context).colorScheme.primary;
 
     return profileAsync.when(
-      loading: () => const Center(
-        child: CircularProgressIndicator(color: Color(0xFF6B1228)),
+      loading: () => Center(
+        child: CircularProgressIndicator(color: primary),
       ),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (profile) {
@@ -53,14 +53,13 @@ class ProfileTab extends ConsumerWidget {
                       },
                       child: CircleAvatar(
                         radius: 40,
-                        backgroundColor:
-                        const Color(0xFF6B1228).withValues(alpha: 0.15),
+                        backgroundColor: primary.withValues(alpha: 0.15),
                         child: Text(
                           _initials(profile),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF6B1228),
+                            color: primary,
                           ),
                         ),
                       ),
@@ -120,7 +119,7 @@ class ProfileTab extends ConsumerWidget {
               ),
             ),
 
-            // ─── Botones Próximamente | Peso ───────────────
+            // ─── Botones Historial | Peso ──────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -139,8 +138,8 @@ class ProfileTab extends ConsumerWidget {
                         icon: const Icon(Icons.history, size: 18),
                         label: const Text('Historial'),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF6B1228),
-                          side: const BorderSide(color: Color(0xFF6B1228)),
+                          foregroundColor: primary,
+                          side: BorderSide(color: primary),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
@@ -159,8 +158,8 @@ class ProfileTab extends ConsumerWidget {
                         icon: const Icon(Icons.monitor_weight_outlined, size: 18),
                         label: const Text('Peso'),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF6B1228),
-                          side: const BorderSide(color: Color(0xFF6B1228)),
+                          foregroundColor: primary,
+                          side: BorderSide(color: primary),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
@@ -176,19 +175,19 @@ class ProfileTab extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 child: Row(
                   children: [
-                    const Text(
+                    Text(
                       'Historial de entrenamientos',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF6B1228),
+                        color: primary,
                       ),
                     ),
                     const Spacer(),
-                    _PeriodChip(label: '1M', selected: true),
-                    _PeriodChip(label: '3M'),
-                    _PeriodChip(label: '6M'),
-                    _PeriodChip(label: '1A'),
+                    const _PeriodChip(label: '1M', selected: true),
+                    const _PeriodChip(label: '3M'),
+                    const _PeriodChip(label: '6M'),
+                    const _PeriodChip(label: '1A'),
                   ],
                 ),
               ),
@@ -256,12 +255,17 @@ class _PeriodChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = Theme.of(context).colorScheme.primary;
+
     return Padding(
       padding: const EdgeInsets.only(left: 4),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF6B1228) : Colors.grey.shade200,
+          color: selected
+              ? primary
+              : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
@@ -269,7 +273,9 @@ class _PeriodChip extends StatelessWidget {
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : Colors.grey.shade700,
+            color: selected
+                ? Colors.white
+                : (isDark ? Colors.grey.shade300 : Colors.grey.shade700),
           ),
         ),
       ),
@@ -290,9 +296,16 @@ class _WorkoutCardPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = Theme.of(context).colorScheme.primary;
+
     return Container(
       decoration: BoxDecoration(
-        color: isEmpty ? Colors.grey.shade100 : const Color(0xFF1A1A2E),
+        color: isEmpty
+            ? (isDark ? Colors.grey.shade900 : Colors.grey.shade100)
+            : (isDark
+            ? const Color(0xFF1A1A2E)
+            : primary.withValues(alpha: 0.12)),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -303,7 +316,9 @@ class _WorkoutCardPlaceholder extends StatelessWidget {
               date,
               style: TextStyle(
                 fontSize: 10,
-                color: isEmpty ? Colors.grey : Colors.white70,
+                color: isEmpty
+                    ? Colors.grey
+                    : (isDark ? Colors.white70 : primary.withValues(alpha: 0.8)),
               ),
             ),
           ),
@@ -312,8 +327,8 @@ class _WorkoutCardPlaceholder extends StatelessWidget {
               Icons.accessibility_new,
               size: 48,
               color: isEmpty
-                  ? Colors.grey.shade300
-                  : const Color(0xFF6B1228).withValues(alpha: 0.85),
+                  ? (isDark ? Colors.grey.shade700 : Colors.grey.shade300)
+                  : primary.withValues(alpha: 0.85),
             ),
           ),
           Padding(
@@ -323,7 +338,9 @@ class _WorkoutCardPlaceholder extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: isEmpty ? Colors.grey : Colors.white,
+                color: isEmpty
+                    ? Colors.grey
+                    : (isDark ? Colors.white : primary),
               ),
             ),
           ),

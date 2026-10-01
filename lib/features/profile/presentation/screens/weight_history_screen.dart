@@ -89,7 +89,7 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
               ElevatedButton(
                 onPressed: _isSaving ? null : _addWeight,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6B1228),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 child: _isSaving
@@ -114,16 +114,16 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Historial de peso'),
-        backgroundColor: const Color(0xFF6B1228),
+        backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddWeightSheet,
-        backgroundColor: const Color(0xFF6B1228),
+        backgroundColor: Theme.of(context).colorScheme.primary,
         child: const Icon(Icons.add, color: Colors.white),
       ),
       body: historyAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF6B1228))),
+        loading: () => Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary)),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (entries) {
           if (entries.isEmpty) {
@@ -174,12 +174,12 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
                             .map((e) => FlSpot(e.key.toDouble(), e.value.weight))
                             .toList(),
                         isCurved: true,
-                        color: const Color(0xFF6B1228),
+                        color: Theme.of(context).colorScheme.primary,
                         barWidth: 3,
                         dotData: const FlDotData(show: true),
                         belowBarData: BarAreaData(
                           show: true,
-                          color: const Color(0xFF6B1228).withValues(alpha: 0.1),
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                         ),
                       ),
                     ],
@@ -224,8 +224,8 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
                         '${entry.date.day.toString().padLeft(2, '0')}/${entry.date.month.toString().padLeft(2, '0')}/${entry.date.year}';
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: const Color(0xFF6B1228).withValues(alpha: 0.12),
-                        child: const Icon(Icons.monitor_weight, color: Color(0xFF6B1228), size: 20),
+                        backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                        child: Icon(Icons.monitor_weight, color: Theme.of(context).colorScheme.primary, size: 20),
                       ),
                       title: Text(
                         '${entry.weight.toStringAsFixed(1)} kg',
@@ -247,7 +247,7 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
 class _StatCard extends StatelessWidget {
   final String label;
   final String value;
-  final Color color;
+  final Color  color;
 
   const _StatCard({required this.label, required this.value, required this.color});
 

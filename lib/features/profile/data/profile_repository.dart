@@ -126,6 +126,8 @@ class ProfileRepository {
   }
 
   /// Historial de los últimos N días (más reciente primero)
+
+
   Future<List<DailyLog>> getDailyLogsHistory(String uid, {int days = 30}) async {
     final snap = await _userDoc(uid)
         .doc(uid)

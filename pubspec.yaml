@@ -15,6 +15,7 @@ dependencies:
   # State management
   flutter_riverpod: ^2.6.1
   fl_chart: ^0.69.2
+  shared_preferences: ^2.3.3
 
   # Firebase
   firebase_core: ^3.8.1

@@ -42,9 +42,9 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
       padding: const EdgeInsets.all(16),
       children: [
         // ─── Carrusel pequeño: Agua / Sueño ───────────────
-        const Text(
+        Text(
           'Hoy',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B1228)),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
         ),
         const SizedBox(height: 8),
         SizedBox(
@@ -98,7 +98,7 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: _habitsPage == i
-                              ? const Color(0xFF6B1228)
+                              ? Theme.of(context).colorScheme.primary
                               : Colors.grey.shade300,
                         ),
                       );
@@ -113,9 +113,9 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
         const SizedBox(height: 24),
 
         // ─── Carrusel grande: Rutina semanal ──────────────
-        const Text(
+        Text(
           'Tu rutina semanal',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF6B1228)),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
         ),
         const SizedBox(height: 8),
         SizedBox(
@@ -215,7 +215,7 @@ class _RoutineCard extends StatelessWidget {
             end: Alignment.bottomRight,
             colors: routine.isRestDay
                 ? [Colors.blueGrey.shade300, Colors.blueGrey.shade500]
-                : [const Color(0xFF6B1228), const Color(0xFF9B2D4A)],
+                : [Theme.of(context).colorScheme.primary, Theme.of(context).colorScheme.primary],
           ),
         ),
         padding: const EdgeInsets.all(20),

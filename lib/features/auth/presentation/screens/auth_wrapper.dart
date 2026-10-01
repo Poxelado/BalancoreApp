@@ -29,9 +29,9 @@ class AuthWrapper extends ConsumerWidget {
             }
             return const ProfileScreen();
           },
-          loading: () => const Scaffold(
+          loading: () => Scaffold(
             body: Center(
-              child: CircularProgressIndicator(color: Color(0xFF6B1228)),
+              child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
             ),
           ),
           error: (e, _) => Scaffold(
@@ -39,9 +39,9 @@ class AuthWrapper extends ConsumerWidget {
           ),
         );
       },
-      loading: () => const Scaffold(
+      loading: () => Scaffold(
         body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF6B1228)),
+          child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
         ),
       ),
       error: (error, _) => Scaffold(
