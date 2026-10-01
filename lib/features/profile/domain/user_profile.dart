@@ -1,3 +1,24 @@
+
+// ─── Helpers anti-null (Firestore) ─────────────────────────
+String _str(dynamic v, [String fallback = '']) {
+  if (v == null) return fallback;
+  return v.toString();
+}
+
+DateTime _parseDate(dynamic v) {
+  if (v == null) return DateTime.now();
+  if (v is DateTime) return v;
+  if (v is String) {
+    return DateTime.tryParse(v) ?? DateTime.now();
+  }
+  // Firestore Timestamp
+  try {
+    final d = v.toDate();
+    if (d is DateTime) return d;
+  } catch (_) {}
+  return DateTime.now();
+}
+
 class UserProfile {
   final String uid;
   final String? email;
@@ -83,20 +104,20 @@ class UserProfile {
 
   factory UserProfile.fromMap(Map<String, dynamic> map) {
     return UserProfile(
-      uid: map['uid'] ?? '',
+      uid: _str(map['uid']),
       username: map['username'],
       bio: map['bio'],
       email: map['email'],
       displayName: map['displayName'],
       photoUrl: map['photoUrl'],
-      sex: map['sex'] ?? map['gender'] ?? 'Masculino',
+      sex: _str(map['sex'] ?? map['gender'], 'Masculino'),
       currentWeight: (map['currentWeight'] as num?)?.toDouble() ??
           (map['weight'] as num?)?.toDouble() ??
           65,
       height: (map['height'] as num?)?.toDouble() ?? 170,
       age: map['age'] ?? 25,
-      activityLevel: map['activityLevel'] ?? 'Sedentario',
-      goal: map['goal'] ?? 'Mantenimiento',
+      activityLevel: _str(map['activityLevel'], 'Sedentario'),
+      goal: _str(map['goal'], 'Mantenimiento'),
       targetCalories: map['targetCalories'] ?? 2000,
       targetProtein: map['targetProtein'] ?? 0,
       targetCarbs: map['targetCarbs'] ?? 0,
@@ -218,8 +239,8 @@ class WeightEntry {
   factory WeightEntry.fromMap(String id, Map<String, dynamic> map) {
     return WeightEntry(
       id: id,
-      weight: (map['weight'] as num).toDouble(),
-      date: DateTime.parse(map['date']),
+      weight: (map['weight'] as num?)?.toDouble() ?? 0,
+      date: _parseDate(map['date']),
     );
   }
 }
@@ -249,9 +270,9 @@ class RoutineExercise {
 
   factory RoutineExercise.fromMap(Map<String, dynamic> map) {
     return RoutineExercise(
-      exerciseId: map['exerciseId']?.toString() ?? '',
-      exerciseName: map['exerciseName'] ?? '',
-      muscleGroup: map['muscleGroup'] ?? '',
+      exerciseId: _str(map['exerciseId']),
+      exerciseName: _str(map['exerciseName']),
+      muscleGroup: _str(map['muscleGroup']),
       sets: map['sets'] ?? 3,
       reps: map['reps'] ?? 10,
     );
@@ -313,9 +334,9 @@ class RoutineDay {
       }
     }
     return RoutineDay(
-      day: map['day'] ?? '',
-      title: map['title'] ?? '',
-      duration: map['duration'] ?? '',
+      day: _str(map['day']),
+      title: _str(map['title']),
+      duration: _str(map['duration']),
       calories: map['calories'] ?? 0,
       isRestDay: map['isRestDay'] ?? false,
       description: map['description'],
@@ -381,7 +402,7 @@ class SavedFood {
   factory SavedFood.fromMap(String id, Map<String, dynamic> map) {
     return SavedFood(
       id: id,
-      name: map['name'] ?? '',
+      name: _str(map['name']),
       calories: map['calories'] ?? 0,
       proteinGrams: map['proteinGrams'] ?? 0,
       carbsGrams: map['carbsGrams'] ?? 0,
@@ -441,14 +462,14 @@ class MealEntry {
 
   factory MealEntry.fromMap(Map<String, dynamic> map) {
     return MealEntry(
-      id: map['id']?.toString() ?? '',
-      name: map['name'] ?? '',
-      mealType: map['mealType'] ?? 'Snack',
+      id: _str(map['id']),
+      name: _str(map['name']),
+      mealType: _str(map['mealType'], 'Snack'),
       calories: map['calories'] ?? 0,
       proteinGrams: map['proteinGrams'] ?? 0,
       carbsGrams: map['carbsGrams'] ?? 0,
       fatGrams: map['fatGrams'] ?? 0,
-      createdAt: map['createdAt']?.toString(),
+      createdAt: _str(map['createdAt'], DateTime.now().toIso8601String()),
     );
   }
 }
@@ -503,7 +524,7 @@ class DailyLog {
       final c = meals.fold<int>(0, (s, m) => s + m.carbsGrams);
       final f = meals.fold<int>(0, (s, m) => s + m.fatGrams);
       return DailyLog(
-        date: map['date'] ?? '',
+        date: _str(map['date']),
         waterGlasses: map['waterGlasses'] ?? 0,
         sleepHours: (map['sleepHours'] as num?)?.toDouble() ?? 0,
         consumedCalories: cal,
@@ -515,7 +536,7 @@ class DailyLog {
     }
 
     return DailyLog(
-      date: map['date'] ?? '',
+      date: _str(map['date']),
       waterGlasses: map['waterGlasses'] ?? 0,
       sleepHours: (map['sleepHours'] as num?)?.toDouble() ?? 0,
       consumedCalories: map['consumedCalories'] ?? 0,
@@ -611,10 +632,10 @@ class WorkoutExerciseLog {
       }
     }
     return WorkoutExerciseLog(
-      exerciseId: map['exerciseId']?.toString() ?? '',
-      exerciseName: map['exerciseName'] ?? '',
-      muscleGroup: map['muscleGroup'] ?? '',
-      notes: map['notes']?.toString() ?? '',
+      exerciseId: _str(map['exerciseId']),
+      exerciseName: _str(map['exerciseName']),
+      muscleGroup: _str(map['muscleGroup']),
+      notes: _str(map['notes']),
       sets: sets,
     );
   }
@@ -755,17 +776,17 @@ class WorkoutSession {
       }
     }
     return WorkoutSession(
-      id: map['id']?.toString() ?? '',
-      dayName: map['dayName'] ?? '',
-      title: map['title'] ?? '',
-      startedAt: DateTime.tryParse(map['startedAt'] ?? '') ?? DateTime.now(),
+      id: _str(map['id']),
+      dayName: _str(map['dayName']),
+      title: _str(map['title']),
+      startedAt: _parseDate(map['startedAt']),
       finishedAt: map['finishedAt'] != null
-          ? DateTime.tryParse(map['finishedAt'])
+          ? _parseDate(map['finishedAt'])
           : null,
       completed: map['completed'] ?? false,
       isPaused: map['isPaused'] ?? false,
       elapsedSeconds: map['elapsedSeconds'] ?? 0,
-      notes: map['notes']?.toString() ?? '',
+      notes: _str(map['notes']),
       exercises: exercises,
     );
   }

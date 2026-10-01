@@ -26,8 +26,8 @@ class _EditWorkoutHistoryScreenState
   void initState() {
     super.initState();
     _session = widget.session;
-    _sessionNotesCtrl = TextEditingController(text: _session.notes);
-    _titleCtrl = TextEditingController(text: _session.title);
+    _sessionNotesCtrl = TextEditingController(text: _session.notes ?? '');
+    _titleCtrl = TextEditingController(text: _session.title ?? '');
   }
 
   @override
@@ -76,7 +76,7 @@ class _EditWorkoutHistoryScreenState
 
   Future<void> _editExerciseNotes(int index) async {
     final ex = _session.exercises[index];
-    final ctrl = TextEditingController(text: ex.notes);
+    final ctrl = TextEditingController(text: ex.notes ?? '');
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(

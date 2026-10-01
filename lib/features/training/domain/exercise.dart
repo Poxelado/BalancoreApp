@@ -30,11 +30,11 @@ class Exercise {
   factory Exercise.fromMap(String id, Map<String, dynamic> map) {
     return Exercise(
       id: id,
-      name: map['name'] ?? '',
-      muscleGroup: map['muscleGroup'] ?? 'Otro',
-      equipment: map['equipment'] ?? 'Gimnasio',
-      instructions: map['instructions'] ?? '',
-      isCustom: map['isCustom'] ?? true,
+      name: map['name']?.toString() ?? '',
+      muscleGroup: map['muscleGroup']?.toString() ?? 'Otro',
+      equipment: map['equipment']?.toString() ?? 'Gimnasio',
+      instructions: map['instructions']?.toString() ?? '',
+      isCustom: map['isCustom'] == true,
     );
   }
 }
