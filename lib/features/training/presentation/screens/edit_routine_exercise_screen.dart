@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../profile/domain/user_profile.dart';
 
 /// Edición detallada de un ejercicio dentro de la rutina del día.
@@ -20,6 +19,8 @@ class _EditRoutineExerciseScreenState extends State<EditRoutineExerciseScreen> {
   late TextEditingController _notesCtrl;
   late TextEditingController _restMinCtrl;
   late TextEditingController _restSecCtrl;
+  final List<TextEditingController> _weightCtrls = [];
+  final List<TextEditingController> _repsCtrls = [];
 
   @override
   void initState() {
@@ -29,10 +30,34 @@ class _EditRoutineExerciseScreenState extends State<EditRoutineExerciseScreen> {
     if (_sets.isEmpty) {
       _sets = [const PlannedSet(weight: 0, reps: 10)];
     }
-    _restSeconds = widget.exercise.restSeconds <= 0 ? 60 : widget.exercise.restSeconds;
+    _restSeconds =
+    widget.exercise.restSeconds <= 0 ? 60 : widget.exercise.restSeconds;
     _notesCtrl = TextEditingController(text: widget.exercise.notes);
     _restMinCtrl = TextEditingController(text: '${_restSeconds ~/ 60}');
     _restSecCtrl = TextEditingController(text: '${_restSeconds % 60}');
+    _rebuildSetControllers();
+  }
+
+  void _rebuildSetControllers() {
+    for (final c in _weightCtrls) {
+      c.dispose();
+    }
+    for (final c in _repsCtrls) {
+      c.dispose();
+    }
+    _weightCtrls.clear();
+    _repsCtrls.clear();
+    for (final s in _sets) {
+      _weightCtrls.add(TextEditingController(
+        text: s.weight > 0 ? _fmtWeight(s.weight) : '',
+      ));
+      _repsCtrls.add(TextEditingController(text: '${s.reps}'));
+    }
+  }
+
+  String _fmtWeight(double w) {
+    if (w == w.roundToDouble()) return '${w.toInt()}';
+    return w.toStringAsFixed(1);
   }
 
   @override
@@ -40,6 +65,12 @@ class _EditRoutineExerciseScreenState extends State<EditRoutineExerciseScreen> {
     _notesCtrl.dispose();
     _restMinCtrl.dispose();
     _restSecCtrl.dispose();
+    for (final c in _weightCtrls) {
+      c.dispose();
+    }
+    for (final c in _repsCtrls) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -49,20 +80,41 @@ class _EditRoutineExerciseScreenState extends State<EditRoutineExerciseScreen> {
     _restSeconds = (m * 60 + s).clamp(0, 30 * 60);
   }
 
+  void _syncSetsFromFields() {
+    for (var i = 0; i < _sets.length; i++) {
+      final w = double.tryParse(
+        _weightCtrls[i].text.replaceAll(',', '.'),
+      ) ??
+          0;
+      final r = int.tryParse(_repsCtrls[i].text) ?? _sets[i].reps;
+      _sets[i] = PlannedSet(weight: w, reps: r);
+    }
+  }
+
   void _addSet() {
+    _syncSetsFromFields();
     final last = _sets.isNotEmpty ? _sets.last : const PlannedSet();
     setState(() {
       _sets.add(PlannedSet(weight: last.weight, reps: last.reps));
+      _weightCtrls.add(TextEditingController(
+        text: last.weight > 0 ? _fmtWeight(last.weight) : '',
+      ));
+      _repsCtrls.add(TextEditingController(text: '${last.reps}'));
     });
   }
 
   void _removeSet(int i) {
     if (_sets.length <= 1) return;
-    setState(() => _sets.removeAt(i));
+    setState(() {
+      _sets.removeAt(i);
+      _weightCtrls.removeAt(i).dispose();
+      _repsCtrls.removeAt(i).dispose();
+    });
   }
 
   void _save() {
     _syncRestFromFields();
+    _syncSetsFromFields();
     final updated = widget.exercise.copyWith(
       plannedSets: List<PlannedSet>.from(_sets),
       sets: _sets.length,
@@ -125,16 +177,17 @@ class _EditRoutineExerciseScreenState extends State<EditRoutineExerciseScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          // Descanso entre series
           Row(
             children: [
               Icon(Icons.timer_outlined, color: primary, size: 20),
               const SizedBox(width: 8),
-              const Text('Descanso entre series',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text(
+                'Descanso entre series',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
               const Spacer(),
               SizedBox(
-                width: 48,
+                width: 52,
                 child: TextField(
                   controller: _restMinCtrl,
                   keyboardType: TextInputType.number,
@@ -152,7 +205,7 @@ class _EditRoutineExerciseScreenState extends State<EditRoutineExerciseScreen> {
               ),
               const SizedBox(width: 6),
               SizedBox(
-                width: 48,
+                width: 52,
                 child: TextField(
                   controller: _restSecCtrl,
                   keyboardType: TextInputType.number,
@@ -177,19 +230,34 @@ class _EditRoutineExerciseScreenState extends State<EditRoutineExerciseScreen> {
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
           ),
-          // Cabecera series
-          Row(
-            children: const [
-              SizedBox(width: 36, child: Text('SERIE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-              Expanded(child: Text('PESO (kg)', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-              Expanded(child: Text('REPS', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+          const Row(
+            children: [
+              SizedBox(
+                width: 36,
+                child: Text(
+                  'SERIE',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  'PESO (kg)',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  'REPS',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+              ),
               SizedBox(width: 40),
             ],
           ),
           const SizedBox(height: 8),
-          ..._sets.asMap().entries.map((entry) {
-            final i = entry.key;
-            final s = entry.value;
+          ...List.generate(_sets.length, (i) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
@@ -199,53 +267,46 @@ class _EditRoutineExerciseScreenState extends State<EditRoutineExerciseScreen> {
                     child: CircleAvatar(
                       radius: 14,
                       backgroundColor: primary.withValues(alpha: 0.15),
-                      child: Text('${i + 1}',
-                          style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: primary)),
+                      child: Text(
+                        '${i + 1}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: primary,
+                        ),
+                      ),
                     ),
                   ),
                   Expanded(
-                    child: TextFormField<double>(
-                      initialValue: s.weight > 0 ? s.weight : null,
-                      keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                    child: TextField(
+                      controller: _weightCtrls[i],
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: const InputDecoration(
                         hintText: '0',
                         isDense: true,
                         border: OutlineInputBorder(),
-                        contentPadding:
-                        EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 10,
+                        ),
                       ),
-                      onChanged: (v) {
-                        final w = double.tryParse(
-                          (v ?? '').replaceAll(',', '.'),
-                        ) ??
-                            0;
-                        setState(() {
-                          _sets[i] = s.copyWith(weight: w);
-                        });
-                      },
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: TextFormField<int>(
-                      initialValue: s.reps,
+                    child: TextField(
+                      controller: _repsCtrls[i],
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
                         isDense: true,
                         border: OutlineInputBorder(),
-                        contentPadding:
-                        EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 10,
+                        ),
                       ),
-                      onChanged: (v) {
-                        final r = int.tryParse(v ?? '') ?? s.reps;
-                        setState(() {
-                          _sets[i] = s.copyWith(reps: r);
-                        });
-                      },
                     ),
                   ),
                   IconButton(
