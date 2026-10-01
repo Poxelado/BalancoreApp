@@ -257,10 +257,10 @@ class RoutineExercise {
     );
   }
 
-  RoutineExercise copyWith({int? sets, int? reps, String? exerciseName}) {
+  RoutineExercise copyWith({int? sets, int? reps}) {
     return RoutineExercise(
       exerciseId: exerciseId,
-      exerciseName: exerciseName ?? this.exerciseName,
+      exerciseName: exerciseName,
       muscleGroup: muscleGroup,
       sets: sets ?? this.sets,
       reps: reps ?? this.reps,
@@ -269,7 +269,7 @@ class RoutineExercise {
 }
 
 class RoutineDay {
-  final String day; // Lunes ... Domingo
+  final String day;
   final String title;
   final String duration;
   final int calories;
@@ -329,7 +329,6 @@ class RoutineDay {
     String? duration,
     int? calories,
     bool? isRestDay,
-    String? description,
     List<RoutineExercise>? exercises,
   }) {
     return RoutineDay(
@@ -338,7 +337,7 @@ class RoutineDay {
       duration: duration ?? this.duration,
       calories: calories ?? this.calories,
       isRestDay: isRestDay ?? this.isRestDay,
-      description: description ?? this.description,
+      description: description,
       imageUrl: imageUrl,
       exercises: exercises ?? this.exercises,
     );
@@ -532,4 +531,222 @@ class DailyLog {
 
   int caloriesOfType(String type) =>
       mealsOfType(type).fold(0, (s, m) => s + m.calories);
+}
+
+
+class WorkoutSetLog {
+  final int setNumber;
+  final double weight;
+  final int reps;
+  final bool completed;
+
+  const WorkoutSetLog({
+    required this.setNumber,
+    this.weight = 0,
+    this.reps = 0,
+    this.completed = false,
+  });
+
+  Map<String, dynamic> toMap() => {
+    'setNumber': setNumber,
+    'weight': weight,
+    'reps': reps,
+    'completed': completed,
+  };
+
+  factory WorkoutSetLog.fromMap(Map<String, dynamic> map) {
+    return WorkoutSetLog(
+      setNumber: map['setNumber'] ?? 1,
+      weight: (map['weight'] as num?)?.toDouble() ?? 0,
+      reps: map['reps'] ?? 0,
+      completed: map['completed'] ?? false,
+    );
+  }
+
+  WorkoutSetLog copyWith({
+    double? weight,
+    int? reps,
+    bool? completed,
+  }) {
+    return WorkoutSetLog(
+      setNumber: setNumber,
+      weight: weight ?? this.weight,
+      reps: reps ?? this.reps,
+      completed: completed ?? this.completed,
+    );
+  }
+}
+
+class WorkoutExerciseLog {
+  final String exerciseId;
+  final String exerciseName;
+  final String muscleGroup;
+  final List<WorkoutSetLog> sets;
+
+  const WorkoutExerciseLog({
+    required this.exerciseId,
+    required this.exerciseName,
+    this.muscleGroup = '',
+    this.sets = const [],
+  });
+
+  Map<String, dynamic> toMap() => {
+    'exerciseId': exerciseId,
+    'exerciseName': exerciseName,
+    'muscleGroup': muscleGroup,
+    'sets': sets.map((s) => s.toMap()).toList(),
+  };
+
+  factory WorkoutExerciseLog.fromMap(Map<String, dynamic> map) {
+    final raw = map['sets'];
+    final sets = <WorkoutSetLog>[];
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is Map) {
+          sets.add(WorkoutSetLog.fromMap(Map<String, dynamic>.from(item)));
+        }
+      }
+    }
+    return WorkoutExerciseLog(
+      exerciseId: map['exerciseId']?.toString() ?? '',
+      exerciseName: map['exerciseName'] ?? '',
+      muscleGroup: map['muscleGroup'] ?? '',
+      sets: sets,
+    );
+  }
+
+  WorkoutExerciseLog copyWith({List<WorkoutSetLog>? sets}) {
+    return WorkoutExerciseLog(
+      exerciseId: exerciseId,
+      exerciseName: exerciseName,
+      muscleGroup: muscleGroup,
+      sets: sets ?? this.sets,
+    );
+  }
+
+  int get completedSets => sets.where((s) => s.completed).length;
+}
+
+class WorkoutSession {
+  final String id; // yyyy-MM-dd
+  final String dayName;
+  final String title;
+  final DateTime startedAt;
+  final DateTime? finishedAt;
+  final bool completed;
+  final List<WorkoutExerciseLog> exercises;
+
+  const WorkoutSession({
+    required this.id,
+    required this.dayName,
+    required this.title,
+    required this.startedAt,
+    this.finishedAt,
+    this.completed = false,
+    this.exercises = const [],
+  });
+
+  static String dateKey([DateTime? d]) {
+    final n = d ?? DateTime.now();
+    return '${n.year}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}';
+  }
+
+  static String weekdayName([DateTime? d]) {
+    const names = [
+      'Lunes',
+      'Martes',
+      'Miércoles',
+      'Jueves',
+      'Viernes',
+      'Sábado',
+      'Domingo'
+    ];
+    final n = d ?? DateTime.now();
+    return names[n.weekday - 1];
+  }
+
+  factory WorkoutSession.fromRoutine(RoutineDay routine) {
+    final exercises = routine.exercises
+        .map(
+          (e) => WorkoutExerciseLog(
+        exerciseId: e.exerciseId,
+        exerciseName: e.exerciseName,
+        muscleGroup: e.muscleGroup,
+        sets: List.generate(
+          e.sets.clamp(1, 10),
+              (i) => WorkoutSetLog(
+            setNumber: i + 1,
+            weight: 0,
+            reps: e.reps,
+            completed: false,
+          ),
+        ),
+      ),
+    )
+        .toList();
+
+    return WorkoutSession(
+      id: dateKey(),
+      dayName: routine.day,
+      title: routine.title,
+      startedAt: DateTime.now(),
+      exercises: exercises,
+    );
+  }
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'dayName': dayName,
+    'title': title,
+    'startedAt': startedAt.toIso8601String(),
+    'finishedAt': finishedAt?.toIso8601String(),
+    'completed': completed,
+    'exercises': exercises.map((e) => e.toMap()).toList(),
+  };
+
+  factory WorkoutSession.fromMap(Map<String, dynamic> map) {
+    final raw = map['exercises'];
+    final exercises = <WorkoutExerciseLog>[];
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is Map) {
+          exercises.add(
+            WorkoutExerciseLog.fromMap(Map<String, dynamic>.from(item)),
+          );
+        }
+      }
+    }
+    return WorkoutSession(
+      id: map['id']?.toString() ?? '',
+      dayName: map['dayName'] ?? '',
+      title: map['title'] ?? '',
+      startedAt: DateTime.tryParse(map['startedAt'] ?? '') ?? DateTime.now(),
+      finishedAt: map['finishedAt'] != null
+          ? DateTime.tryParse(map['finishedAt'])
+          : null,
+      completed: map['completed'] ?? false,
+      exercises: exercises,
+    );
+  }
+
+  WorkoutSession copyWith({
+    DateTime? finishedAt,
+    bool? completed,
+    List<WorkoutExerciseLog>? exercises,
+  }) {
+    return WorkoutSession(
+      id: id,
+      dayName: dayName,
+      title: title,
+      startedAt: startedAt,
+      finishedAt: finishedAt ?? this.finishedAt,
+      completed: completed ?? this.completed,
+      exercises: exercises ?? this.exercises,
+    );
+  }
+
+  int get totalSets =>
+      exercises.fold(0, (s, e) => s + e.sets.length);
+  int get completedSets =>
+      exercises.fold(0, (s, e) => s + e.completedSets);
 }

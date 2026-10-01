@@ -50,22 +50,12 @@ class ProfileRepository {
   Future<List<RoutineDay>> getRoutines(String uid) async {
     final snap = await _userDoc(uid).doc(uid).collection('routines').get();
     if (snap.docs.isEmpty) {
-      final defaults = _defaultRoutines();
-      await saveAllRoutines(uid, defaults);
-      return defaults;
+      // Crear rutina por defecto (Lun-Dom)
+      return _defaultRoutines();
     }
-    final list = snap.docs
-        .map((d) => RoutineDay.fromMap(d.data() as Map<String, dynamic>))
-        .toList();
-    const order = [
-      'Lunes',
-      'Martes',
-      'Miércoles',
-      'Jueves',
-      'Viernes',
-      'Sábado',
-      'Domingo'
-    ];
+    final list = snap.docs.map((d) => RoutineDay.fromMap(d.data())).toList();
+    // Ordenar por día de la semana
+    const order = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
     list.sort((a, b) => order.indexOf(a.day).compareTo(order.indexOf(b.day)));
     return list;
   }
@@ -249,10 +239,37 @@ class ProfileRepository {
   }
 
 
+
+  // ─── Sesiones de entrenamiento ──────────────────────────
+  DocumentReference _sessionRef(String uid, String dateKey) =>
+      _userDoc(uid).doc(uid).collection('workoutSessions').doc(dateKey);
+
+  Future<WorkoutSession?> getWorkoutSession(String uid, String dateKey) async {
+    final doc = await _sessionRef(uid, dateKey).get();
+    if (!doc.exists || doc.data() == null) return null;
+    return WorkoutSession.fromMap(doc.data()! as Map<String, dynamic>);
+  }
+
+  Future<void> saveWorkoutSession(String uid, WorkoutSession session) async {
+    await _sessionRef(uid, session.id).set(session.toMap());
+  }
+
+  Future<List<WorkoutSession>> getWorkoutHistory(String uid, {int limit = 30}) async {
+    final snap = await _userDoc(uid)
+        .doc(uid)
+        .collection('workoutSessions')
+        .orderBy('startedAt', descending: true)
+        .limit(limit)
+        .get();
+    return snap.docs
+        .map((d) => WorkoutSession.fromMap(d.data() as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Borra el documento de perfil y subcolecciones del usuario.
   Future<void> deleteUserData(String uid) async {
     final userRef = _userDoc(uid).doc(uid);
-    final subs = ['weightHistory', 'routines', 'dailyLogs', 'savedFoods'];
+    final subs = ['weightHistory', 'routines', 'dailyLogs', 'savedFoods', 'customExercises', 'favoriteExercises', 'workoutSessions'];
     for (final name in subs) {
       final snap = await userRef.collection(name).get();
       if (snap.docs.isEmpty) continue;

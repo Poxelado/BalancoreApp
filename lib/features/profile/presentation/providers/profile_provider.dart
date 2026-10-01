@@ -52,3 +52,21 @@ final recentMealsProvider = FutureProvider<List<MealEntry>>((ref) async {
   if (user == null) return [];
   return ref.watch(profileRepositoryProvider).getRecentMeals(user.uid);
 });
+
+
+final todayWorkoutSessionProvider = FutureProvider<WorkoutSession?>((ref) async {
+  final user = ref.watch(authStateProvider).value;
+  if (user == null) return null;
+  final key = WorkoutSession.dateKey();
+  return ref.watch(profileRepositoryProvider).getWorkoutSession(user.uid, key);
+});
+
+final todayRoutineProvider = FutureProvider<RoutineDay?>((ref) async {
+  final routines = await ref.watch(routinesProvider.future);
+  final name = WorkoutSession.weekdayName();
+  try {
+    return routines.firstWhere((r) => r.day == name);
+  } catch (_) {
+    return null;
+  }
+});
