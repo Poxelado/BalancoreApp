@@ -254,6 +254,25 @@ class ProfileRepository {
     await _sessionRef(uid, session.id).set(session.toMap());
   }
 
+  Future<void> deleteWorkoutSession(String uid, String dateKey) async {
+    await _sessionRef(uid, dateKey).delete();
+  }
+
+  Future<WorkoutSession?> getActiveWorkoutSession(String uid) async {
+    final snap = await _userDoc(uid)
+        .doc(uid)
+        .collection('workoutSessions')
+        .where('completed', isEqualTo: false)
+        .limit(10)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    final list = snap.docs
+        .map((d) => WorkoutSession.fromMap(d.data() as Map<String, dynamic>))
+        .toList();
+    list.sort((a, b) => b.startedAt.compareTo(a.startedAt));
+    return list.first;
+  }
+
   Future<List<WorkoutSession>> getWorkoutHistory(String uid, {int limit = 30}) async {
     final snap = await _userDoc(uid)
         .doc(uid)

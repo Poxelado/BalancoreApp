@@ -5,6 +5,8 @@ import '../providers/profile_provider.dart';
 import 'weight_history_screen.dart';
 import 'edit_profile_screen.dart';
 import 'daily_history_screen.dart';
+import '../../../training/presentation/screens/workout_session_screen.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 class ProfileTab extends ConsumerStatefulWidget {
   const ProfileTab({super.key});
@@ -93,6 +95,86 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
                     ],
                   ),
                 ),
+                if (!s.completed)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: () async {
+                              Navigator.pop(ctx);
+                              final day = RoutineDay(
+                                day: s.dayName,
+                                title: s.title,
+                                exercises: s.exercises
+                                    .map(
+                                      (e) => RoutineExercise(
+                                    exerciseId: e.exerciseId,
+                                    exerciseName: e.exerciseName,
+                                    muscleGroup: e.muscleGroup,
+                                    sets: e.sets.length,
+                                    reps: e.sets.isNotEmpty
+                                        ? e.sets.first.reps
+                                        : 10,
+                                  ),
+                                )
+                                    .toList(),
+                              );
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => WorkoutSessionScreen(
+                                    routine: day,
+                                    existing: s,
+                                  ),
+                                ),
+                              );
+                              ref.invalidate(workoutHistoryProvider(_periodDays));
+                              ref.invalidate(activeWorkoutSessionProvider);
+                            },
+                            icon: const Icon(Icons.play_arrow),
+                            label: const Text('Continuar'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton(
+                          onPressed: () async {
+                            final ok = await showDialog<bool>(
+                              context: context,
+                              builder: (d) => AlertDialog(
+                                title: const Text('Eliminar sesión'),
+                                content: const Text(
+                                  '¿Borrar esta sesión en curso?',
+                                ),
+                                actions: [
+                                  TextButton(
+                                      onPressed: () => Navigator.pop(d, false),
+                                      child: const Text('No')),
+                                  TextButton(
+                                      onPressed: () => Navigator.pop(d, true),
+                                      child: const Text('Eliminar',
+                                          style: TextStyle(color: Colors.red))),
+                                ],
+                              ),
+                            );
+                            if (ok != true) return;
+                            final user =
+                                ref.read(authServiceProvider).currentUser;
+                            if (user == null) return;
+                            await ref
+                                .read(profileRepositoryProvider)
+                                .deleteWorkoutSession(user.uid, s.id);
+                            if (ctx.mounted) Navigator.pop(ctx);
+                            ref.invalidate(workoutHistoryProvider(_periodDays));
+                            ref.invalidate(activeWorkoutSessionProvider);
+                          },
+                          child: const Icon(Icons.delete_outline,
+                              color: Colors.red),
+                        ),
+                      ],
+                    ),
+                  ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(

@@ -84,3 +84,10 @@ FutureProvider.family<List<WorkoutSession>, int>((ref, days) async {
       .where((s) => s.startedAt.isAfter(cutoff) || s.startedAt.isAtSameMomentAs(cutoff))
       .toList();
 });
+
+
+final activeWorkoutSessionProvider = FutureProvider<WorkoutSession?>((ref) async {
+  final user = ref.watch(authStateProvider).value;
+  if (user == null) return null;
+  return ref.watch(profileRepositoryProvider).getActiveWorkoutSession(user.uid);
+});

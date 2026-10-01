@@ -111,6 +111,9 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+
+        // ─── Sesión en curso (mini player) ────────────────
+        _ActiveSessionBanner(),
         // ═══ 1) RUTINA SEMANAL (arriba de todo) ═══════════
         Row(
           children: [
@@ -650,6 +653,168 @@ class _RoutineCard extends StatelessWidget {
                   style: TextStyle(color: Colors.white70, fontSize: 14),
                 ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+class _ActiveSessionBanner extends ConsumerWidget {
+  const _ActiveSessionBanner();
+
+  String _fmt(int sec) {
+    final m = (sec ~/ 60).toString().padLeft(2, '0');
+    final s = (sec % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  Future<void> _resume(BuildContext context, WidgetRef ref, WorkoutSession session) async {
+    // Construir RoutineDay mínimo desde la sesión
+    final day = RoutineDay(
+      day: session.dayName,
+      title: session.title,
+      exercises: session.exercises
+          .map(
+            (e) => RoutineExercise(
+          exerciseId: e.exerciseId,
+          exerciseName: e.exerciseName,
+          muscleGroup: e.muscleGroup,
+          sets: e.sets.length,
+          reps: e.sets.isNotEmpty ? e.sets.first.reps : 10,
+        ),
+      )
+          .toList(),
+    );
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => WorkoutSessionScreen(
+          routine: day,
+          existing: session,
+        ),
+      ),
+    );
+    ref.invalidate(activeWorkoutSessionProvider);
+    ref.invalidate(routinesProvider);
+  }
+
+  Future<void> _togglePause(
+      WidgetRef ref, WorkoutSession session) async {
+    final user = ref.read(authServiceProvider).currentUser;
+    if (user == null) return;
+    final updated = session.copyWith(isPaused: !session.isPaused);
+    await ref.read(profileRepositoryProvider).saveWorkoutSession(user.uid, updated);
+    ref.invalidate(activeWorkoutSessionProvider);
+  }
+
+  Future<void> _cancel(
+      BuildContext context, WidgetRef ref, WorkoutSession session) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancelar entrenamiento'),
+        content: const Text(
+          'Se eliminará esta sesión en curso. Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('No')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sí, cancelar',
+                style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final user = ref.read(authServiceProvider).currentUser;
+    if (user == null) return;
+    await ref
+        .read(profileRepositoryProvider)
+        .deleteWorkoutSession(user.uid, session.id);
+    ref.invalidate(activeWorkoutSessionProvider);
+    for (final d in [30, 90, 180, 365]) {
+      ref.invalidate(workoutHistoryProvider(d));
+    }
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sesión cancelada')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(activeWorkoutSessionProvider);
+    final session = async.valueOrNull;
+    if (session == null || session.completed) {
+      return const SizedBox.shrink();
+    }
+    final primary = Theme.of(context).colorScheme.primary;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Material(
+        color: primary.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => _resume(context, ref, session),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: primary,
+                  child: Icon(
+                    session.isPaused ? Icons.pause : Icons.fitness_center,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        session.isPaused
+                            ? 'Sesión en pausa'
+                            : 'Entrenamiento en curso',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        '${session.title.isEmpty ? session.dayName : session.title}'
+                            ' · ${_fmt(session.elapsedSeconds)}'
+                            ' · ${session.completedSets}/${session.totalSets} series',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      const Text(
+                        'Toca para volver',
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: session.isPaused ? 'Reanudar' : 'Pausar',
+                  icon: Icon(
+                    session.isPaused ? Icons.play_arrow : Icons.pause,
+                    color: primary,
+                  ),
+                  onPressed: () => _togglePause(ref, session),
+                ),
+                IconButton(
+                  tooltip: 'Cancelar',
+                  icon: const Icon(Icons.close, color: Colors.redAccent),
+                  onPressed: () => _cancel(context, ref, session),
+                ),
+              ],
+            ),
           ),
         ),
       ),

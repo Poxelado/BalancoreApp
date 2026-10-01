@@ -634,6 +634,8 @@ class WorkoutSession {
   final DateTime startedAt;
   final DateTime? finishedAt;
   final bool completed;
+  final bool isPaused;
+  final int elapsedSeconds;
   final List<WorkoutExerciseLog> exercises;
 
   const WorkoutSession({
@@ -643,6 +645,8 @@ class WorkoutSession {
     required this.startedAt,
     this.finishedAt,
     this.completed = false,
+    this.isPaused = false,
+    this.elapsedSeconds = 0,
     this.exercises = const [],
   });
 
@@ -691,6 +695,8 @@ class WorkoutSession {
       dayName: routine.day,
       title: routine.title,
       startedAt: DateTime.now(),
+      isPaused: false,
+      elapsedSeconds: 0,
       exercises: exercises,
     );
   }
@@ -720,6 +726,8 @@ class WorkoutSession {
     'startedAt': startedAt.toIso8601String(),
     'finishedAt': finishedAt?.toIso8601String(),
     'completed': completed,
+    'isPaused': isPaused,
+    'elapsedSeconds': elapsedSeconds,
     'exercises': exercises.map((e) => e.toMap()).toList(),
   };
 
@@ -744,6 +752,8 @@ class WorkoutSession {
           ? DateTime.tryParse(map['finishedAt'])
           : null,
       completed: map['completed'] ?? false,
+      isPaused: map['isPaused'] ?? false,
+      elapsedSeconds: map['elapsedSeconds'] ?? 0,
       exercises: exercises,
     );
   }
@@ -751,6 +761,8 @@ class WorkoutSession {
   WorkoutSession copyWith({
     DateTime? finishedAt,
     bool? completed,
+    bool? isPaused,
+    int? elapsedSeconds,
     List<WorkoutExerciseLog>? exercises,
   }) {
     return WorkoutSession(
@@ -760,6 +772,8 @@ class WorkoutSession {
       startedAt: startedAt,
       finishedAt: finishedAt ?? this.finishedAt,
       completed: completed ?? this.completed,
+      isPaused: isPaused ?? this.isPaused,
+      elapsedSeconds: elapsedSeconds ?? this.elapsedSeconds,
       exercises: exercises ?? this.exercises,
     );
   }

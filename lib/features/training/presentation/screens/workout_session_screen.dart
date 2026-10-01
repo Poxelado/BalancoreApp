@@ -32,14 +32,12 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
   int _exerciseIndex = 0;
   bool _saving = false;
 
-  // Workout elapsed timer
-  late final DateTime _startedAt;
   Timer? _tickTimer;
-  Duration _elapsed = Duration.zero;
+  int _elapsedSeconds = 0;
+  bool _paused = false;
 
-  // Rest timer
   int _restSecondsDefault = 90;
-  int? _restRemaining; // null = not resting
+  int? _restRemaining;
   Timer? _restTimer;
 
   final Map<String, TextEditingController> _weightCtrls = {};
@@ -50,40 +48,47 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
     super.initState();
     if (widget.existing != null && !widget.existing!.completed) {
       _session = widget.existing!;
-      _startedAt = widget.existing!.startedAt;
-      _elapsed = DateTime.now().difference(_startedAt);
+      _elapsedSeconds = widget.existing!.elapsedSeconds;
+      _paused = widget.existing!.isPaused;
     } else {
       _session = WorkoutSession.fromRoutine(
         widget.routine,
         date: widget.sessionDate,
       );
-      _startedAt = _session.startedAt;
+      _elapsedSeconds = 0;
+      _paused = false;
     }
     _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() => _elapsed = DateTime.now().difference(_startedAt));
+      if (!mounted || _paused) return;
+      setState(() => _elapsedSeconds++);
+      // persist elapsed every 15s
+      if (_elapsedSeconds % 15 == 0) {
+        _session = _session.copyWith(elapsedSeconds: _elapsedSeconds);
+        _persist(silent: true);
+      }
     });
     _loadRestPref();
     _initControllers();
+    // Guardar al entrar para que exista en historial / mini player
+    WidgetsBinding.instance.addPostFrameCallback((_) => _persist());
   }
 
   Future<void> _loadRestPref() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _restSecondsDefault = prefs.getInt(_kRestSecondsKey) ?? 90;
-    });
+    if (!mounted) return;
+    setState(() => _restSecondsDefault = prefs.getInt(_kRestSecondsKey) ?? 90);
   }
 
   Future<void> _saveRestPref(int seconds) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_kRestSecondsKey, seconds);
-    setState(() => _restSecondsDefault = seconds);
+    if (mounted) setState(() => _restSecondsDefault = seconds);
   }
 
   void _initControllers() {
     for (final ex in _session.exercises) {
       for (final s in ex.sets) {
-        final key = '${ex.exerciseId}_${s.setNumber}';
+        final key = _key(ex, s);
         _weightCtrls[key] = TextEditingController(
           text: s.weight > 0 ? _fmtWeight(s.weight) : '',
         );
@@ -97,10 +102,10 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
     return w.toStringAsFixed(1);
   }
 
-  String _fmtElapsed(Duration d) {
-    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    final h = d.inHours;
+  String _fmtElapsed(int sec) {
+    final m = (sec ~/ 60).toString().padLeft(2, '0');
+    final s = (sec % 60).toString().padLeft(2, '0');
+    final h = sec ~/ 3600;
     if (h > 0) return '$h:$m:$s';
     return '$m:$s';
   }
@@ -111,6 +116,9 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
     if (m > 0) return '${m}min ${s.toString().padLeft(2, '0')}s';
     return '${s}s';
   }
+
+  String _key(WorkoutExerciseLog ex, WorkoutSetLog s) =>
+      '${ex.exerciseId}_${s.setNumber}';
 
   @override
   void dispose() {
@@ -125,66 +133,123 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
     super.dispose();
   }
 
-  Future<void> _persist() async {
+  Future<void> _persist({bool silent = false}) async {
     final user = ref.read(authServiceProvider).currentUser;
     if (user == null) return;
+    _session = _session.copyWith(
+      elapsedSeconds: _elapsedSeconds,
+      isPaused: _paused,
+    );
     await ref.read(profileRepositoryProvider).saveWorkoutSession(
       user.uid,
       _session,
     );
     ref.invalidate(todayWorkoutSessionProvider);
-    ref.invalidate(workoutHistoryProvider(30));
-    ref.invalidate(workoutHistoryProvider(90));
-    ref.invalidate(workoutHistoryProvider(180));
-    ref.invalidate(workoutHistoryProvider(365));
+    ref.invalidate(activeWorkoutSessionProvider);
+    for (final d in [30, 90, 180, 365]) {
+      ref.invalidate(workoutHistoryProvider(d));
+    }
   }
 
-  String _key(WorkoutExerciseLog ex, WorkoutSetLog s) =>
-      '${ex.exerciseId}_${s.setNumber}';
-
-  Future<void> _syncSetFromFields(int exIndex, int setIndex) async {
-    final ex = _session.exercises[exIndex];
-    final s = ex.sets[setIndex];
-    final key = _key(ex, s);
-    final w = double.tryParse(
-      (_weightCtrls[key]?.text ?? '').replaceAll(',', '.'),
-    ) ??
-        0;
-    final r = int.tryParse(_repsCtrls[key]?.text ?? '') ?? s.reps;
-    await _updateSet(exIndex, setIndex, weight: w, reps: r);
+  Future<void> _togglePause() async {
+    setState(() => _paused = !_paused);
+    await _persist();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_paused ? 'Sesión pausada' : 'Sesión reanudada'),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
   }
 
-  Future<void> _updateSet(
-      int exerciseIndex,
-      int setIndex, {
-        double? weight,
-        int? reps,
-        bool? completed,
-      }) async {
+  /// Al salir: guarda y vuelve (no cancela).
+  Future<void> _minimize() async {
+    await _persist();
+    if (mounted) Navigator.pop(context);
+  }
+
+  Future<void> _updateSetsCascade({
+    required int exerciseIndex,
+    required int setIndex,
+    double? weight,
+    int? reps,
+  }) async {
     final exercises = List<WorkoutExerciseLog>.from(_session.exercises);
     final ex = exercises[exerciseIndex];
     final sets = List<WorkoutSetLog>.from(ex.sets);
-    sets[setIndex] = sets[setIndex].copyWith(
-      weight: weight,
-      reps: reps,
-      completed: completed,
-    );
+
+    for (var i = setIndex; i < sets.length; i++) {
+      sets[i] = sets[i].copyWith(
+        weight: weight ?? sets[i].weight,
+        reps: reps ?? sets[i].reps,
+      );
+      final key = '${ex.exerciseId}_${sets[i].setNumber}';
+      if (weight != null) {
+        _weightCtrls[key]?.text = weight > 0 ? _fmtWeight(weight) : '';
+      }
+      if (reps != null) {
+        _repsCtrls[key]?.text = '$reps';
+      }
+    }
+
     exercises[exerciseIndex] = ex.copyWith(sets: sets);
     setState(() => _session = _session.copyWith(exercises: exercises));
     await _persist();
   }
 
-  Future<void> _completeSet(int exerciseIndex, int setIndex) async {
-    await _syncSetFromFields(exerciseIndex, setIndex);
-    final wasDone = _session.exercises[exerciseIndex].sets[setIndex].completed;
-    if (wasDone) {
-      // uncheck
-      await _updateSet(exerciseIndex, setIndex, completed: false);
-      return;
+  Future<void> _syncFromField(int exerciseIndex, int setIndex,
+      {required bool isWeight}) async {
+    final ex = _session.exercises[exerciseIndex];
+    final s = ex.sets[setIndex];
+    final key = _key(ex, s);
+    if (isWeight) {
+      final w = double.tryParse(
+        (_weightCtrls[key]?.text ?? '').replaceAll(',', '.'),
+      ) ??
+          0;
+      await _updateSetsCascade(
+        exerciseIndex: exerciseIndex,
+        setIndex: setIndex,
+        weight: w,
+      );
+    } else {
+      final r = int.tryParse(_repsCtrls[key]?.text ?? '') ?? s.reps;
+      await _updateSetsCascade(
+        exerciseIndex: exerciseIndex,
+        setIndex: setIndex,
+        reps: r,
+      );
     }
-    await _updateSet(exerciseIndex, setIndex, completed: true);
-    HapticFeedback.lightImpact();
-    _startRest();
+  }
+
+  Future<void> _toggleComplete(int exerciseIndex, int setIndex) async {
+    // sync fields first without cascade on complete alone
+    final ex = _session.exercises[exerciseIndex];
+    final s = ex.sets[setIndex];
+    final key = _key(ex, s);
+    final w = double.tryParse(
+      (_weightCtrls[key]?.text ?? '').replaceAll(',', '.'),
+    ) ??
+        s.weight;
+    final r = int.tryParse(_repsCtrls[key]?.text ?? '') ?? s.reps;
+
+    final exercises = List<WorkoutExerciseLog>.from(_session.exercises);
+    final sets = List<WorkoutSetLog>.from(ex.sets);
+    final wasDone = sets[setIndex].completed;
+    sets[setIndex] = sets[setIndex].copyWith(
+      weight: w,
+      reps: r,
+      completed: !wasDone,
+    );
+    exercises[exerciseIndex] = ex.copyWith(sets: sets);
+    setState(() => _session = _session.copyWith(exercises: exercises));
+    await _persist();
+    if (!wasDone) {
+      HapticFeedback.lightImpact();
+      _startRest();
+    }
   }
 
   void _startRest() {
@@ -209,6 +274,38 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
   void _skipRest() {
     _restTimer?.cancel();
     setState(() => _restRemaining = null);
+  }
+
+  Future<void> _deleteSet(int exerciseIndex, int setIndex) async {
+    final exercises = List<WorkoutExerciseLog>.from(_session.exercises);
+    final ex = exercises[exerciseIndex];
+    if (ex.sets.length <= 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Debe quedar al menos una serie')),
+      );
+      return;
+    }
+    final sets = List<WorkoutSetLog>.from(ex.sets)..removeAt(setIndex);
+    // renumber
+    for (var i = 0; i < sets.length; i++) {
+      sets[i] = WorkoutSetLog(
+        setNumber: i + 1,
+        weight: sets[i].weight,
+        reps: sets[i].reps,
+        completed: sets[i].completed,
+      );
+    }
+    exercises[exerciseIndex] = ex.copyWith(sets: sets);
+    setState(() => _session = _session.copyWith(exercises: exercises));
+    // rebuild controllers for this exercise
+    for (final s in sets) {
+      final key = '${ex.exerciseId}_${s.setNumber}';
+      _weightCtrls[key] = TextEditingController(
+        text: s.weight > 0 ? _fmtWeight(s.weight) : '',
+      );
+      _repsCtrls[key] = TextEditingController(text: '${s.reps}');
+    }
+    await _persist();
   }
 
   Future<void> _addSet(int exerciseIndex) async {
@@ -239,19 +336,17 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Terminar entrenamiento'),
         content: Text(
-          'Tiempo: ${_fmtElapsed(_elapsed)}\n'
+          'Tiempo: ${_fmtElapsed(_elapsedSeconds)}\n'
               'Series: ${_session.completedSets}/${_session.totalSets}\n\n'
               '¿Finalizar sesión?',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Seguir'),
-          ),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Seguir')),
           TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Finalizar'),
-          ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Finalizar')),
         ],
       ),
     );
@@ -260,6 +355,8 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
     try {
       _session = _session.copyWith(
         completed: true,
+        isPaused: false,
+        elapsedSeconds: _elapsedSeconds,
         finishedAt: DateTime.now(),
       );
       await _persist();
@@ -275,10 +372,10 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
   }
 
   void _openSettings() {
-    final restCtrl =
-    TextEditingController(text: '$_restSecondsDefault');
+    final restCtrl = TextEditingController(text: '$_restSecondsDefault');
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -287,62 +384,62 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
           padding: EdgeInsets.only(
             left: 20,
             right: 20,
-            top: 20,
+            top: 16,
             bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Configuración de sesión',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.primary,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Configuración de sesión',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              const Text('Descanso entre series (segundos)'),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  for (final s in [60, 90, 120, 180])
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
+                const SizedBox(height: 12),
+                const Text('Descanso entre series'),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final s in [60, 90, 120, 180])
+                      ChoiceChip(
                         label: Text(_fmtRest(s)),
                         selected: _restSecondsDefault == s,
                         onSelected: (_) {
                           _saveRestPref(s);
-                          restCtrl.text = '$s';
                           Navigator.pop(ctx);
                         },
                       ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: restCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Personalizado (seg)',
-                  border: OutlineInputBorder(),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: () {
-                  final v = int.tryParse(restCtrl.text);
-                  if (v != null && v > 0 && v < 600) {
-                    _saveRestPref(v);
-                  }
-                  Navigator.pop(ctx);
-                },
-                child: const Text('Guardar'),
-              ),
-            ],
+                const SizedBox(height: 12),
+                TextField(
+                  controller: restCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Personalizado (segundos)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: () {
+                    final v = int.tryParse(restCtrl.text);
+                    if (v != null && v > 0 && v < 600) {
+                      _saveRestPref(v);
+                    }
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text('Guardar'),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -366,7 +463,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
         ),
         body: const Center(
           child: Text(
-            'Sin ejercicios en esta rutina.\nEdita el día y agrega ejercicios.',
+            'Sin ejercicios en esta rutina.',
             textAlign: TextAlign.center,
           ),
         ),
@@ -383,31 +480,46 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ─── Top bar: timer + finish ──────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+              padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
               child: Row(
                 children: [
                   IconButton(
+                    tooltip: 'Minimizar (no cancela)',
                     icon: const Icon(Icons.close),
-                    onPressed: () async {
-                      await _persist();
-                      if (mounted) Navigator.pop(context);
-                    },
+                    onPressed: _minimize,
                   ),
-                  Icon(Icons.timer_outlined, size: 18, color: primary),
+                  Icon(
+                    _paused ? Icons.pause_circle : Icons.timer_outlined,
+                    size: 18,
+                    color: _paused ? Colors.orange : primary,
+                  ),
                   const SizedBox(width: 6),
                   Text(
-                    _fmtElapsed(_elapsed),
-                    style: const TextStyle(
+                    _fmtElapsed(_elapsedSeconds),
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      fontFeatures: [FontFeature.tabularFigures()],
+                      color: _paused ? Colors.orange : null,
+                      fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
+                  if (_paused)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 6),
+                      child: Text('PAUSA',
+                          style: TextStyle(
+                              color: Colors.orange,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold)),
+                    ),
                   const Spacer(),
                   IconButton(
-                    tooltip: 'Ajustes (descanso)',
+                    tooltip: _paused ? 'Reanudar' : 'Pausar',
+                    icon: Icon(_paused ? Icons.play_arrow : Icons.pause),
+                    onPressed: _togglePause,
+                  ),
+                  IconButton(
                     icon: const Icon(Icons.settings_outlined),
                     onPressed: _openSettings,
                   ),
@@ -416,9 +528,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                     child: Text(
                       'Terminar',
                       style: TextStyle(
-                        color: primary,
-                        fontWeight: FontWeight.bold,
-                      ),
+                          color: primary, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
@@ -436,19 +546,18 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                 ),
               ),
             ),
-
-            // ─── Exercise selector strip ─────────────────
             SizedBox(
               height: 72,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 itemCount: _session.exercises.length,
                 itemBuilder: (context, i) {
                   final e = _session.exercises[i];
                   final selected = i == _exerciseIndex;
-                  final allDone = e.sets.isNotEmpty &&
-                      e.sets.every((s) => s.completed);
+                  final allDone =
+                      e.sets.isNotEmpty && e.sets.every((s) => s.completed);
                   return Padding(
                     padding: const EdgeInsets.only(right: 10),
                     child: GestureDetector(
@@ -484,33 +593,21 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                 },
               ),
             ),
-
-            // ─── Current exercise header ─────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    ex.exerciseName,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  Text(ex.exerciseName,
+                      style: const TextStyle(
+                          fontSize: 22, fontWeight: FontWeight.bold)),
                   if (ex.muscleGroup.isNotEmpty)
-                    Text(
-                      ex.muscleGroup,
-                      style: TextStyle(
-                        color: Colors.grey.shade500,
-                        fontSize: 13,
-                      ),
-                    ),
+                    Text(ex.muscleGroup,
+                        style: TextStyle(
+                            color: Colors.grey.shade500, fontSize: 13)),
                 ],
               ),
             ),
-
-            // ─── Rest banner ─────────────────────────────
             if (_restRemaining != null)
               Material(
                 color: primary.withValues(alpha: 0.15),
@@ -532,23 +629,19 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                         ),
                       ),
                       TextButton(
-                        onPressed: _skipRest,
-                        child: const Text('Saltar'),
-                      ),
+                          onPressed: _skipRest, child: const Text('Saltar')),
                     ],
                   ),
                 ),
               ),
-
-            // ─── Sets table ──────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: Row(
                 children: [
-                  _colHeader('SERIE', flex: 2),
-                  _colHeader('PREVIA', flex: 3),
-                  _colHeader('KG', flex: 3),
-                  _colHeader('REPS', flex: 3),
+                  _h('SERIE', 2),
+                  _h('PREVIA', 3),
+                  _h('KG', 3),
+                  _h('REPS', 3),
                   const SizedBox(width: 40),
                 ],
               ),
@@ -579,7 +672,6 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                         () => TextEditingController(text: '${s.reps}'),
                   );
 
-                  // PREVIA: previous set of same exercise or target
                   String previa = '—';
                   if (i > 0) {
                     final prev = ex.sets[i - 1];
@@ -591,107 +683,135 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                     previa = 'obj. ${s.reps}';
                   }
 
-                  return Container(
-                    color: s.completed
-                        ? Colors.green.withValues(alpha: 0.08)
-                        : null,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 6),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: Text(
-                            '${s.setNumber}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: s.completed ? Colors.green : null,
-                            ),
+                  return Dismissible(
+                    key: ValueKey('${ex.exerciseId}_${s.setNumber}_$i'),
+                    direction: DismissDirection.horizontal,
+                    background: Container(
+                      color: Colors.red.shade700,
+                      alignment: Alignment.centerLeft,
+                      padding: const EdgeInsets.only(left: 20),
+                      child: const Icon(Icons.delete, color: Colors.white),
+                    ),
+                    secondaryBackground: Container(
+                      color: Colors.red.shade700,
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 20),
+                      child: const Icon(Icons.delete, color: Colors.white),
+                    ),
+                    confirmDismiss: (_) async {
+                      if (ex.sets.length <= 1) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content:
+                              Text('Debe quedar al menos una serie')),
+                        );
+                        return false;
+                      }
+                      return true;
+                    },
+                    onDismissed: (_) => _deleteSet(_exerciseIndex, i),
+                    child: Container(
+                      color: s.completed
+                          ? Colors.green.withValues(alpha: 0.08)
+                          : null,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 6),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: Text('${s.setNumber}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: s.completed ? Colors.green : null,
+                                )),
                           ),
-                        ),
-                        Expanded(
-                          flex: 3,
-                          child: Text(
-                            previa,
-                            style: TextStyle(
-                              color: Colors.grey.shade500,
-                              fontSize: 13,
-                            ),
+                          Expanded(
+                            flex: 3,
+                            child: Text(previa,
+                                style: TextStyle(
+                                    color: Colors.grey.shade500,
+                                    fontSize: 13)),
                           ),
-                        ),
-                        Expanded(
-                          flex: 3,
-                          child: SizedBox(
-                            height: 40,
-                            child: TextField(
-                              controller: _weightCtrls[key],
-                              keyboardType: const TextInputType.numberWithOptions(
-                                  decimal: true),
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(fontWeight: FontWeight.w600),
-                              decoration: InputDecoration(
-                                isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 10),
-                                filled: true,
-                                fillColor: cardBg,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide.none,
+                          Expanded(
+                            flex: 3,
+                            child: SizedBox(
+                              height: 40,
+                              child: TextField(
+                                controller: _weightCtrls[key],
+                                keyboardType:
+                                const TextInputType.numberWithOptions(
+                                    decimal: true),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600),
+                                decoration: InputDecoration(
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 10),
+                                  filled: true,
+                                  fillColor: cardBg,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: BorderSide.none,
+                                  ),
                                 ),
+                                onChanged: (_) => _syncFromField(
+                                    _exerciseIndex, i,
+                                    isWeight: true),
                               ),
-                              onChanged: (_) =>
-                                  _syncSetFromFields(_exerciseIndex, i),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          flex: 3,
-                          child: SizedBox(
-                            height: 40,
-                            child: TextField(
-                              controller: _repsCtrls[key],
-                              keyboardType: TextInputType.number,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(fontWeight: FontWeight.w600),
-                              decoration: InputDecoration(
-                                isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 10),
-                                filled: true,
-                                fillColor: cardBg,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide.none,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 3,
+                            child: SizedBox(
+                              height: 40,
+                              child: TextField(
+                                controller: _repsCtrls[key],
+                                keyboardType: TextInputType.number,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600),
+                                decoration: InputDecoration(
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 10),
+                                  filled: true,
+                                  fillColor: cardBg,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: BorderSide.none,
+                                  ),
                                 ),
+                                onChanged: (_) => _syncFromField(
+                                    _exerciseIndex, i,
+                                    isWeight: false),
                               ),
-                              onChanged: (_) =>
-                                  _syncSetFromFields(_exerciseIndex, i),
                             ),
                           ),
-                        ),
-                        SizedBox(
-                          width: 40,
-                          child: IconButton(
-                            onPressed: () =>
-                                _completeSet(_exerciseIndex, i),
-                            icon: Icon(
-                              s.completed
-                                  ? Icons.check_circle
-                                  : Icons.check_circle_outline,
-                              color: s.completed ? Colors.green : Colors.grey,
+                          SizedBox(
+                            width: 40,
+                            child: IconButton(
+                              onPressed: () =>
+                                  _toggleComplete(_exerciseIndex, i),
+                              icon: Icon(
+                                s.completed
+                                    ? Icons.check_circle
+                                    : Icons.check_circle_outline,
+                                color: s.completed
+                                    ? Colors.green
+                                    : Colors.grey,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   );
                 },
               ),
             ),
-
-            // ─── Bottom nav exercises ────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
               child: Row(
@@ -708,7 +828,8 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: FilledButton.icon(
-                      style: FilledButton.styleFrom(backgroundColor: primary),
+                      style:
+                      FilledButton.styleFrom(backgroundColor: primary),
                       onPressed:
                       _exerciseIndex < _session.exercises.length - 1
                           ? () => setState(() => _exerciseIndex++)
@@ -726,18 +847,16 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
     );
   }
 
-  Widget _colHeader(String text, {required int flex}) {
-    return Expanded(
-      flex: flex,
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: Colors.grey.shade500,
-          letterSpacing: 0.5,
-        ),
+  Widget _h(String t, int flex) => Expanded(
+    flex: flex,
+    child: Text(
+      t,
+      style: TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        color: Colors.grey.shade500,
+        letterSpacing: 0.5,
       ),
-    );
-  }
+    ),
+  );
 }
