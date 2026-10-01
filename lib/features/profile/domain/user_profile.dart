@@ -2,19 +2,20 @@ class UserProfile {
   final String uid;
   final String? email;
   final String? displayName;
-  final String? username;
+  final String? username; // sin el @
   final String? bio;
   final String? photoUrl;
-  final String sex;
-  final double currentWeight;
-  final double height;
+  final String sex; // "Masculino" | "Femenino"
+  final double currentWeight; // kg
+  final double height; // cm
   final int age;
   final String activityLevel;
+  /// "Perder grasa" | "Mantenimiento" | "Ganar músculo"
   final String goal;
   final int targetCalories;
-  final int targetProtein;
-  final int targetCarbs;
-  final int targetFat;
+  final int targetProtein; // g
+  final int targetCarbs; // g
+  final int targetFat; // g
   final bool onboardingCompleted;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -150,6 +151,7 @@ class UserProfile {
     );
   }
 
+  /// Mifflin-St Jeor × actividad × objetivo.
   static int calculateTMB({
     required String sex,
     required double weight,
@@ -192,8 +194,10 @@ class UserProfile {
     final protein = (weight * proteinPerKg).round();
     final fatPct = goal == 'Perder grasa' ? 0.25 : 0.28;
     final fat = ((calories * fatPct) / 9).round();
+    final proteinKcal = protein * 4;
+    final fatKcal = fat * 9;
     final carbs =
-    ((calories - protein * 4 - fat * 9) / 4).round().clamp(0, 1000);
+    ((calories - proteinKcal - fatKcal) / 4).round().clamp(0, 1000);
     return (protein: protein, carbs: carbs, fat: fat);
   }
 }
@@ -262,6 +266,54 @@ class RoutineDay {
   }
 }
 
+class MealEntry {
+  final String id;
+  final String name;
+  final String mealType; // Desayuno | Almuerzo | Cena | Snack
+  final int calories;
+  final int proteinGrams;
+  final int carbsGrams;
+  final int fatGrams;
+  final String createdAt;
+
+  MealEntry({
+    required this.id,
+    required this.name,
+    required this.mealType,
+    required this.calories,
+    this.proteinGrams = 0,
+    this.carbsGrams = 0,
+    this.fatGrams = 0,
+    String? createdAt,
+  }) : createdAt = createdAt ?? DateTime.now().toIso8601String();
+
+  static const mealTypes = ['Desayuno', 'Almuerzo', 'Cena', 'Snack'];
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'name': name,
+    'mealType': mealType,
+    'calories': calories,
+    'proteinGrams': proteinGrams,
+    'carbsGrams': carbsGrams,
+    'fatGrams': fatGrams,
+    'createdAt': createdAt,
+  };
+
+  factory MealEntry.fromMap(Map<String, dynamic> map) {
+    return MealEntry(
+      id: map['id']?.toString() ?? '',
+      name: map['name'] ?? '',
+      mealType: map['mealType'] ?? 'Snack',
+      calories: map['calories'] ?? 0,
+      proteinGrams: map['proteinGrams'] ?? 0,
+      carbsGrams: map['carbsGrams'] ?? 0,
+      fatGrams: map['fatGrams'] ?? 0,
+      createdAt: map['createdAt']?.toString(),
+    );
+  }
+}
+
 class DailyLog {
   final String date;
   final int waterGlasses;
@@ -270,6 +322,7 @@ class DailyLog {
   final int proteinGrams;
   final int carbsGrams;
   final int fatGrams;
+  final List<MealEntry> meals;
 
   DailyLog({
     required this.date,
@@ -279,6 +332,7 @@ class DailyLog {
     this.proteinGrams = 0,
     this.carbsGrams = 0,
     this.fatGrams = 0,
+    this.meals = const [],
   });
 
   Map<String, dynamic> toMap() => {
@@ -289,9 +343,38 @@ class DailyLog {
     'proteinGrams': proteinGrams,
     'carbsGrams': carbsGrams,
     'fatGrams': fatGrams,
+    'meals': meals.map((m) => m.toMap()).toList(),
   };
 
   factory DailyLog.fromMap(Map<String, dynamic> map) {
+    final rawMeals = map['meals'];
+    final meals = <MealEntry>[];
+    if (rawMeals is List) {
+      for (final item in rawMeals) {
+        if (item is Map) {
+          meals.add(MealEntry.fromMap(Map<String, dynamic>.from(item)));
+        }
+      }
+    }
+
+    // Si hay comidas, los totales salen de la suma (fuente de verdad)
+    if (meals.isNotEmpty) {
+      final cal = meals.fold<int>(0, (s, m) => s + m.calories);
+      final p = meals.fold<int>(0, (s, m) => s + m.proteinGrams);
+      final c = meals.fold<int>(0, (s, m) => s + m.carbsGrams);
+      final f = meals.fold<int>(0, (s, m) => s + m.fatGrams);
+      return DailyLog(
+        date: map['date'] ?? '',
+        waterGlasses: map['waterGlasses'] ?? 0,
+        sleepHours: (map['sleepHours'] as num?)?.toDouble() ?? 0,
+        consumedCalories: cal,
+        proteinGrams: p,
+        carbsGrams: c,
+        fatGrams: f,
+        meals: meals,
+      );
+    }
+
     return DailyLog(
       date: map['date'] ?? '',
       waterGlasses: map['waterGlasses'] ?? 0,
@@ -300,6 +383,13 @@ class DailyLog {
       proteinGrams: map['proteinGrams'] ?? 0,
       carbsGrams: map['carbsGrams'] ?? 0,
       fatGrams: map['fatGrams'] ?? 0,
+      meals: meals,
     );
   }
+
+  List<MealEntry> mealsOfType(String type) =>
+      meals.where((m) => m.mealType == type).toList();
+
+  int caloriesOfType(String type) =>
+      mealsOfType(type).fold(0, (s, m) => s + m.calories);
 }

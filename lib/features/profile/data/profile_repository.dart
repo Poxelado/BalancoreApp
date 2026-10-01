@@ -89,19 +89,24 @@ class ProfileRepository {
     ];
   }
 
-  // ─── Daily Log (agua + sueño) ───────────────────────────
+
+  // ─── Daily Log (agua + sueño + comidas) ─────────────────
   String _todayKey() {
     final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
   }
 
+  DocumentReference _todayLogRef(String uid) {
+    return _userDoc(uid).doc(uid).collection('dailyLogs').doc(_todayKey());
+  }
+
   Future<DailyLog> getTodayLog(String uid) async {
     final key = _todayKey();
-    final doc = await _userDoc(uid).doc(uid).collection('dailyLogs').doc(key).get();
+    final doc = await _todayLogRef(uid).get();
     if (!doc.exists || doc.data() == null) {
       return DailyLog(date: key);
     }
-    return DailyLog.fromMap(doc.data()!);
+    return DailyLog.fromMap(doc.data()! as Map<String, dynamic>);
   }
 
   Future<void> updateTodayLog(
@@ -114,7 +119,6 @@ class ProfileRepository {
         int? fatGrams,
       }) async {
     final key = _todayKey();
-    final ref = _userDoc(uid).doc(uid).collection('dailyLogs').doc(key);
     final data = <String, dynamic>{'date': key};
     if (waterGlasses != null) data['waterGlasses'] = waterGlasses;
     if (sleepHours != null) data['sleepHours'] = sleepHours;
@@ -122,11 +126,59 @@ class ProfileRepository {
     if (proteinGrams != null) data['proteinGrams'] = proteinGrams;
     if (carbsGrams != null) data['carbsGrams'] = carbsGrams;
     if (fatGrams != null) data['fatGrams'] = fatGrams;
-    await ref.set(data, SetOptions(merge: true));
+    await _todayLogRef(uid).set(data, SetOptions(merge: true));
+  }
+
+  Future<void> _saveLogWithMeals(String uid, List<MealEntry> meals) async {
+    final key = _todayKey();
+    final cal = meals.fold<int>(0, (s, m) => s + m.calories);
+    final protein = meals.fold<int>(0, (s, m) => s + m.proteinGrams);
+    final carbs = meals.fold<int>(0, (s, m) => s + m.carbsGrams);
+    final fat = meals.fold<int>(0, (s, m) => s + m.fatGrams);
+
+    // Preservar agua/sueño si ya existen
+    final existing = await getTodayLog(uid);
+
+    await _todayLogRef(uid).set({
+      'date': key,
+      'meals': meals.map((m) => m.toMap()).toList(),
+      'consumedCalories': cal,
+      'proteinGrams': protein,
+      'carbsGrams': carbs,
+      'fatGrams': fat,
+      'waterGlasses': existing.waterGlasses,
+      'sleepHours': existing.sleepHours,
+    }, SetOptions(merge: true));
+  }
+
+  /// Agrega una comida y recalcula totales del día.
+  Future<void> addMeal(String uid, MealEntry meal) async {
+    final log = await getTodayLog(uid);
+    final meals = [...log.meals, meal];
+    await _saveLogWithMeals(uid, meals);
+  }
+
+  /// Elimina una comida por id y recalcula totales.
+  Future<void> removeMeal(String uid, String mealId) async {
+    final log = await getTodayLog(uid);
+    final meals = log.meals.where((m) => m.id != mealId).toList();
+    await _saveLogWithMeals(uid, meals);
   }
 
   /// Historial de los últimos N días (más reciente primero)
+  Future<List<DailyLog>> getDailyLogsHistory(String uid, {int days = 30}) async {
+    final snap = await _userDoc(uid)
+        .doc(uid)
+        .collection('dailyLogs')
+        .orderBy('date', descending: true)
+        .limit(days)
+        .get();
 
+    return snap.docs.map((d) => DailyLog.fromMap(d.data())).toList();
+  }
+
+
+  /// Borra el documento de perfil y subcolecciones del usuario.
   Future<void> deleteUserData(String uid) async {
     final userRef = _userDoc(uid).doc(uid);
     final subs = ['weightHistory', 'routines', 'dailyLogs'];
@@ -143,16 +195,5 @@ class ProfileRepository {
     if (doc.exists) {
       await userRef.delete();
     }
-  }
-
-  Future<List<DailyLog>> getDailyLogsHistory(String uid, {int days = 30}) async {
-    final snap = await _userDoc(uid)
-        .doc(uid)
-        .collection('dailyLogs')
-        .orderBy('date', descending: true)
-        .limit(days)
-        .get();
-
-    return snap.docs.map((d) => DailyLog.fromMap(d.data())).toList();
   }
 }

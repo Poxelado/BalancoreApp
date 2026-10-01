@@ -6,6 +6,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/profile_provider.dart';
 import 'profile_tab.dart';
 import 'routine_tab.dart';
+import 'nutrition_tab.dart';
 import 'edit_profile_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -17,11 +18,8 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   int _currentIndex = 0;
-  final _addCalorieController = TextEditingController();
-
   @override
   void dispose() {
-    _addCalorieController.dispose();
     super.dispose();
   }
 
@@ -332,8 +330,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.pie_chart),
-            label: 'Calorías',
+            icon: Icon(Icons.restaurant_menu),
+            label: 'Nutrición',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.fitness_center),
@@ -349,7 +347,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       case 0:
         return const ProfileTab();
       case 1:
-        return _buildCalorieScreen();
+        return const NutritionTab();
       case 2:
         return const RoutineTab();
       default:
@@ -357,192 +355,4 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  Widget _buildCalorieScreen() {
-    final logAsync = ref.watch(todayLogProvider);
-    final profile = ref.watch(userProfileProvider).value;
-    final target = profile?.targetCalories ?? 2000;
-    final primary = Theme.of(context).colorScheme.primary;
-
-    return logAsync.when(
-      loading: () => Center(
-        child: CircularProgressIndicator(color: primary),
-      ),
-      error: (e, _) => Center(child: Text('Error: $e')),
-      data: (log) {
-        final consumed = log.consumedCalories;
-        final progress =
-        target > 0 ? (consumed / target).clamp(0.0, 1.0) : 0.0;
-        final remaining = target - consumed;
-
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: ListView(
-            children: [
-              Text(
-                'Resumen Nutricional del Día',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: primary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Card(
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 110,
-                        height: 110,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            SizedBox(
-                              width: 100,
-                              height: 100,
-                              child: CircularProgressIndicator(
-                                value: progress,
-                                strokeWidth: 12,
-                                backgroundColor: Colors.grey.shade200,
-                                color: primary,
-                              ),
-                            ),
-                            Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  '$consumed',
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const Text(
-                                  'kcal',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Meta: $target kcal',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Restantes: ${remaining >= 0 ? remaining : 0} kcal',
-                              style: TextStyle(
-                                color:
-                                remaining < 0 ? Colors.red : Colors.green,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _macroChip(
-                    'Proteínas',
-                    '${log.proteinGrams} g',
-                    Colors.orange,
-                  ),
-                  _macroChip('Carbos', '${log.carbsGrams} g', Colors.blue),
-                  _macroChip('Grasas', '${log.fatGrams} g', Colors.redAccent),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _addCalorieController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Calorías (kcal)',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primary,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 16,
-                      ),
-                    ),
-                    onPressed: () async {
-                      final v = int.tryParse(_addCalorieController.text);
-                      if (v == null || v <= 0) return;
-
-                      final user = ref.read(authServiceProvider).currentUser;
-                      if (user == null) return;
-
-                      final newTotal = log.consumedCalories + v;
-                      await ref.read(profileRepositoryProvider).updateTodayLog(
-                        user.uid,
-                        consumedCalories: newTotal,
-                      );
-
-                      ref.invalidate(todayLogProvider);
-                      _addCalorieController.clear();
-                    },
-                    child: const Text(
-                      'Agregar',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _macroChip(String label, String value, Color color) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            value,
-            style: TextStyle(fontWeight: FontWeight.bold, color: color),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-      ],
-    );
-  }
 }

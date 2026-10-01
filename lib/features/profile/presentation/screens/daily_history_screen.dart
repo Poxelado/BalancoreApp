@@ -167,6 +167,13 @@ class _DayCard extends StatelessWidget {
                 style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ],
+            if (log.meals.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                '${log.meals.length} comida(s) registradas',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
           ],
         ),
       ),
