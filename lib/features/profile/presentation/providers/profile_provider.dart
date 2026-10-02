@@ -25,14 +25,14 @@ final routinesProvider = FutureProvider<List<RoutineDay>>((ref) async {
   return ref.watch(profileRepositoryProvider).getRoutines(user.uid);
 });
 
-final todayLogProvider = FutureProvider<DailyLog>((ref) async {
+final todayLogProvider = FutureProvider.autoDispose<DailyLog>((ref) async {
   final user = ref.watch(authStateProvider).value;
   if (user == null) return DailyLog(date: '');
   return ref.watch(profileRepositoryProvider).getTodayLog(user.uid);
 });
 
 final dailyLogsHistoryProvider =
-FutureProvider.family<List<DailyLog>, int>((ref, days) async {
+FutureProvider.autoDispose.family<List<DailyLog>, int>((ref, days) async {
   final user = ref.watch(authStateProvider).value;
   if (user == null) return [];
   return ref.watch(profileRepositoryProvider).getDailyLogsHistory(
@@ -73,7 +73,7 @@ final todayRoutineProvider = FutureProvider<RoutineDay?>((ref) async {
 
 
 final workoutHistoryProvider =
-FutureProvider.family<List<WorkoutSession>, int>((ref, days) async {
+FutureProvider.autoDispose.family<List<WorkoutSession>, int>((ref, days) async {
   final user = ref.watch(authStateProvider).value;
   if (user == null) return [];
   final list = await ref
@@ -91,3 +91,12 @@ final activeWorkoutSessionProvider = FutureProvider<WorkoutSession?>((ref) async
   if (user == null) return null;
   return ref.watch(profileRepositoryProvider).getActiveWorkoutSession(user.uid);
 });
+
+
+/// Invalida logs y entrenos para que Progreso se actualice al instante.
+void invalidateProgressData(dynamic ref) {
+  ref.invalidate(todayLogProvider);
+  ref.invalidate(dailyLogsHistoryProvider);
+  ref.invalidate(workoutHistoryProvider);
+  ref.invalidate(activeWorkoutSessionProvider);
+}

@@ -145,11 +145,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
       user.uid,
       _session,
     );
-    ref.invalidate(todayWorkoutSessionProvider);
-    ref.invalidate(activeWorkoutSessionProvider);
-    for (final d in [30, 90, 180, 365]) {
-      ref.invalidate(workoutHistoryProvider(d));
-    }
+    invalidateProgressData(ref);
   }
 
   Future<void> _togglePause() async {

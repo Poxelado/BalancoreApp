@@ -279,7 +279,7 @@ class _TodayTab extends ConsumerWidget {
               await ref
                   .read(profileRepositoryProvider)
                   .removeMeal(user.uid, id);
-              ref.invalidate(todayLogProvider);
+              invalidateProgressData(ref);
               ref.invalidate(recentMealsProvider);
             },
             onSaveAsFood: (m) => _saveMealAsFood(context, ref, m),
@@ -530,7 +530,7 @@ class _TodayTab extends ConsumerWidget {
                           }
                         }
 
-                        ref.invalidate(todayLogProvider);
+                        invalidateProgressData(ref);
                         ref.invalidate(recentMealsProvider);
                         if (ctx.mounted) Navigator.pop(ctx);
                       },
@@ -825,7 +825,7 @@ class _WaterRow extends ConsumerWidget {
                     .read(profileRepositoryProvider)
                     .updateTodayLog(user.uid,
                     waterGlasses: glasses - 1);
-                ref.invalidate(todayLogProvider);
+                invalidateProgressData(ref);
               },
               icon: const Icon(Icons.remove_circle_outline),
             ),
@@ -836,7 +836,7 @@ class _WaterRow extends ConsumerWidget {
                 await ref
                     .read(profileRepositoryProvider)
                     .updateTodayLog(user.uid, waterGlasses: glasses + 1);
-                ref.invalidate(todayLogProvider);
+                invalidateProgressData(ref);
               },
               icon: Icon(Icons.add_circle, color: primary),
             ),

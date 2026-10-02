@@ -72,7 +72,11 @@ class _ProgressTabState extends ConsumerState<ProgressTab> {
               ),
             ],
             selected: {_section},
-            onSelectionChanged: (s) => setState(() => _section = s.first),
+            onSelectionChanged: (s) {
+              setState(() => _section = s.first);
+              // Al cambiar de pestaña, refrescar datos de progreso
+              invalidateProgressData(ref);
+            },
             style: ButtonStyle(
               visualDensity: VisualDensity.compact,
               foregroundColor: WidgetStateProperty.resolveWith((states) {
@@ -84,20 +88,42 @@ class _ProgressTabState extends ConsumerState<ProgressTab> {
         ),
         const SizedBox(height: 8),
         Expanded(
-          child: switch (_section) {
-            0 => _WorkoutsSection(
-              primary: primary,
-              periodDays: _trainPeriodDays,
-              onPeriodChanged: (d) => setState(() => _trainPeriodDays = d),
-            ),
-            1 => _WeekSummarySection(
-              primary: primary,
-              periodDays: _summaryPeriodDays,
-              onPeriodChanged: (d) =>
-                  setState(() => _summaryPeriodDays = d),
-            ),
-            _ => _HabitsSection(primary: primary),
-          },
+          child: RefreshIndicator(
+            color: primary,
+            onRefresh: () async {
+              invalidateProgressData(ref);
+              await Future.wait([
+                ref.refresh(
+                  workoutHistoryProvider(
+                    _section == 0
+                        ? _trainPeriodDays + 14
+                        : _summaryPeriodDays + 14,
+                  ).future,
+                ),
+                ref.refresh(
+                  dailyLogsHistoryProvider(_summaryPeriodDays + 14).future,
+                ),
+                ref.refresh(todayLogProvider.future),
+              ]);
+            },
+            child: switch (_section) {
+              0 => _WorkoutsSection(
+                primary: primary,
+                periodDays: _trainPeriodDays,
+                onPeriodChanged: (d) =>
+                    setState(() => _trainPeriodDays = d),
+              ),
+              1 => _WeekSummarySection(
+                primary: primary,
+                periodDays: _summaryPeriodDays,
+                onPeriodChanged: (d) {
+                  setState(() => _summaryPeriodDays = d);
+                  invalidateProgressData(ref);
+                },
+              ),
+              _ => _HabitsSection(primary: primary),
+            },
+          ),
         ),
       ],
     );
@@ -234,11 +260,8 @@ class _WeekSummarySection extends ConsumerWidget {
 
             final trainDays = <DateTime>{};
             for (final s in completedSessions) {
-              trainDays.add(DateTime(
-                s.startedAt.year,
-                s.startedAt.month,
-                s.startedAt.day,
-              ));
+              final local = s.startedAt.toLocal();
+              trainDays.add(DateTime(local.year, local.month, local.day));
             }
 
             final rangeLogs = <DailyLog>[];
@@ -507,25 +530,30 @@ class _WeekCircles extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    // Usar el lunes de la ventana
-    final monday = start.weekday == 1
-        ? DateTime(start.year, start.month, start.day)
-        : DateTime(start.year, start.month, start.day)
-        .subtract(Duration(days: start.weekday - 1));
+    // Semana calendario actual (Lun–Dom que contiene "hoy"),
+    // no la semana del rangeStart (eso dejaba días vacíos).
+    final today = DateTime(now.year, now.month, now.day);
+    final monday = today.subtract(Duration(days: today.weekday - 1));
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: List.generate(7, (i) {
         final day = monday.add(Duration(days: i));
         final key = DateTime(day.year, day.month, day.day);
-        final trained = trainDays.contains(key);
-        final registered = registeredDays.contains(key);
-        final isToday = key.year == now.year &&
-            key.month == now.month &&
-            key.day == now.day;
+        final inRange = !key.isBefore(
+          DateTime(start.year, start.month, start.day),
+        ) &&
+            key.isBefore(DateTime(end.year, end.month, end.day));
+        final trained = inRange && trainDays.contains(key);
+        final registered =
+            inRange && registeredDays.contains(key) && !trained;
+        final isToday = key == today;
+        final isFuture = key.isAfter(today);
 
         Color fill;
-        if (trained) {
+        if (!inRange || isFuture) {
+          fill = Colors.grey.withValues(alpha: 0.12);
+        } else if (trained) {
           fill = primary;
         } else if (registered) {
           fill = const Color(0xFF4CAF50).withValues(alpha: 0.75);
@@ -554,7 +582,10 @@ class _WeekCircles extends StatelessWidget {
               ),
               child: trained
                   ? const Icon(Icons.check, color: Colors.white, size: 18)
-                  : null,
+                  : (registered
+                  ? Icon(Icons.circle,
+                  color: Colors.white.withValues(alpha: 0.9), size: 10)
+                  : null),
             ),
           ],
         );

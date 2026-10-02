@@ -28,13 +28,13 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
   Future<void> _updateWater(int value) async {
     final uid = ref.read(authServiceProvider).currentUser!.uid;
     await ref.read(profileRepositoryProvider).updateTodayLog(uid, waterGlasses: value);
-    ref.invalidate(todayLogProvider);
+    invalidateProgressData(ref);
   }
 
   Future<void> _updateSleep(double value) async {
     final uid = ref.read(authServiceProvider).currentUser!.uid;
     await ref.read(profileRepositoryProvider).updateTodayLog(uid, sleepHours: value);
-    ref.invalidate(todayLogProvider);
+    invalidateProgressData(ref);
   }
 
   Future<void> _startWorkout(RoutineDay day) async {
