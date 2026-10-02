@@ -329,10 +329,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         currentIndex: _currentIndex,
         onTap: (i) => setState(() => _currentIndex = i),
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
           BottomNavigationBarItem(icon: Icon(Icons.pie_chart_outline), label: 'Nutrición'),
-          BottomNavigationBarItem(icon: Icon(Icons.fitness_center), label: 'Rutina'),
           BottomNavigationBarItem(icon: Icon(Icons.insights), label: 'Progreso'),
+          BottomNavigationBarItem(icon: Icon(Icons.fitness_center), label: 'Rutina'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
         ],
       ),
     );
@@ -340,10 +340,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Widget _buildPage(int index) {
     switch (index) {
-      case 0: return const ProfileTab();
-      case 1: return const NutritionTab();
+      case 3: return const ProfileTab();
+      case 0: return const NutritionTab();
       case 2: return const RoutineTab();
-      case 3: return const ProgressTab();
+      case 1: return const ProgressTab();
       default:
         return const ProfileTab();
     }
