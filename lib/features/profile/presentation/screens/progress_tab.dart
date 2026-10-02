@@ -7,11 +7,6 @@ import '../../../training/presentation/screens/workout_session_screen.dart';
 import '../../../training/presentation/screens/edit_workout_history_screen.dart';
 import 'daily_history_screen.dart';
 
-/// 4.ª pestaña: Progreso
-/// - Semana: entrenos, kcal media, adherencia
-/// - Entrenos: historial de sesiones
-/// - Hábitos: atajo al historial de nutrición / agua / sueño
-
 RoutineDay _routineFromSession(WorkoutSession s) {
   return RoutineDay(
     day: s.dayName,
@@ -43,9 +38,11 @@ class ProgressTab extends ConsumerStatefulWidget {
 }
 
 class _ProgressTabState extends ConsumerState<ProgressTab> {
-  /// 0 = Entrenos, 1 = Semana, 2 = Hábitos
+  /// 0 = Entrenos, 1 = Semana (constancia), 2 = Hábitos
   int _section = 1;
   int _trainPeriodDays = 30;
+  /// Por defecto: 1 semana
+  int _summaryPeriodDays = 7;
 
   @override
   Widget build(BuildContext context) {
@@ -58,9 +55,21 @@ class _ProgressTabState extends ConsumerState<ProgressTab> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: SegmentedButton<int>(
             segments: const [
-              ButtonSegment(value: 0, label: Text('Entrenos'), icon: Icon(Icons.fitness_center, size: 16)),
-              ButtonSegment(value: 1, label: Text('Semana'), icon: Icon(Icons.calendar_view_week, size: 16)),
-              ButtonSegment(value: 2, label: Text('Hábitos'), icon: Icon(Icons.water_drop_outlined, size: 16)),
+              ButtonSegment(
+                value: 0,
+                label: Text('Entrenos'),
+                icon: Icon(Icons.fitness_center, size: 16),
+              ),
+              ButtonSegment(
+                value: 1,
+                label: Text('Semana'),
+                icon: Icon(Icons.calendar_view_week, size: 16),
+              ),
+              ButtonSegment(
+                value: 2,
+                label: Text('Hábitos'),
+                icon: Icon(Icons.water_drop_outlined, size: 16),
+              ),
             ],
             selected: {_section},
             onSelectionChanged: (s) => setState(() => _section = s.first),
@@ -81,7 +90,12 @@ class _ProgressTabState extends ConsumerState<ProgressTab> {
               periodDays: _trainPeriodDays,
               onPeriodChanged: (d) => setState(() => _trainPeriodDays = d),
             ),
-            1 => _WeekSummarySection(primary: primary),
+            1 => _WeekSummarySection(
+              primary: primary,
+              periodDays: _summaryPeriodDays,
+              onPeriodChanged: (d) =>
+                  setState(() => _summaryPeriodDays = d),
+            ),
             _ => _HabitsSection(primary: primary),
           },
         ),
@@ -91,21 +105,19 @@ class _ProgressTabState extends ConsumerState<ProgressTab> {
 }
 
 // ═══════════════════════════════════════════════════════════
-// SECCIÓN: CONSTANCIA / PERIODO
+// CONSTANCIA (una sola vista, sin duplicar)
 // ═══════════════════════════════════════════════════════════
 
-class _WeekSummarySection extends ConsumerStatefulWidget {
+class _WeekSummarySection extends ConsumerWidget {
   final Color primary;
-  const _WeekSummarySection({required this.primary});
+  final int periodDays;
+  final ValueChanged<int> onPeriodChanged;
 
-  @override
-  ConsumerState<_WeekSummarySection> createState() =>
-      _WeekSummarySectionState();
-}
-
-class _WeekSummarySectionState extends ConsumerState<_WeekSummarySection> {
-  /// Días del periodo: 7, 30, 90, 180, 365
-  int _periodDays = 7;
+  const _WeekSummarySection({
+    required this.primary,
+    required this.periodDays,
+    required this.onPeriodChanged,
+  });
 
   static const _periods = <(int, String, String)>[
     (7, '1 semana', 'Última semana'),
@@ -117,16 +129,16 @@ class _WeekSummarySectionState extends ConsumerState<_WeekSummarySection> {
 
   String get _title {
     for (final p in _periods) {
-      if (p.$1 == _periodDays) return p.$3;
+      if (p.$1 == periodDays) return p.$3;
     }
     return 'Periodo';
   }
 
   String get _periodLabel {
     for (final p in _periods) {
-      if (p.$1 == _periodDays) return p.$2;
+      if (p.$1 == periodDays) return p.$2;
     }
-    return '$_periodDays d';
+    return '$periodDays d';
   }
 
   DateTime get _rangeEnd {
@@ -134,11 +146,10 @@ class _WeekSummarySectionState extends ConsumerState<_WeekSummarySection> {
     return DateTime(n.year, n.month, n.day).add(const Duration(days: 1));
   }
 
-  DateTime get _rangeStart {
-    return _rangeEnd.subtract(Duration(days: _periodDays));
-  }
+  DateTime get _rangeStart =>
+      _rangeEnd.subtract(Duration(days: periodDays));
 
-  Future<void> _pickPeriod() async {
+  Future<void> _pickPeriod(BuildContext context) async {
     final chosen = await showModalBottomSheet<int>(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -169,8 +180,8 @@ class _WeekSummarySectionState extends ConsumerState<_WeekSummarySection> {
               for (final p in _periods)
                 ListTile(
                   title: Text(p.$2),
-                  trailing: _periodDays == p.$1
-                      ? Icon(Icons.check, color: widget.primary)
+                  trailing: periodDays == p.$1
+                      ? Icon(Icons.check, color: primary)
                       : null,
                   onTap: () => Navigator.pop(ctx, p.$1),
                 ),
@@ -180,7 +191,7 @@ class _WeekSummarySectionState extends ConsumerState<_WeekSummarySection> {
         );
       },
     );
-    if (chosen != null) setState(() => _periodDays = chosen);
+    if (chosen != null) onPeriodChanged(chosen);
   }
 
   bool _inRange(DateTime d) {
@@ -199,14 +210,13 @@ class _WeekSummarySectionState extends ConsumerState<_WeekSummarySection> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final primary = widget.primary;
-    // Pedimos un poco más de margen de datos
-    final fetchDays = _periodDays + 7;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final fetchDays = periodDays + 7;
     final workoutsAsync = ref.watch(workoutHistoryProvider(fetchDays));
     final logsAsync = ref.watch(dailyLogsHistoryProvider(fetchDays));
     final profile = ref.watch(userProfileProvider).value;
     final targetCal = profile?.targetCalories ?? 0;
+    final isWeekView = periodDays <= 7;
 
     return workoutsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -216,14 +226,12 @@ class _WeekSummarySectionState extends ConsumerState<_WeekSummarySection> {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('Error logs: $e')),
           data: (allLogs) {
-            final weekSessions = allSessions
-                .where((s) => _inRange(s.startedAt))
-                .toList();
+            final rangeSessions =
+            allSessions.where((s) => _inRange(s.startedAt)).toList();
             final completedSessions =
-            weekSessions.where((s) => s.completed).toList();
+            rangeSessions.where((s) => s.completed).toList();
             final completed = completedSessions.length;
 
-            // Días con al menos un entreno completado
             final trainDays = <DateTime>{};
             for (final s in completedSessions) {
               trainDays.add(DateTime(
@@ -233,7 +241,7 @@ class _WeekSummarySectionState extends ConsumerState<_WeekSummarySection> {
               ));
             }
 
-            final weekLogs = <DailyLog>[];
+            final rangeLogs = <DailyLog>[];
             final logDays = <DateTime>{};
             final foodDays = <DateTime>{};
             final waterDays = <DateTime>{};
@@ -242,7 +250,7 @@ class _WeekSummarySectionState extends ConsumerState<_WeekSummarySection> {
             for (final l in allLogs) {
               final d = _parseLogDate(l.date);
               if (d == null || !_inRange(d)) continue;
-              weekLogs.add(l);
+              rangeLogs.add(l);
               final hasAny = l.consumedCalories > 0 ||
                   l.meals.isNotEmpty ||
                   l.waterGlasses > 0 ||
@@ -255,29 +263,26 @@ class _WeekSummarySectionState extends ConsumerState<_WeekSummarySection> {
               if (l.sleepHours > 0) sleepDays.add(d);
             }
 
-            // Días registrados = entreno O cualquier hábito
             final registeredDays = {...trainDays, ...logDays};
 
             double avgCal = 0;
-            if (weekLogs.isNotEmpty) {
-              avgCal = weekLogs.fold<int>(
+            if (rangeLogs.isNotEmpty) {
+              avgCal = rangeLogs.fold<int>(
                   0, (a, l) => a + l.consumedCalories) /
-                  weekLogs.length;
+                  rangeLogs.length;
             }
 
-            // Plan: ~5 entrenos/semana * semanas del periodo
-            final weeks = (_periodDays / 7).clamp(1.0, 60.0);
+            final weeks = (periodDays / 7).clamp(1.0, 60.0);
             final planned = (5 * weeks).round().clamp(1, 999);
-            final adherenceTrain =
-            (completed / planned).clamp(0.0, 1.0);
+            final adherenceTrain = (completed / planned).clamp(0.0, 1.0);
             final adherenceGlobal =
-            (registeredDays.length / _periodDays).clamp(0.0, 1.0);
+            (registeredDays.length / periodDays).clamp(0.0, 1.0);
             final perWeek = registeredDays.length / weeks;
 
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               children: [
-                // Título + selector de periodo
+                // Cabecera + periodo (una sola vez)
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -295,7 +300,7 @@ class _WeekSummarySectionState extends ConsumerState<_WeekSummarySection> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '${registeredDays.length}/$_periodDays días · '
+                            '${registeredDays.length}/$periodDays días · '
                                 '${perWeek.toStringAsFixed(1)}/semana',
                             style: TextStyle(
                               color: Colors.grey.shade600,
@@ -306,11 +311,13 @@ class _WeekSummarySectionState extends ConsumerState<_WeekSummarySection> {
                       ),
                     ),
                     Material(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(10),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(10),
-                        onTap: _pickPeriod,
+                        onTap: () => _pickPeriod(context),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 12,
@@ -336,11 +343,8 @@ class _WeekSummarySectionState extends ConsumerState<_WeekSummarySection> {
                                       color: primary,
                                     ),
                                   ),
-                                  Icon(
-                                    Icons.expand_more,
-                                    size: 18,
-                                    color: primary,
-                                  ),
+                                  Icon(Icons.expand_more,
+                                      size: 18, color: primary),
                                 ],
                               ),
                             ],
@@ -352,7 +356,7 @@ class _WeekSummarySectionState extends ConsumerState<_WeekSummarySection> {
                 ),
                 const SizedBox(height: 14),
 
-                // 4 métricas
+                // Métricas (una sola fila, una sola vez)
                 Row(
                   children: [
                     Expanded(
@@ -381,7 +385,7 @@ class _WeekSummarySectionState extends ConsumerState<_WeekSummarySection> {
                         icon: Icons.percent,
                         label: 'Adher.',
                         value: '${(adherenceGlobal * 100).round()}%',
-                        subtitle: '${registeredDays.length}/$_periodDays',
+                        subtitle: '${registeredDays.length}/$periodDays',
                         color: const Color(0xFF4CAF50),
                       ),
                     ),
@@ -407,29 +411,44 @@ class _WeekSummarySectionState extends ConsumerState<_WeekSummarySection> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                _ConsistencyGrid(
-                  start: _rangeStart,
-                  end: _rangeEnd,
-                  trainDays: trainDays,
-                  registeredDays: registeredDays,
-                  primary: primary,
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    _LegendDot(color: primary, label: 'Entreno'),
-                    const SizedBox(width: 16),
-                    _LegendDot(
-                      color: const Color(0xFF4CAF50).withValues(alpha: 0.7),
-                      label: 'Hábitos',
-                    ),
-                    const SizedBox(width: 16),
-                    _LegendDot(
-                      color: Colors.grey.withValues(alpha: 0.25),
-                      label: 'Vacío',
-                    ),
-                  ],
-                ),
+
+                // Vista semana = círculos | mes+ = rejilla compacta
+                if (isWeekView)
+                  _WeekCircles(
+                    start: _rangeStart,
+                    end: _rangeEnd,
+                    trainDays: trainDays,
+                    registeredDays: registeredDays,
+                    primary: primary,
+                  )
+                else
+                  _ConsistencyGrid(
+                    start: _rangeStart,
+                    end: _rangeEnd,
+                    trainDays: trainDays,
+                    registeredDays: registeredDays,
+                    primary: primary,
+                  ),
+
+                if (!isWeekView) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      _LegendDot(color: primary, label: 'Entreno'),
+                      const SizedBox(width: 12),
+                      _LegendDot(
+                        color:
+                        const Color(0xFF4CAF50).withValues(alpha: 0.7),
+                        label: 'Hábitos',
+                      ),
+                      const SizedBox(width: 12),
+                      _LegendDot(
+                        color: Colors.grey.withValues(alpha: 0.25),
+                        label: 'Vacío',
+                      ),
+                    ],
+                  ),
+                ],
 
                 const SizedBox(height: 24),
                 Text(
@@ -443,19 +462,19 @@ class _WeekSummarySectionState extends ConsumerState<_WeekSummarySection> {
                 _HabitRow(
                   icon: Icons.restaurant,
                   label: 'Días con comida registrada',
-                  value: '${foodDays.length} / $_periodDays',
+                  value: '${foodDays.length} / $periodDays',
                   color: const Color(0xFFFF9800),
                 ),
                 _HabitRow(
                   icon: Icons.water_drop,
                   label: 'Días con agua',
-                  value: '${waterDays.length} / $_periodDays',
+                  value: '${waterDays.length} / $periodDays',
                   color: const Color(0xFF2196F3),
                 ),
                 _HabitRow(
                   icon: Icons.bedtime,
                   label: 'Días con sueño',
-                  value: '${sleepDays.length} / $_periodDays',
+                  value: '${sleepDays.length} / $periodDays',
                   color: const Color(0xFF9E9E9E),
                 ),
               ],
@@ -463,6 +482,83 @@ class _WeekSummarySectionState extends ConsumerState<_WeekSummarySection> {
           },
         );
       },
+    );
+  }
+}
+
+/// Vista semanal: 7 círculos L–D (como el diseño original).
+class _WeekCircles extends StatelessWidget {
+  final DateTime start;
+  final DateTime end;
+  final Set<DateTime> trainDays;
+  final Set<DateTime> registeredDays;
+  final Color primary;
+
+  const _WeekCircles({
+    required this.start,
+    required this.end,
+    required this.trainDays,
+    required this.registeredDays,
+    required this.primary,
+  });
+
+  static const _labels = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    // Usar el lunes de la ventana
+    final monday = start.weekday == 1
+        ? DateTime(start.year, start.month, start.day)
+        : DateTime(start.year, start.month, start.day)
+        .subtract(Duration(days: start.weekday - 1));
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: List.generate(7, (i) {
+        final day = monday.add(Duration(days: i));
+        final key = DateTime(day.year, day.month, day.day);
+        final trained = trainDays.contains(key);
+        final registered = registeredDays.contains(key);
+        final isToday = key.year == now.year &&
+            key.month == now.month &&
+            key.day == now.day;
+
+        Color fill;
+        if (trained) {
+          fill = primary;
+        } else if (registered) {
+          fill = const Color(0xFF4CAF50).withValues(alpha: 0.75);
+        } else {
+          fill = primary.withValues(alpha: 0.08);
+        }
+
+        return Column(
+          children: [
+            Text(
+              _labels[i],
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+                color: isToday ? primary : Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: fill,
+                border: isToday ? Border.all(color: primary, width: 2) : null,
+              ),
+              child: trained
+                  ? const Icon(Icons.check, color: Colors.white, size: 18)
+                  : null,
+            ),
+          ],
+        );
+      }),
     );
   }
 }
@@ -492,7 +588,7 @@ class _LegendDot extends StatelessWidget {
   }
 }
 
-/// Rejilla estilo constancia: filas = L..D, columnas = semanas del periodo.
+/// Rejilla compacta estilo constancia (celdas fijas + meses arriba).
 class _ConsistencyGrid extends StatelessWidget {
   final DateTime start;
   final DateTime end;
@@ -508,79 +604,144 @@ class _ConsistencyGrid extends StatelessWidget {
     required this.primary,
   });
 
-  static const _dow = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+  static const _monthShort = [
+    'ene', 'feb', 'mar', 'abr', 'may', 'jun',
+    'jul', 'ago', 'sept', 'oct', 'nov', 'dic',
+  ];
+
+  /// Tamaño de cada cuadradito (compacto como en las capturas).
+  static const double _cell = 11.0;
+  static const double _gap = 2.5;
+  static const double _labelW = 14.0;
 
   @override
   Widget build(BuildContext context) {
-    // Alinear inicio al lunes de esa semana
-    final gridStart =
-    start.subtract(Duration(days: start.weekday - 1));
+    final gridStart = start.subtract(Duration(days: start.weekday - 1));
     final totalDays = end.difference(gridStart).inDays;
     final weeks = (totalDays / 7).ceil().clamp(1, 60);
 
-    // Celdas: [weekday 0..6][week 0..n]
+    // Etiquetas de mes centradas sobre la primera semana de cada mes
+    final monthLabels = <int, String>{}; // weekIndex -> label
+    for (var w = 0; w < weeks; w++) {
+      final day = gridStart.add(Duration(days: w * 7));
+      // Solo si el lunes de esa semana cae en rango o cerca
+      if (w == 0 || day.day <= 7) {
+        // primera semana del mes (día 1-7 del mes en esa semana)
+        final mid = day.add(const Duration(days: 3));
+        if (!mid.isBefore(start.subtract(const Duration(days: 7))) &&
+            mid.isBefore(end.add(const Duration(days: 7)))) {
+          if (w == 0 || gridStart.add(Duration(days: (w - 1) * 7)).month != day.month) {
+            monthLabels[w] = _monthShort[day.month - 1];
+          }
+        }
+      }
+    }
+
+    final gridWidth = _labelW + weeks * (_cell + _gap);
+
     return Container(
-      padding: const EdgeInsets.all(12),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        color: Theme.of(context)
+            .colorScheme
+            .surfaceContainerHighest
+            .withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Column(
-        children: [
-          for (var wd = 0; wd < 7; wd++)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 18,
-                    child: Text(
-                      _dow[wd],
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  ...List.generate(weeks, (w) {
-                    final day = gridStart.add(Duration(days: w * 7 + wd));
-                    final inRange = !day.isBefore(start) && day.isBefore(end);
-                    final key = DateTime(day.year, day.month, day.day);
-                    final trained = trainDays.contains(key);
-                    final registered =
-                        registeredDays.contains(key) && !trained;
-
-                    Color bg;
-                    if (!inRange) {
-                      bg = Colors.transparent;
-                    } else if (trained) {
-                      bg = primary;
-                    } else if (registered) {
-                      bg = const Color(0xFF4CAF50).withValues(alpha: 0.65);
-                    } else {
-                      bg = Colors.grey.withValues(alpha: 0.2);
-                    }
-
-                    return Expanded(
-                      child: AspectRatio(
-                        aspectRatio: 1,
-                        child: Padding(
-                          padding: const EdgeInsets.all(1.5),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: bg,
-                              borderRadius: BorderRadius.circular(3),
-                            ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: SizedBox(
+          width: gridWidth,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Fila de meses
+              SizedBox(
+                height: 16,
+                child: Row(
+                  children: [
+                    const SizedBox(width: _labelW),
+                    ...List.generate(weeks, (w) {
+                      final label = monthLabels[w];
+                      return SizedBox(
+                        width: _cell + _gap,
+                        child: label == null
+                            ? const SizedBox.shrink()
+                            : Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey.shade500,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 4),
+              // Filas L..D (etiquetas solo L, X, V para no saturar)
+              for (var wd = 0; wd < 7; wd++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: _gap),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: _labelW,
+                        child: Text(
+                          (wd == 0 || wd == 2 || wd == 4)
+                              ? const ['L', 'M', 'X', 'J', 'V', 'S', 'D'][wd]
+                              : '',
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
-                    );
-                  }),
-                ],
-              ),
-            ),
-        ],
+                      ...List.generate(weeks, (w) {
+                        final day =
+                        gridStart.add(Duration(days: w * 7 + wd));
+                        final inRange =
+                            !day.isBefore(start) && day.isBefore(end);
+                        final key =
+                        DateTime(day.year, day.month, day.day);
+                        final trained = trainDays.contains(key);
+                        final registered =
+                            registeredDays.contains(key) && !trained;
+
+                        Color bg;
+                        if (!inRange) {
+                          bg = Colors.transparent;
+                        } else if (trained) {
+                          bg = primary;
+                        } else if (registered) {
+                          bg = const Color(0xFF4CAF50)
+                              .withValues(alpha: 0.7);
+                        } else {
+                          bg = Colors.grey.withValues(alpha: 0.22);
+                        }
+
+                        return Padding(
+                          padding: const EdgeInsets.only(right: _gap),
+                          child: Container(
+                            width: _cell,
+                            height: _cell,
+                            decoration: BoxDecoration(
+                              color: bg,
+                              borderRadius: BorderRadius.circular(2.5),
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -677,7 +838,7 @@ class _HabitRow extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════
-// SECCIÓN: ENTRENAMIENTOS (historial)
+// ENTRENAMIENTOS
 // ═══════════════════════════════════════════════════════════
 
 class _WorkoutsSection extends ConsumerWidget {
@@ -742,10 +903,10 @@ class _WorkoutsSection extends ConsumerWidget {
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
                 itemBuilder: (context, i) {
                   final s = sorted[i];
-                  final done = s.exercises.fold<int>(
-                      0, (a, e) => a + e.completedSets);
-                  final total = s.exercises.fold<int>(
-                      0, (a, e) => a + e.sets.length);
+                  final done = s.exercises
+                      .fold<int>(0, (a, e) => a + e.completedSets);
+                  final total =
+                  s.exercises.fold<int>(0, (a, e) => a + e.sets.length);
 
                   return Card(
                     child: ListTile(
@@ -831,15 +992,17 @@ class _WorkoutsSection extends ConsumerWidget {
                             }
                           }
                         },
-                        itemBuilder: (_) => [
-                          const PopupMenuItem(
-                              value: 'open', child: Text('Abrir / continuar')),
-                          const PopupMenuItem(
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(
+                              value: 'open',
+                              child: Text('Abrir / continuar')),
+                          PopupMenuItem(
                               value: 'edit', child: Text('Editar')),
-                          const PopupMenuItem(
-                              value: 'delete',
-                              child: Text('Eliminar',
-                                  style: TextStyle(color: Colors.red))),
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Text('Eliminar',
+                                style: TextStyle(color: Colors.red)),
+                          ),
                         ],
                       ),
                       onTap: () async {
@@ -870,7 +1033,7 @@ class _WorkoutsSection extends ConsumerWidget {
 }
 
 // ═══════════════════════════════════════════════════════════
-// SECCIÓN: HÁBITOS (nutrición / agua / sueño)
+// HÁBITOS
 // ═══════════════════════════════════════════════════════════
 
 class _HabitsSection extends StatelessWidget {
@@ -892,8 +1055,7 @@ class _HabitsSection extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'Calorías, macros, agua y sueño por día. '
-              'Antes estaba en el botón Historial del perfil.',
+          'Calorías, macros, agua y sueño por día.',
           style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
         ),
         const SizedBox(height: 16),
@@ -905,26 +1067,6 @@ class _HabitsSection extends StatelessWidget {
             ),
             title: const Text('Ver historial diario'),
             subtitle: const Text('Gráficos y detalle por día'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const DailyHistoryScreen(),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 12),
-        Card(
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: const Color(0xFF2196F3).withValues(alpha: 0.12),
-              child: const Icon(Icons.water_drop, color: Color(0xFF2196F3)),
-            ),
-            title: const Text('Agua y sueño'),
-            subtitle: const Text('Incluidos en el historial diario'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.push(
