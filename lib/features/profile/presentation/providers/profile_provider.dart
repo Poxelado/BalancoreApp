@@ -100,3 +100,4 @@ void invalidateProgressData(dynamic ref) {
   ref.invalidate(workoutHistoryProvider);
   ref.invalidate(activeWorkoutSessionProvider);
 }
+s
