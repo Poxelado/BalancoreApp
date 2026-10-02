@@ -619,7 +619,7 @@ class _LegendDot extends StatelessWidget {
   }
 }
 
-/// Rejilla compacta estilo constancia (celdas fijas + meses arriba).
+/// Rejilla de constancia: llena el ancho; en 6m/1a gaps mínimos.
 class _ConsistencyGrid extends StatelessWidget {
   final DateTime start;
   final DateTime end;
@@ -637,74 +637,115 @@ class _ConsistencyGrid extends StatelessWidget {
 
   static const _monthShort = [
     'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-    'jul', 'ago', 'sept', 'oct', 'nov', 'dic',
+    'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
   ];
 
-  /// Tamaño de cada cuadradito (compacto como en las capturas).
-  static const double _cell = 11.0;
-  static const double _gap = 2.5;
-  static const double _labelW = 14.0;
+  static const _dayLetters = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
   @override
   Widget build(BuildContext context) {
     final gridStart = start.subtract(Duration(days: start.weekday - 1));
     final totalDays = end.difference(gridStart).inDays;
-    final weeks = (totalDays / 7).ceil().clamp(1, 60);
+    final weeks = (totalDays / 7).ceil().clamp(1, 53);
 
-    // Etiquetas de mes centradas sobre la primera semana de cada mes
-    final monthLabels = <int, String>{}; // weekIndex -> label
+    final isYearView = weeks >= 40;
+    final isHalfYear = weeks >= 20 && weeks < 40; // ~6 meses
+
+    final monthAtWeek = <int, String>{};
     for (var w = 0; w < weeks; w++) {
-      final day = gridStart.add(Duration(days: w * 7));
-      // Solo si el lunes de esa semana cae en rango o cerca
-      if (w == 0 || day.day <= 7) {
-        // primera semana del mes (día 1-7 del mes en esa semana)
-        final mid = day.add(const Duration(days: 3));
-        if (!mid.isBefore(start.subtract(const Duration(days: 7))) &&
-            mid.isBefore(end.add(const Duration(days: 7)))) {
-          if (w == 0 || gridStart.add(Duration(days: (w - 1) * 7)).month != day.month) {
-            monthLabels[w] = _monthShort[day.month - 1];
-          }
+      final mid = gridStart.add(Duration(days: w * 7 + 3));
+      final prevMid =
+      w == 0 ? null : gridStart.add(Duration(days: (w - 1) * 7 + 3));
+      if (w == 0 || prevMid!.month != mid.month) {
+        final weekBegin = gridStart.add(Duration(days: w * 7));
+        final weekEnd = weekBegin.add(const Duration(days: 6));
+        if (!weekEnd.isBefore(start) && weekBegin.isBefore(end)) {
+          monthAtWeek[w] = _monthShort[mid.month - 1];
         }
       }
     }
+    final monthKeys = monthAtWeek.keys.toList()..sort();
+    final spans = <({int start, int count, String label})>[];
+    for (var i = 0; i < monthKeys.length; i++) {
+      final ws = monthKeys[i];
+      final we = i + 1 < monthKeys.length ? monthKeys[i + 1] : weeks;
+      spans.add((
+      start: ws,
+      count: (we - ws).clamp(1, 12),
+      label: monthAtWeek[ws]!,
+      ));
+    }
 
-    final gridWidth = _labelW + weeks * (_cell + _gap);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const padH = 6.0;
+        final maxW = (constraints.maxWidth - padH * 2).clamp(40.0, 4000.0);
+        final dayLabelW = isYearView ? 0.0 : 11.0;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context)
-            .colorScheme
-            .surfaceContainerHighest
-            .withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: SizedBox(
-          width: gridWidth,
+        // Gaps muy chicos en 6 meses / año → celdas más grandes y juntas
+        final double gap;
+        if (isYearView) {
+          gap = 1.0;
+        } else if (isHalfYear) {
+          gap = 1.2;
+        } else if (weeks > 14) {
+          gap = 2.0;
+        } else {
+          gap = 2.5;
+        }
+
+        // Usar TODO el ancho: sin tope superior de celda
+        final gapsTotal = weeks > 1 ? (weeks - 1) * gap : 0.0;
+        final usable = maxW - dayLabelW - gapsTotal;
+        var cell = weeks > 0 ? usable / weeks : 8.0;
+        // Solo mínimo legible; el máximo es el que quepa
+        if (isYearView) {
+          cell = cell.clamp(3.5, 100.0);
+        } else if (isHalfYear) {
+          cell = cell.clamp(5.0, 100.0);
+        } else {
+          cell = cell.clamp(8.0, 14.0);
+        }
+
+        double spanWidth(int count) =>
+            count * cell + (count > 1 ? (count - 1) * gap : 0);
+
+        final labelFont = isYearView ? 8.0 : (isHalfYear ? 9.0 : 10.0);
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(padH, 10, padH, 8),
+          decoration: BoxDecoration(
+            color: Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest
+                .withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(14),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // Fila de meses
               SizedBox(
-                height: 16,
+                height: 14,
                 child: Row(
                   children: [
-                    const SizedBox(width: _labelW),
-                    ...List.generate(weeks, (w) {
-                      final label = monthLabels[w];
+                    SizedBox(width: dayLabelW),
+                    ...List.generate(spans.length, (i) {
+                      final sp = spans[i];
+                      final isLast = i == spans.length - 1;
                       return SizedBox(
-                        width: _cell + _gap,
-                        child: label == null
-                            ? const SizedBox.shrink()
-                            : Text(
-                          label,
+                        width: spanWidth(sp.count) + (isLast ? 0 : gap),
+                        child: Text(
+                          sp.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.clip,
+                          softWrap: false,
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: labelFont,
+                            height: 1.1,
                             color: Colors.grey.shade500,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       );
@@ -713,56 +754,60 @@ class _ConsistencyGrid extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              // Filas L..D (etiquetas solo L, X, V para no saturar)
               for (var wd = 0; wd < 7; wd++)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: _gap),
+                  padding: EdgeInsets.only(bottom: wd == 6 ? 0 : gap),
                   child: Row(
                     children: [
-                      SizedBox(
-                        width: _labelW,
-                        child: Text(
-                          (wd == 0 || wd == 2 || wd == 4)
-                              ? const ['L', 'M', 'X', 'J', 'V', 'S', 'D'][wd]
-                              : '',
-                          style: TextStyle(
-                            fontSize: 9,
-                            color: Colors.grey.shade600,
-                            fontWeight: FontWeight.w600,
+                      if (!isYearView)
+                        SizedBox(
+                          width: dayLabelW,
+                          child: Text(
+                            (wd == 0 || wd == 2 || wd == 4)
+                                ? _dayLetters[wd]
+                                : '',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                      ),
                       ...List.generate(weeks, (w) {
                         final day =
                         gridStart.add(Duration(days: w * 7 + wd));
                         final inRange =
                             !day.isBefore(start) && day.isBefore(end);
-                        final key =
-                        DateTime(day.year, day.month, day.day);
+                        final key = DateTime(day.year, day.month, day.day);
                         final trained = trainDays.contains(key);
                         final registered =
                             registeredDays.contains(key) && !trained;
 
-                        Color bg;
+                        final Color bg;
                         if (!inRange) {
                           bg = Colors.transparent;
                         } else if (trained) {
                           bg = primary;
                         } else if (registered) {
                           bg = const Color(0xFF4CAF50)
-                              .withValues(alpha: 0.7);
+                              .withValues(alpha: 0.65);
                         } else {
-                          bg = Colors.grey.withValues(alpha: 0.22);
+                          bg = Colors.grey
+                              .withValues(alpha: isYearView ? 0.18 : 0.22);
                         }
 
                         return Padding(
-                          padding: const EdgeInsets.only(right: _gap),
+                          padding: EdgeInsets.only(
+                            right: w == weeks - 1 ? 0 : gap,
+                          ),
                           child: Container(
-                            width: _cell,
-                            height: _cell,
+                            width: cell,
+                            height: cell,
                             decoration: BoxDecoration(
                               color: bg,
-                              borderRadius: BorderRadius.circular(2.5),
+                              borderRadius: BorderRadius.circular(
+                                cell < 7 ? 1.5 : 2.0,
+                              ),
                             ),
                           ),
                         );
@@ -772,8 +817,8 @@ class _ConsistencyGrid extends StatelessWidget {
                 ),
             ],
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
