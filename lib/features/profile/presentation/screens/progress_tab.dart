@@ -38,7 +38,7 @@ class ProgressTab extends ConsumerStatefulWidget {
 }
 
 class _ProgressTabState extends ConsumerState<ProgressTab> {
-  /// 0 = Entrenos, 1 = Semana (constancia), 2 = Hábitos
+  /// 0 = Entrenos, 1 = Constancia, 2 = Hábitos
   int _section = 1;
   int _trainPeriodDays = 30;
   /// Por defecto: 1 semana
@@ -58,17 +58,17 @@ class _ProgressTabState extends ConsumerState<ProgressTab> {
               ButtonSegment(
                 value: 0,
                 label: Text('Entrenos'),
-                icon: Icon(Icons.fitness_center, size: 16),
+                icon: Icon(Icons.fitness_center, size: 13),
               ),
               ButtonSegment(
                 value: 1,
-                label: Text('Semana'),
-                icon: Icon(Icons.calendar_view_week, size: 16),
+                label: Text('Constancia'),
+                icon: Icon(Icons.calendar_view_week, size: 13),
               ),
               ButtonSegment(
                 value: 2,
                 label: Text('Hábitos'),
-                icon: Icon(Icons.water_drop_outlined, size: 16),
+                icon: Icon(Icons.water_drop_outlined, size: 13),
               ),
             ],
             selected: {_section},
@@ -157,7 +157,7 @@ class _WeekSummarySection extends ConsumerWidget {
     for (final p in _periods) {
       if (p.$1 == periodDays) return p.$3;
     }
-    return 'Periodo';
+    return 'Rango';
   }
 
   String get _periodLabel {
@@ -193,7 +193,7 @@ class _WeekSummarySection extends ConsumerWidget {
                     Icon(Icons.calendar_month, size: 20),
                     SizedBox(width: 8),
                     Text(
-                      'Seleccionar periodo',
+                      'Seleccionar rango',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -350,7 +350,7 @@ class _WeekSummarySection extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                'Periodo',
+                                'Rango',
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: Colors.grey.shade600,
@@ -1119,41 +1119,10 @@ class _HabitsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 24),
       children: [
-        Text(
-          'Historial de hábitos',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: primary,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Calorías, macros, agua y sueño por día.',
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: primary.withValues(alpha: 0.12),
-              child: Icon(Icons.insights, color: primary),
-            ),
-            title: const Text('Ver historial diario'),
-            subtitle: const Text('Gráficos y detalle por día'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const DailyHistoryScreen(),
-                ),
-              );
-            },
-          ),
-        ),
+        const DailyHistoryScreen(embedded: true),
       ],
     );
   }

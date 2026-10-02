@@ -396,15 +396,16 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const DailyHistoryScreen(),
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Próximamente — hábitos en Progreso → Hábitos',
+                              ),
                             ),
                           );
                         },
-                        icon: const Icon(Icons.history, size: 18),
-                        label: const Text('Historial'),
+                        icon: const Icon(Icons.schedule, size: 18),
+                        label: const Text('Próximamente'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: primary,
                           side: BorderSide(color: primary),

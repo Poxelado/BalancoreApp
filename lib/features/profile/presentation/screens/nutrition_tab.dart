@@ -117,16 +117,9 @@ class _TodayTab extends ConsumerWidget {
             ),
             const Spacer(),
             TextButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const DailyHistoryScreen(),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.history, size: 18),
-              label: const Text('Historial'),
+              onPressed: null,
+              icon: const Icon(Icons.show_chart, size: 18),
+              label: const Text('Ver en Progreso'),
             ),
           ],
         ),
