@@ -21,8 +21,6 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
   late bool _isRestDay;
   late List<RoutineExercise> _exercises;
   bool _saving = false;
-
-  /// Índice del ejercicio expandido (null = ninguno).
   int? _expandedIndex;
 
   @override
@@ -172,16 +170,20 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
 
   String _summary(RoutineExercise ex) {
     final n = ex.effectiveSets.length;
-    final restM = ex.restSeconds ~/ 60;
-    final restS = ex.restSeconds % 60;
-    final restLabel = restM > 0
-        ? (restS > 0 ? '${restM}min ${restS}s' : '${restM}min')
-        : '${restS}s';
+    final restLabel = _fmtRest(ex.restSeconds);
     final firstW = n > 0 ? ex.effectiveSets.first.weight : 0.0;
     final weightHint = firstW > 0
         ? '${firstW == firstW.roundToDouble() ? firstW.toInt() : firstW} kg'
         : 'sin peso';
-    return '${ex.muscleGroup.isEmpty ? '—' : ex.muscleGroup} · $n series · $weightHint · descanso $restLabel';
+    return '${ex.muscleGroup.isEmpty ? '—' : ex.muscleGroup} · $n series · $weightHint · $restLabel';
+  }
+
+  static String _fmtRest(int sec) {
+    final m = sec ~/ 60;
+    final s = sec % 60;
+    if (m > 0 && s > 0) return '${m}min ${s.toString().padLeft(2, '0')}s';
+    if (m > 0) return '${m}min';
+    return '${s}s';
   }
 
   @override
@@ -281,61 +283,102 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
                 ),
               )
             else
-              ...List.generate(_exercises.length, (index) {
-                final ex = _exercises[index];
-                final expanded = _expandedIndex == index;
+            // Reorderable: arrastre inmediato desde el asa (=)
+              ReorderableListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                buildDefaultDragHandles: false,
+                itemCount: _exercises.length,
+                onReorder: (oldIndex, newIndex) {
+                  setState(() {
+                    if (newIndex > oldIndex) newIndex--;
+                    final item = _exercises.removeAt(oldIndex);
+                    _exercises.insert(newIndex, item);
+                    // Ajustar índice expandido
+                    if (_expandedIndex == oldIndex) {
+                      _expandedIndex = newIndex;
+                    } else if (_expandedIndex != null) {
+                      if (oldIndex < _expandedIndex! &&
+                          newIndex >= _expandedIndex!) {
+                        _expandedIndex = _expandedIndex! - 1;
+                      } else if (oldIndex > _expandedIndex! &&
+                          newIndex <= _expandedIndex!) {
+                        _expandedIndex = _expandedIndex! + 1;
+                      }
+                    }
+                  });
+                },
+                itemBuilder: (context, index) {
+                  final ex = _exercises[index];
+                  final expanded = _expandedIndex == index;
 
-                return Card(
-                  key: ValueKey('${ex.exerciseId}_$index'),
-                  margin: const EdgeInsets.only(bottom: 10),
-                  child: Column(
-                    children: [
-                      // Cabecera: nombre + flecha + detalle + borrar
-                      InkWell(
-                        onTap: () {
-                          setState(() {
-                            _expandedIndex = expanded ? null : index;
-                          });
-                        },
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(12),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(8, 8, 4, 8),
+                  return Card(
+                    key: ValueKey('ex_${ex.exerciseId}_$index'),
+                    margin: const EdgeInsets.only(bottom: 10),
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
                           child: Row(
                             children: [
-                              const Icon(Icons.drag_handle, color: Colors.grey),
-                              const SizedBox(width: 4),
-                              // Flecha que gira
-                              AnimatedRotation(
-                                turns: expanded ? 0.25 : 0, // 0→derecha, 0.25→abajo
-                                duration: const Duration(milliseconds: 200),
-                                child: Icon(
-                                  Icons.chevron_right,
-                                  color: primary,
+                              // Asa: arrastra SIN mantener (DragStartListener)
+                              ReorderableDragStartListener(
+                                index: index,
+                                child: const Padding(
+                                  padding: EdgeInsets.all(8),
+                                  child: Icon(
+                                    Icons.drag_handle,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ),
+                              InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _expandedIndex =
+                                    expanded ? null : index;
+                                  });
+                                },
+                                child: AnimatedRotation(
+                                  turns: expanded ? 0.25 : 0,
+                                  duration:
+                                  const Duration(milliseconds: 200),
+                                  child: Icon(
+                                    Icons.chevron_right,
+                                    color: primary,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 4),
                               Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      ex.exerciseName,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 15,
+                                child: InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _expandedIndex =
+                                      expanded ? null : index;
+                                    });
+                                  },
+                                  child: Column(
+                                    crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        ex.exerciseName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 15,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      _summary(ex),
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade600,
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _summary(ex),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade600,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                               IconButton(
@@ -356,7 +399,8 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
                                       _expandedIndex = null;
                                     } else if (_expandedIndex != null &&
                                         _expandedIndex! > index) {
-                                      _expandedIndex = _expandedIndex! - 1;
+                                      _expandedIndex =
+                                          _expandedIndex! - 1;
                                     }
                                   });
                                 },
@@ -364,26 +408,27 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
                             ],
                           ),
                         ),
-                      ),
-                      // Panel desplegable de edición
-                      AnimatedCrossFade(
-                        firstChild: const SizedBox(width: double.infinity),
-                        secondChild: _ExerciseEditorPanel(
-                          key: ValueKey('editor_${ex.exerciseId}_$index'),
-                          exercise: ex,
-                          primary: primary,
-                          onChanged: (updated) =>
-                              _updateExercise(index, updated),
+                        AnimatedCrossFade(
+                          firstChild:
+                          const SizedBox(width: double.infinity),
+                          secondChild: _ExerciseEditorPanel(
+                            key: ValueKey(
+                                'editor_${ex.exerciseId}_$index'),
+                            exercise: ex,
+                            primary: primary,
+                            onChanged: (updated) =>
+                                _updateExercise(index, updated),
+                          ),
+                          crossFadeState: expanded
+                              ? CrossFadeState.showSecond
+                              : CrossFadeState.showFirst,
+                          duration: const Duration(milliseconds: 220),
                         ),
-                        crossFadeState: expanded
-                            ? CrossFadeState.showSecond
-                            : CrossFadeState.showFirst,
-                        duration: const Duration(milliseconds: 220),
-                      ),
-                    ],
-                  ),
-                );
-              }),
+                      ],
+                    ),
+                  );
+                },
+              ),
           ],
         ],
       ),
@@ -391,7 +436,158 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
   }
 }
 
-/// Editor inline: notas, descanso, series (peso × reps).
+// ─── Selector de descanso estilo bottom sheet ─────────────
+
+Future<int?> showRestTimePicker(
+    BuildContext context, {
+      required int initialSeconds,
+      required String exerciseName,
+    }) {
+  return showModalBottomSheet<int>(
+    context: context,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    builder: (ctx) => _RestTimeSheet(
+      initialSeconds: initialSeconds,
+      exerciseName: exerciseName,
+    ),
+  );
+}
+
+class _RestTimeSheet extends StatefulWidget {
+  final int initialSeconds;
+  final String exerciseName;
+
+  const _RestTimeSheet({
+    required this.initialSeconds,
+    required this.exerciseName,
+  });
+
+  @override
+  State<_RestTimeSheet> createState() => _RestTimeSheetState();
+}
+
+class _RestTimeSheetState extends State<_RestTimeSheet> {
+  late int _seconds;
+  late FixedExtentScrollController _controller;
+
+  // Opciones de 15s a 10min cada 15s
+  static final List<int> _options = [
+    for (var s = 15; s <= 600; s += 15) s,
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _seconds = widget.initialSeconds.clamp(15, 600);
+    // Snap to nearest 15
+    _seconds = ((_seconds / 15).round() * 15).clamp(15, 600);
+    final idx = _options.indexOf(_seconds);
+    _controller = FixedExtentScrollController(
+      initialItem: idx >= 0 ? idx : 3, // 60s default
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  String _label(int sec) {
+    final m = sec ~/ 60;
+    final s = sec % 60;
+    if (m > 0 && s > 0) {
+      return '${m}min ${s.toString().padLeft(2, '0')}s';
+    }
+    if (m > 0) return '${m}min 0s';
+    return '${s}s';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade400,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Temporizador de Descanso',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Temporizador de Descanso – ${widget.exerciseName}',
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 160,
+              child: ListWheelScrollView.useDelegate(
+                controller: _controller,
+                itemExtent: 44,
+                physics: const FixedExtentScrollPhysics(),
+                onSelectedItemChanged: (i) {
+                  setState(() => _seconds = _options[i]);
+                },
+                childDelegate: ListWheelChildBuilderDelegate(
+                  childCount: _options.length,
+                  builder: (context, i) {
+                    final selected = _options[i] == _seconds;
+                    return Center(
+                      child: Text(
+                        _label(_options[i]),
+                        style: TextStyle(
+                          fontSize: selected ? 22 : 16,
+                          fontWeight:
+                          selected ? FontWeight.bold : FontWeight.normal,
+                          color: selected ? primary : Colors.grey.shade600,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context, _seconds),
+                style: FilledButton.styleFrom(
+                  backgroundColor: primary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: const Text(
+                  'Listo',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Panel de edición expandido ───────────────────────────
+
 class _ExerciseEditorPanel extends StatefulWidget {
   final RoutineExercise exercise;
   final Color primary;
@@ -412,8 +608,6 @@ class _ExerciseEditorPanelState extends State<_ExerciseEditorPanel> {
   late List<PlannedSet> _sets;
   late int _restSeconds;
   late TextEditingController _notesCtrl;
-  late TextEditingController _restMinCtrl;
-  late TextEditingController _restSecCtrl;
   final List<TextEditingController> _weightCtrls = [];
   final List<TextEditingController> _repsCtrls = [];
 
@@ -426,7 +620,6 @@ class _ExerciseEditorPanelState extends State<_ExerciseEditorPanel> {
   @override
   void didUpdateWidget(covariant _ExerciseEditorPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Solo recargar si cambió el ejercicio (id), no en cada onChanged
     if (oldWidget.exercise.exerciseId != widget.exercise.exerciseId) {
       _loadFrom(widget.exercise);
     }
@@ -443,14 +636,13 @@ class _ExerciseEditorPanelState extends State<_ExerciseEditorPanel> {
     _repsCtrls.clear();
 
     final base = exercise.effectiveSets;
-    _sets = base.map((s) => PlannedSet(weight: s.weight, reps: s.reps)).toList();
+    _sets =
+        base.map((s) => PlannedSet(weight: s.weight, reps: s.reps)).toList();
     if (_sets.isEmpty) {
       _sets = [const PlannedSet(weight: 0, reps: 10)];
     }
     _restSeconds = exercise.restSeconds <= 0 ? 60 : exercise.restSeconds;
     _notesCtrl = TextEditingController(text: exercise.notes);
-    _restMinCtrl = TextEditingController(text: '${_restSeconds ~/ 60}');
-    _restSecCtrl = TextEditingController(text: '${_restSeconds % 60}');
     for (final s in _sets) {
       _weightCtrls.add(TextEditingController(
         text: s.weight > 0 ? _fmtW(s.weight) : '',
@@ -464,11 +656,19 @@ class _ExerciseEditorPanelState extends State<_ExerciseEditorPanel> {
     return w.toStringAsFixed(1);
   }
 
+  String _fmtRest(int sec) {
+    final m = sec ~/ 60;
+    final s = sec % 60;
+    if (m > 0 && s > 0) {
+      return '${m}min ${s.toString().padLeft(2, '0')}s';
+    }
+    if (m > 0) return '${m}min 0s';
+    return '${s}s';
+  }
+
   @override
   void dispose() {
     _notesCtrl.dispose();
-    _restMinCtrl.dispose();
-    _restSecCtrl.dispose();
     for (final c in _weightCtrls) {
       c.dispose();
     }
@@ -478,11 +678,8 @@ class _ExerciseEditorPanelState extends State<_ExerciseEditorPanel> {
     super.dispose();
   }
 
-  void _emit() {
-    final m = int.tryParse(_restMinCtrl.text) ?? 0;
-    final s = int.tryParse(_restSecCtrl.text) ?? 0;
-    final rest = (m * 60 + s).clamp(0, 30 * 60);
-
+  void _emit({int? restOverride}) {
+    final rest = restOverride ?? _restSeconds;
     final sets = <PlannedSet>[];
     for (var i = 0; i < _sets.length; i++) {
       final w = double.tryParse(
@@ -502,6 +699,17 @@ class _ExerciseEditorPanelState extends State<_ExerciseEditorPanel> {
         notes: _notesCtrl.text.trim(),
       ),
     );
+  }
+
+  Future<void> _pickRest() async {
+    final result = await showRestTimePicker(
+      context,
+      initialSeconds: _restSeconds,
+      exerciseName: widget.exercise.exerciseName,
+    );
+    if (result == null) return;
+    setState(() => _restSeconds = result);
+    _emit(restOverride: result);
   }
 
   void _addSet() {
@@ -541,52 +749,46 @@ class _ExerciseEditorPanelState extends State<_ExerciseEditorPanel> {
             controller: _notesCtrl,
             maxLines: 2,
             decoration: const InputDecoration(
-              hintText: 'Notas de este ejercicio...',
+              hintText: 'Agregar notas de rutina aquí',
               border: OutlineInputBorder(),
               isDense: true,
             ),
             onChanged: (_) => _emit(),
           ),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              Icon(Icons.timer_outlined, color: primary, size: 18),
-              const SizedBox(width: 6),
-              const Text(
-                'Descanso',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-              ),
-              const Spacer(),
-              SizedBox(
-                width: 48,
-                child: TextField(
-                  controller: _restMinCtrl,
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.center,
-                  decoration: const InputDecoration(
-                    labelText: 'min',
-                    isDense: true,
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (_) => _emit(),
+          // Descanso: tocas y abre el selector
+          Material(
+            color: primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: _pickRest,
+              child: Padding(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                child: Row(
+                  children: [
+                    Icon(Icons.timer_outlined, color: primary, size: 20),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Descanso:',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _fmtRest(_restSeconds),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: primary,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(Icons.unfold_more, color: primary.withValues(alpha: 0.7)),
+                  ],
                 ),
               ),
-              const SizedBox(width: 6),
-              SizedBox(
-                width: 48,
-                child: TextField(
-                  controller: _restSecCtrl,
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.center,
-                  decoration: const InputDecoration(
-                    labelText: 'seg',
-                    isDense: true,
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (_) => _emit(),
-                ),
-              ),
-            ],
+            ),
           ),
           const SizedBox(height: 12),
           const Row(
