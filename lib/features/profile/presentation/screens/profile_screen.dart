@@ -8,6 +8,7 @@ import 'profile_tab.dart';
 import 'routine_tab.dart';
 import 'nutrition_tab.dart';
 import 'edit_profile_screen.dart';
+import 'progress_tab.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -324,19 +325,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
       body: _buildPage(_currentIndex),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed, // importante con 4 ítems
         currentIndex: _currentIndex,
-        selectedItemColor: primary,
         onTap: (i) => setState(() => _currentIndex = i),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.restaurant_menu),
-            label: 'Nutrición',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.fitness_center),
-            label: 'Rutina',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.pie_chart_outline), label: 'Nutrición'),
+          BottomNavigationBarItem(icon: Icon(Icons.fitness_center), label: 'Rutina'),
+          BottomNavigationBarItem(icon: Icon(Icons.insights), label: 'Progreso'),
         ],
       ),
     );
@@ -344,12 +340,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Widget _buildPage(int index) {
     switch (index) {
-      case 0:
-        return const ProfileTab();
-      case 1:
-        return const NutritionTab();
-      case 2:
-        return const RoutineTab();
+      case 0: return const ProfileTab();
+      case 1: return const NutritionTab();
+      case 2: return const RoutineTab();
+      case 3: return const ProgressTab();
       default:
         return const ProfileTab();
     }
