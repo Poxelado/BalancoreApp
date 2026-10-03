@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 import 'notification_preferences.dart';
@@ -27,11 +26,15 @@ class NotificationService {
   Future<void> init() async {
     if (_ready) return;
     tzdata.initializeTimeZones();
+    // Zona local sin plugin extra (evita conflictos de JVM/Kotlin)
     try {
-      final name = await FlutterTimezone.getLocalTimezone();
-      tz.setLocalLocation(tz.getLocation(name));
+      tz.setLocalLocation(tz.local);
     } catch (_) {
-      tz.setLocalLocation(tz.getLocation('America/Santiago'));
+      try {
+        tz.setLocalLocation(tz.getLocation('America/Santiago'));
+      } catch (_) {
+        tz.setLocalLocation(tz.UTC);
+      }
     }
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
