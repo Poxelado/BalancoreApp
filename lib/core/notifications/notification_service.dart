@@ -46,19 +46,39 @@ class NotificationService {
   }
 
   /// true = concedido; false = denegado (abre ajustes si es permanente)
+  /// Notificaciones + alarmas exactas + (opcional) sin optimización de batería.
   Future<bool> requestPermission() async {
     if (!_ready) await init();
-    var status = await Permission.notification.status;
-    if (status.isGranted) return true;
 
-    status = await Permission.notification.request();
-    if (status.isGranted) return true;
-
-    // Segunda vez / denegado: abrir ajustes del sistema
-    if (status.isPermanentlyDenied || status.isDenied) {
-      await openAppSettings();
+    // 1) Notificaciones
+    var notif = await Permission.notification.status;
+    if (!notif.isGranted) {
+      notif = await Permission.notification.request();
     }
-    return false;
+    if (!notif.isGranted) {
+      if (notif.isPermanentlyDenied || notif.isDenied) {
+        await openAppSettings();
+      }
+      return false;
+    }
+
+    // 2) Alarmas exactas (Android 12+)
+    try {
+      final exact = await Permission.scheduleExactAlarm.status;
+      if (!exact.isGranted) {
+        await Permission.scheduleExactAlarm.request();
+      }
+    } catch (_) {}
+
+    // 3) Evitar que Doze retrase las programadas (diálogo del sistema)
+    try {
+      final bat = await Permission.ignoreBatteryOptimizations.status;
+      if (!bat.isGranted) {
+        await Permission.ignoreBatteryOptimizations.request();
+      }
+    } catch (_) {}
+
+    return true;
   }
 
   void learnFromHistory({
@@ -180,7 +200,7 @@ class NotificationService {
       body,
       when,
       _details(),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
@@ -201,7 +221,7 @@ class NotificationService {
       body,
       when,
       _details(),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
