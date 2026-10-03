@@ -1,25 +1,25 @@
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'notification_service.dart';
 
 class NotificationPreferences {
+  final bool masterEnabled;
   final bool workoutEnabled;
   final bool mealEnabled;
   final bool weightEnabled;
   final bool progressEnabled;
   final bool streakEnabled;
   final bool smartEnabled;
-  /// Minutos desde medianoche
   final int workoutMinutes;
   final int mealMinutes;
   final int weightMinutes;
   final int progressMinutes;
-  /// 1=lunes … 7=domingo (DateTime.weekday)
   final int weightWeekday;
-  /// 4 o 6 horas entre avisos de racha (después de las 12:00)
   final int streakIntervalHours;
 
   const NotificationPreferences({
+    this.masterEnabled = false,
     this.workoutEnabled = true,
     this.mealEnabled = true,
     this.weightEnabled = true,
@@ -35,6 +35,7 @@ class NotificationPreferences {
   });
 
   NotificationPreferences copyWith({
+    bool? masterEnabled,
     bool? workoutEnabled,
     bool? mealEnabled,
     bool? weightEnabled,
@@ -49,6 +50,7 @@ class NotificationPreferences {
     int? streakIntervalHours,
   }) {
     return NotificationPreferences(
+      masterEnabled: masterEnabled ?? this.masterEnabled,
       workoutEnabled: workoutEnabled ?? this.workoutEnabled,
       mealEnabled: mealEnabled ?? this.mealEnabled,
       weightEnabled: weightEnabled ?? this.weightEnabled,
@@ -87,54 +89,41 @@ class NotificationPreferencesNotifier
     _load();
   }
 
-  static const _keys = {
-    'w': 'notif_workout',
-    'm': 'notif_meal',
-    'wt': 'notif_weight',
-    'p': 'notif_progress',
-    's': 'notif_streak',
-    'sm': 'notif_smart',
-    'wm': 'notif_workout_m',
-    'mm': 'notif_meal_m',
-    'wtm': 'notif_weight_m',
-    'pm': 'notif_progress_m',
-    'ww': 'notif_weight_wd',
-    'si': 'notif_streak_int',
-  };
-
   Future<void> _load() async {
     final p = await SharedPreferences.getInstance();
     state = NotificationPreferences(
-      workoutEnabled: p.getBool(_keys['w']!) ?? true,
-      mealEnabled: p.getBool(_keys['m']!) ?? true,
-      weightEnabled: p.getBool(_keys['wt']!) ?? true,
-      progressEnabled: p.getBool(_keys['p']!) ?? true,
-      streakEnabled: p.getBool(_keys['s']!) ?? true,
-      smartEnabled: p.getBool(_keys['sm']!) ?? true,
-      workoutMinutes: p.getInt(_keys['wm']!) ?? 18 * 60,
-      mealMinutes: p.getInt(_keys['mm']!) ?? 13 * 60,
-      weightMinutes: p.getInt(_keys['wtm']!) ?? 8 * 60,
-      progressMinutes: p.getInt(_keys['pm']!) ?? 19 * 60,
-      weightWeekday: p.getInt(_keys['ww']!) ?? DateTime.monday,
-      streakIntervalHours: p.getInt(_keys['si']!) ?? 4,
+      masterEnabled: p.getBool('notif_master') ?? false,
+      workoutEnabled: p.getBool('notif_workout') ?? true,
+      mealEnabled: p.getBool('notif_meal') ?? true,
+      weightEnabled: p.getBool('notif_weight') ?? true,
+      progressEnabled: p.getBool('notif_progress') ?? true,
+      streakEnabled: p.getBool('notif_streak') ?? true,
+      smartEnabled: p.getBool('notif_smart') ?? true,
+      workoutMinutes: p.getInt('notif_workout_m') ?? 18 * 60,
+      mealMinutes: p.getInt('notif_meal_m') ?? 13 * 60,
+      weightMinutes: p.getInt('notif_weight_m') ?? 8 * 60,
+      progressMinutes: p.getInt('notif_progress_m') ?? 19 * 60,
+      weightWeekday: p.getInt('notif_weight_wd') ?? DateTime.monday,
+      streakIntervalHours: p.getInt('notif_streak_int') ?? 4,
     );
     await NotificationService.instance.rescheduleFromPrefs(state);
   }
 
   Future<void> _save() async {
     final p = await SharedPreferences.getInstance();
-    await p.setBool(_keys['w']!, state.workoutEnabled);
-    await p.setBool(_keys['m']!, state.mealEnabled);
-    await p.setBool(_keys['wt']!, state.weightEnabled);
-    await p.setBool(_keys['p']!, state.progressEnabled);
-    await p.setBool(_keys['s']!, state.streakEnabled);
-    await p.setBool(_keys['sm']!, state.smartEnabled);
-    await p.setInt(_keys['wm']!, state.workoutMinutes);
-    await p.setInt(_keys['mm']!, state.mealMinutes);
-    await p.setInt(_keys['wtm']!, state.weightMinutes);
-    await p.setInt(_keys['pm']!, state.progressMinutes);
-    await p.setInt(_keys['ww']!, state.weightWeekday);
-    await p.setInt(_keys['si']!, state.streakIntervalHours);
+    await p.setBool('notif_master', state.masterEnabled);
+    await p.setBool('notif_workout', state.workoutEnabled);
+    await p.setBool('notif_meal', state.mealEnabled);
+    await p.setBool('notif_weight', state.weightEnabled);
+    await p.setBool('notif_progress', state.progressEnabled);
+    await p.setBool('notif_streak', state.streakEnabled);
+    await p.setBool('notif_smart', state.smartEnabled);
+    await p.setInt('notif_workout_m', state.workoutMinutes);
+    await p.setInt('notif_meal_m', state.mealMinutes);
+    await p.setInt('notif_weight_m', state.weightMinutes);
+    await p.setInt('notif_progress_m', state.progressMinutes);
+    await p.setInt('notif_weight_wd', state.weightWeekday);
+    await p.setInt('notif_streak_int', state.streakIntervalHours);
     await NotificationService.instance.rescheduleFromPrefs(state);
   }
 

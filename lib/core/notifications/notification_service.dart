@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:permission_handler/permission_handler.dart';
 import 'notification_preferences.dart';
 
 class _NotifId {
@@ -41,10 +42,23 @@ class NotificationService {
     await _plugin.initialize(
       const InitializationSettings(android: android, iOS: ios),
     );
-    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    await androidPlugin?.requestNotificationsPermission();
     _ready = true;
+  }
+
+  /// true = concedido; false = denegado (abre ajustes si es permanente)
+  Future<bool> requestPermission() async {
+    if (!_ready) await init();
+    var status = await Permission.notification.status;
+    if (status.isGranted) return true;
+
+    status = await Permission.notification.request();
+    if (status.isGranted) return true;
+
+    // Segunda vez / denegado: abrir ajustes del sistema
+    if (status.isPermanentlyDenied || status.isDenied) {
+      await openAppSettings();
+    }
+    return false;
   }
 
   void learnFromHistory({
@@ -81,6 +95,8 @@ class NotificationService {
   Future<void> rescheduleFromPrefs(NotificationPreferences prefs) async {
     if (!_ready) await init();
     await _plugin.cancelAll();
+
+    if (!prefs.masterEnabled) return;
 
     if (prefs.workoutEnabled) {
       await _scheduleDaily(

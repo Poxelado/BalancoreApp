@@ -32,6 +32,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   int _weightMin = 8 * 60;
   int _weightWeekday = DateTime.monday;
   int _streakInterval = 4;
+  bool? _wantNotifs;
 
   @override
   void dispose() {
@@ -127,13 +128,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
       await ref.read(notificationPreferencesProvider.notifier).update(
         NotificationPreferences(
+          masterEnabled: _wantNotifs == true,
+          workoutEnabled: _wantNotifs == true,
+          mealEnabled: _wantNotifs == true,
+          weightEnabled: _wantNotifs == true,
+          progressEnabled: _wantNotifs == true,
+          streakEnabled: _wantNotifs == true,
           workoutMinutes: _workoutMin,
           mealMinutes: _mealMin,
           weightMinutes: _weightMin,
           weightWeekday: _weightWeekday,
           streakIntervalHours: _streakInterval,
-          weightEnabled: true,
-          streakEnabled: true,
         ),
       );
       await NotificationService.instance.init();
@@ -557,108 +562,217 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Widget _buildRemindersPage(Color primary) {
     String hhmm(int m) =>
         '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
+    final enabled = _wantNotifs == true;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
       children: [
-        const Text(
-          '¿Cuándo te recordamos?',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        Text(
+          '¿Quieres recibir recordatorios?',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: onSurface,
+          ),
         ),
         const SizedBox(height: 8),
         Text(
-          'Puedes cambiarlo después en Ajustes → Notificaciones.',
-          style: TextStyle(color: Colors.grey.shade600),
+          'Te avisamos de entrenar, comer, peso y racha. Puedes cambiarlo después en Ajustes.',
+          style: TextStyle(color: onSurface.withValues(alpha: 0.7)),
         ),
-        const SizedBox(height: 16),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(Icons.fitness_center, color: primary),
-          title: const Text('Entrenamiento'),
-          subtitle: Text(hhmm(_workoutMin)),
-          trailing: const Icon(Icons.edit_outlined),
-          onTap: () async {
-            final picked = await showTimePicker(
-              context: context,
-              initialTime: TimeOfDay(hour: _workoutMin ~/ 60, minute: _workoutMin % 60),
-            );
-            if (picked != null) {
-              setState(() => _workoutMin = picked.hour * 60 + picked.minute);
-            }
-          },
-        ),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(Icons.restaurant, color: primary),
-          title: const Text('Comida'),
-          subtitle: Text(hhmm(_mealMin)),
-          trailing: const Icon(Icons.edit_outlined),
-          onTap: () async {
-            final picked = await showTimePicker(
-              context: context,
-              initialTime: TimeOfDay(hour: _mealMin ~/ 60, minute: _mealMin % 60),
-            );
-            if (picked != null) {
-              setState(() => _mealMin = picked.hour * 60 + picked.minute);
-            }
-          },
-        ),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(Icons.monitor_weight_outlined, color: primary),
-          title: const Text('Peso (semanal)'),
-          subtitle: Text(
-            '${NotificationPreferences.weekdayNames[_weightWeekday]} · ${hhmm(_weightMin)}',
-          ),
-          trailing: const Icon(Icons.edit_outlined),
-          onTap: () async {
-            final day = await showModalBottomSheet<int>(
-              context: context,
-              builder: (ctx) => SafeArea(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (var d = 1; d <= 7; d++)
-                      ListTile(
-                        title: Text(NotificationPreferences.weekdayNames[d]!),
-                        onTap: () => Navigator.pop(ctx, d),
-                      ),
-                  ],
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  foregroundColor: primary,
+                  side: BorderSide(
+                    color: primary,
+                    width: _wantNotifs == false ? 2.5 : 1.5,
+                  ),
+                  backgroundColor: _wantNotifs == false
+                      ? primary.withValues(alpha: 0.18)
+                      : Colors.transparent,
+                ),
+                onPressed: () => setState(() => _wantNotifs = false),
+                child: Text(
+                  'No',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: primary,
+                  ),
                 ),
               ),
-            );
-            if (day != null) setState(() => _weightWeekday = day);
-            if (!mounted) return;
-            final picked = await showTimePicker(
-              context: context,
-              initialTime: TimeOfDay(hour: _weightMin ~/ 60, minute: _weightMin % 60),
-            );
-            if (picked != null) {
-              setState(() => _weightMin = picked.hour * 60 + picked.minute);
-            }
-          },
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'Avisos de racha (después de las 12:00)',
-          style: TextStyle(fontWeight: FontWeight.w600, color: primary),
-        ),
-        const SizedBox(height: 8),
-        SegmentedButton<int>(
-          segments: const [
-            ButtonSegment(value: 4, label: Text('Cada 4 h')),
-            ButtonSegment(value: 6, label: Text('Cada 6 h')),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  backgroundColor: primary,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () async {
+                  setState(() => _wantNotifs = true);
+                  final ok =
+                  await NotificationService.instance.requestPermission();
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        ok
+                            ? 'Permiso de notificaciones concedido'
+                            : 'Activa las notificaciones en Ajustes del sistema',
+                      ),
+                    ),
+                  );
+                },
+                child: const Text(
+                  'Sí',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
           ],
-          selected: {_streakInterval},
-          onSelectionChanged: (s) => setState(() => _streakInterval = s.first),
         ),
-        const SizedBox(height: 8),
-        Text(
-          _streakInterval == 4
-              ? '12:00 · 16:00 · 20:00 — no perder la racha (3 de 4)'
-              : '12:00 · 18:00 — no perder la racha (3 de 4)',
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-        ),
+        if (_wantNotifs == null) ...[
+          const SizedBox(height: 24),
+          Text(
+            'Elige Sí o No para continuar.',
+            style: TextStyle(fontSize: 13, color: onSurface.withValues(alpha: 0.6)),
+          ),
+        ],
+        if (enabled) ...[
+          const SizedBox(height: 28),
+          Text(
+            'Horarios',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: primary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.fitness_center, color: primary),
+            title: Text('Entrenamiento', style: TextStyle(color: onSurface)),
+            subtitle: Text(hhmm(_workoutMin)),
+            trailing: Icon(Icons.edit_outlined, color: onSurface),
+            onTap: () async {
+              final picked = await showTimePicker(
+                context: context,
+                initialTime: TimeOfDay(
+                    hour: _workoutMin ~/ 60, minute: _workoutMin % 60),
+              );
+              if (picked != null) {
+                setState(
+                        () => _workoutMin = picked.hour * 60 + picked.minute);
+              }
+            },
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.restaurant, color: primary),
+            title: Text('Comida', style: TextStyle(color: onSurface)),
+            subtitle: Text(hhmm(_mealMin)),
+            trailing: Icon(Icons.edit_outlined, color: onSurface),
+            onTap: () async {
+              final picked = await showTimePicker(
+                context: context,
+                initialTime:
+                TimeOfDay(hour: _mealMin ~/ 60, minute: _mealMin % 60),
+              );
+              if (picked != null) {
+                setState(() => _mealMin = picked.hour * 60 + picked.minute);
+              }
+            },
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.monitor_weight_outlined, color: primary),
+            title: Text('Peso (semanal)', style: TextStyle(color: onSurface)),
+            subtitle: Text(
+              '${NotificationPreferences.weekdayNames[_weightWeekday]} · ${hhmm(_weightMin)}',
+            ),
+            trailing: Icon(Icons.edit_outlined, color: onSurface),
+            onTap: () async {
+              final day = await showModalBottomSheet<int>(
+                context: context,
+                builder: (ctx) => SafeArea(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (var d = 1; d <= 7; d++)
+                        ListTile(
+                          title:
+                          Text(NotificationPreferences.weekdayNames[d]!),
+                          onTap: () => Navigator.pop(ctx, d),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+              if (day != null) setState(() => _weightWeekday = day);
+              if (!mounted) return;
+              final picked = await showTimePicker(
+                context: context,
+                initialTime: TimeOfDay(
+                    hour: _weightMin ~/ 60, minute: _weightMin % 60),
+              );
+              if (picked != null) {
+                setState(
+                        () => _weightMin = picked.hour * 60 + picked.minute);
+              }
+            },
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Avisos de racha (después de las 12:00)',
+            style: TextStyle(fontWeight: FontWeight.w600, color: primary),
+          ),
+          const SizedBox(height: 8),
+          SegmentedButton<int>(
+            style: ButtonStyle(
+              foregroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return Colors.white;
+                }
+                return primary;
+              }),
+              backgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return primary;
+                }
+                return Colors.transparent;
+              }),
+              side: WidgetStatePropertyAll(BorderSide(color: primary)),
+            ),
+            segments: const [
+              ButtonSegment(value: 4, label: Text('Cada 4 h')),
+              ButtonSegment(value: 6, label: Text('Cada 6 h')),
+            ],
+            selected: {_streakInterval},
+            onSelectionChanged: (s) =>
+                setState(() => _streakInterval = s.first),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _streakInterval == 4
+                ? '12:00 · 16:00 · 20:00 — no perder la racha (3 de 4)'
+                : '12:00 · 18:00 — no perder la racha (3 de 4)',
+            style: TextStyle(
+                fontSize: 12, color: onSurface.withValues(alpha: 0.65)),
+          ),
+        ],
       ],
     );
   }
