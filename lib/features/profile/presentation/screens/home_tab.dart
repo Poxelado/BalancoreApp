@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
+import '../../../../core/notifications/smart_schedule.dart';
 
 const int kMlPerGlass = 200;
 const int kWaterGoalMl = 2000;
@@ -13,6 +14,10 @@ class HomeTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final primary = Theme.of(context).colorScheme.primary;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      refreshSmartNotifications(ref);
+    });
+
     final logAsync = ref.watch(todayLogProvider);
     final trainAsync = ref.watch(todayWorkoutSessionProvider);
     final historyAsync = ref.watch(dailyLogsHistoryProvider(60));
@@ -413,3 +418,4 @@ class _MiniBtn extends StatelessWidget {
     );
   }
 }
+  

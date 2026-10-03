@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../profile/domain/user_profile.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import '../providers/auth_provider.dart';
+import '../../../../core/notifications/notification_preferences.dart';
+import '../../../../core/notifications/notification_service.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -25,6 +27,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   String _activityLevel = 'Sedentario';
   String _goal = 'Mantenimiento';
   bool _isLoading = false;
+  int _workoutMin = 18 * 60;
+  int _mealMin = 13 * 60;
+  int _weightMin = 8 * 60;
+  int _weightWeekday = DateTime.monday;
+  int _streakInterval = 4;
 
   @override
   void dispose() {
@@ -117,6 +124,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       );
 
       ref.invalidate(userProfileProvider);
+
+      await ref.read(notificationPreferencesProvider.notifier).update(
+        NotificationPreferences(
+          workoutMinutes: _workoutMin,
+          mealMinutes: _mealMin,
+          weightMinutes: _weightMin,
+          weightWeekday: _weightWeekday,
+          streakIntervalHours: _streakInterval,
+          weightEnabled: true,
+          streakEnabled: true,
+        ),
+      );
+      await NotificationService.instance.init();
+
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -130,13 +151,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   void _next() {
     if (_page == 0) {
-      // Validar nombre opcional, username opcional — pasar a datos
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
     } else if (_page == 1) {
       if (!_formKey.currentState!.validate()) return;
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    } else if (_page == 2) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
@@ -189,11 +214,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Row(
-                  children: List.generate(3, (i) {
+                  children: List.generate(4, (i) {
                     return Expanded(
                       child: Container(
                         height: 4,
-                        margin: EdgeInsets.only(right: i < 2 ? 6 : 0),
+                        margin: EdgeInsets.only(right: i < 3 ? 6 : 0),
                         decoration: BoxDecoration(
                           color: i <= _page
                               ? primary
@@ -214,6 +239,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     _buildIdentityPage(primary),
                     _buildBodyPage(primary),
                     _buildGoalPage(primary),
+                    _buildRemindersPage(primary),
                   ],
                 ),
               ),
@@ -237,7 +263,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       ),
                     )
                         : Text(
-                      _page < 2 ? 'Continuar' : 'Empezar en Balancore',
+                      _page < 3 ? 'Continuar' : 'Empezar en Balancore',
                       style: const TextStyle(
                         fontSize: 16,
                         color: Colors.white,
@@ -524,6 +550,116 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
         ],
       ),
+    );
+  }
+
+
+  Widget _buildRemindersPage(Color primary) {
+    String hhmm(int m) =>
+        '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+      children: [
+        const Text(
+          '¿Cuándo te recordamos?',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Puedes cambiarlo después en Ajustes → Notificaciones.',
+          style: TextStyle(color: Colors.grey.shade600),
+        ),
+        const SizedBox(height: 16),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(Icons.fitness_center, color: primary),
+          title: const Text('Entrenamiento'),
+          subtitle: Text(hhmm(_workoutMin)),
+          trailing: const Icon(Icons.edit_outlined),
+          onTap: () async {
+            final picked = await showTimePicker(
+              context: context,
+              initialTime: TimeOfDay(hour: _workoutMin ~/ 60, minute: _workoutMin % 60),
+            );
+            if (picked != null) {
+              setState(() => _workoutMin = picked.hour * 60 + picked.minute);
+            }
+          },
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(Icons.restaurant, color: primary),
+          title: const Text('Comida'),
+          subtitle: Text(hhmm(_mealMin)),
+          trailing: const Icon(Icons.edit_outlined),
+          onTap: () async {
+            final picked = await showTimePicker(
+              context: context,
+              initialTime: TimeOfDay(hour: _mealMin ~/ 60, minute: _mealMin % 60),
+            );
+            if (picked != null) {
+              setState(() => _mealMin = picked.hour * 60 + picked.minute);
+            }
+          },
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(Icons.monitor_weight_outlined, color: primary),
+          title: const Text('Peso (semanal)'),
+          subtitle: Text(
+            '${NotificationPreferences.weekdayNames[_weightWeekday]} · ${hhmm(_weightMin)}',
+          ),
+          trailing: const Icon(Icons.edit_outlined),
+          onTap: () async {
+            final day = await showModalBottomSheet<int>(
+              context: context,
+              builder: (ctx) => SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var d = 1; d <= 7; d++)
+                      ListTile(
+                        title: Text(NotificationPreferences.weekdayNames[d]!),
+                        onTap: () => Navigator.pop(ctx, d),
+                      ),
+                  ],
+                ),
+              ),
+            );
+            if (day != null) setState(() => _weightWeekday = day);
+            if (!mounted) return;
+            final picked = await showTimePicker(
+              context: context,
+              initialTime: TimeOfDay(hour: _weightMin ~/ 60, minute: _weightMin % 60),
+            );
+            if (picked != null) {
+              setState(() => _weightMin = picked.hour * 60 + picked.minute);
+            }
+          },
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Avisos de racha (después de las 12:00)',
+          style: TextStyle(fontWeight: FontWeight.w600, color: primary),
+        ),
+        const SizedBox(height: 8),
+        SegmentedButton<int>(
+          segments: const [
+            ButtonSegment(value: 4, label: Text('Cada 4 h')),
+            ButtonSegment(value: 6, label: Text('Cada 6 h')),
+          ],
+          selected: {_streakInterval},
+          onSelectionChanged: (s) => setState(() => _streakInterval = s.first),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _streakInterval == 4
+              ? '12:00 · 16:00 · 20:00 — no perder la racha (3 de 4)'
+              : '12:00 · 18:00 — no perder la racha (3 de 4)',
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+        ),
+      ],
     );
   }
 

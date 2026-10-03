@@ -9,6 +9,7 @@ import 'routine_tab.dart';
 import 'nutrition_tab.dart';
 import 'edit_profile_screen.dart';
 import 'progress_tab.dart';
+import 'notification_settings_screen.dart';
 import 'home_tab.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -186,6 +187,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Divider(height: 1),
+                    ListTile(
+                      leading: Icon(Icons.notifications_outlined, color: primary),
+                      title: const Text('Notificaciones'),
+                      subtitle: const Text('Entreno, comidas, peso y racha'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const NotificationSettingsScreen(),
+                          ),
+                        );
+                      },
+                    ),
                     ListTile(
                       leading: const Icon(Icons.privacy_tip_outlined),
                       title: const Text('Privacidad'),
