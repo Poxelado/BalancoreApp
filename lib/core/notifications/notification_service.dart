@@ -26,15 +26,10 @@ class NotificationService {
   Future<void> init() async {
     if (_ready) return;
     tzdata.initializeTimeZones();
-    // Zona local sin plugin extra (evita conflictos de JVM/Kotlin)
     try {
-      tz.setLocalLocation(tz.local);
+      tz.setLocalLocation(tz.getLocation('America/Santiago'));
     } catch (_) {
-      try {
-        tz.setLocalLocation(tz.getLocation('America/Santiago'));
-      } catch (_) {
-        tz.setLocalLocation(tz.UTC);
-      }
+      tz.setLocalLocation(tz.UTC);
     }
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
