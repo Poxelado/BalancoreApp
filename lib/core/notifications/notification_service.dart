@@ -46,39 +46,19 @@ class NotificationService {
   }
 
   /// true = concedido; false = denegado (abre ajustes si es permanente)
-  /// Notificaciones + alarmas exactas + (opcional) sin optimización de batería.
   Future<bool> requestPermission() async {
     if (!_ready) await init();
+    var status = await Permission.notification.status;
+    if (status.isGranted) return true;
 
-    // 1) Notificaciones
-    var notif = await Permission.notification.status;
-    if (!notif.isGranted) {
-      notif = await Permission.notification.request();
+    status = await Permission.notification.request();
+    if (status.isGranted) return true;
+
+    // Segunda vez / denegado: abrir ajustes del sistema
+    if (status.isPermanentlyDenied || status.isDenied) {
+      await openAppSettings();
     }
-    if (!notif.isGranted) {
-      if (notif.isPermanentlyDenied || notif.isDenied) {
-        await openAppSettings();
-      }
-      return false;
-    }
-
-    // 2) Alarmas exactas (Android 12+)
-    try {
-      final exact = await Permission.scheduleExactAlarm.status;
-      if (!exact.isGranted) {
-        await Permission.scheduleExactAlarm.request();
-      }
-    } catch (_) {}
-
-    // 3) Evitar que Doze retrase las programadas (diálogo del sistema)
-    try {
-      final bat = await Permission.ignoreBatteryOptimizations.status;
-      if (!bat.isGranted) {
-        await Permission.ignoreBatteryOptimizations.request();
-      }
-    } catch (_) {}
-
-    return true;
+    return false;
   }
 
   void learnFromHistory({
@@ -200,7 +180,7 @@ class NotificationService {
       body,
       when,
       _details(),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
@@ -221,7 +201,7 @@ class NotificationService {
       body,
       when,
       _details(),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
@@ -266,6 +246,16 @@ class NotificationService {
     return scheduled;
   }
 
+  Future<void> showInactivity(String body) async {
+    if (!_ready) await init();
+    await _plugin.show(
+      9106,
+      'Te echamos de menos 👋',
+      body,
+      _details(),
+    );
+  }
+
   Future<void> showTest() async {
     await showTestKind('general');
   }
@@ -298,6 +288,11 @@ class NotificationService {
       9105,
       'Prueba · Racha 🔥',
       'Registra 3 de 4 hábitos para no perder la racha.',
+      ),
+      'inactivity': (
+      9106,
+      'Te echamos de menos 👋',
+      'Llevas varios días sin registrar. Vuelve a Balancore y retoma el hábito.',
       ),
       'general': (
       9999,

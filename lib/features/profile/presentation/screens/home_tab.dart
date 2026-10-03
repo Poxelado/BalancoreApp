@@ -4,6 +4,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import '../../../../core/notifications/smart_schedule.dart';
+import '../../../../core/notifications/inactivity_check.dart';
 
 const int kMlPerGlass = 200;
 const int kWaterGoalMl = 2000;
@@ -16,6 +17,7 @@ class HomeTab extends ConsumerWidget {
     final primary = Theme.of(context).colorScheme.primary;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       refreshSmartNotifications(ref);
+      checkInactivityAndNotify(ref);
     });
 
     final logAsync = ref.watch(todayLogProvider);

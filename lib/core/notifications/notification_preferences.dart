@@ -11,6 +11,8 @@ class NotificationPreferences {
   final bool progressEnabled;
   final bool streakEnabled;
   final bool smartEnabled;
+  final bool inactivityEnabled;
+  final int inactivityDays;
   final int workoutMinutes;
   final int mealMinutes;
   final int weightMinutes;
@@ -26,6 +28,8 @@ class NotificationPreferences {
     this.progressEnabled = true,
     this.streakEnabled = true,
     this.smartEnabled = true,
+    this.inactivityEnabled = true,
+    this.inactivityDays = 3,
     this.workoutMinutes = 18 * 60,
     this.mealMinutes = 13 * 60,
     this.weightMinutes = 8 * 60,
@@ -42,6 +46,8 @@ class NotificationPreferences {
     bool? progressEnabled,
     bool? streakEnabled,
     bool? smartEnabled,
+    bool? inactivityEnabled,
+    int? inactivityDays,
     int? workoutMinutes,
     int? mealMinutes,
     int? weightMinutes,
@@ -57,6 +63,8 @@ class NotificationPreferences {
       progressEnabled: progressEnabled ?? this.progressEnabled,
       streakEnabled: streakEnabled ?? this.streakEnabled,
       smartEnabled: smartEnabled ?? this.smartEnabled,
+      inactivityEnabled: inactivityEnabled ?? this.inactivityEnabled,
+      inactivityDays: inactivityDays ?? this.inactivityDays,
       workoutMinutes: workoutMinutes ?? this.workoutMinutes,
       mealMinutes: mealMinutes ?? this.mealMinutes,
       weightMinutes: weightMinutes ?? this.weightMinutes,
@@ -99,6 +107,8 @@ class NotificationPreferencesNotifier
       progressEnabled: p.getBool('notif_progress') ?? true,
       streakEnabled: p.getBool('notif_streak') ?? true,
       smartEnabled: p.getBool('notif_smart') ?? true,
+      inactivityEnabled: p.getBool('notif_inactivity') ?? true,
+      inactivityDays: p.getInt('notif_inactivity_days') ?? 3,
       workoutMinutes: p.getInt('notif_workout_m') ?? 18 * 60,
       mealMinutes: p.getInt('notif_meal_m') ?? 13 * 60,
       weightMinutes: p.getInt('notif_weight_m') ?? 8 * 60,
@@ -118,6 +128,8 @@ class NotificationPreferencesNotifier
     await p.setBool('notif_progress', state.progressEnabled);
     await p.setBool('notif_streak', state.streakEnabled);
     await p.setBool('notif_smart', state.smartEnabled);
+    await p.setBool('notif_inactivity', state.inactivityEnabled);
+    await p.setInt('notif_inactivity_days', state.inactivityDays);
     await p.setInt('notif_workout_m', state.workoutMinutes);
     await p.setInt('notif_meal_m', state.mealMinutes);
     await p.setInt('notif_weight_m', state.weightMinutes);

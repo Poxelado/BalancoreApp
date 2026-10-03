@@ -241,6 +241,67 @@ class NotificationSettingsScreen extends ConsumerWidget {
                     onChanged: (v) =>
                         n.update(prefs.copyWith(smartEnabled: v)),
                   ),
+
+                  const SizedBox(height: 16),
+                  Text(
+                    'Inactividad',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: primary,
+                      fontSize: 16,
+                    ),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Aviso por inactividad'),
+                    subtitle: Text(
+                      'Si pasas ${prefs.inactivityDays} días sin entrenar o sin comida',
+                    ),
+                    value: prefs.inactivityEnabled,
+                    onChanged: (v) =>
+                        n.update(prefs.copyWith(inactivityEnabled: v)),
+                  ),
+                  if (prefs.inactivityEnabled)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
+                      child: Row(
+                        children: [
+                          const Text('Días sin registro:'),
+                          const Spacer(),
+                          SegmentedButton<int>(
+                            segments: const [
+                              ButtonSegment(value: 2, label: Text('2')),
+                              ButtonSegment(value: 3, label: Text('3')),
+                              ButtonSegment(value: 5, label: Text('5')),
+                              ButtonSegment(value: 7, label: Text('7')),
+                            ],
+                            selected: {prefs.inactivityDays},
+                            onSelectionChanged: (s) => n.update(
+                              prefs.copyWith(inactivityDays: s.first),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () async {
+                        await NotificationService.instance.showInactivity(
+                          'Prueba: llevarías varios días sin registrar.',
+                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Prueba de inactividad enviada')),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.notifications_active_outlined,
+                          size: 16),
+                      label: const Text('Probar inactividad'),
+                    ),
+                  ),
                 ],
               ),
             ),
