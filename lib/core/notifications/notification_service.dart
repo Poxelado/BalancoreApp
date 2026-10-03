@@ -247,12 +247,45 @@ class NotificationService {
   }
 
   Future<void> showTest() async {
+    await showTestKind('general');
+  }
+
+  /// Prueba inmediata por tipo.
+  Future<void> showTestKind(String kind) async {
     if (!_ready) await init();
-    await _plugin.show(
+    final map = {
+      'workout': (
+      9101,
+      'Prueba · Entrenamiento 💪',
+      'Así se verá el recordatorio de entrenar.',
+      ),
+      'meal': (
+      9102,
+      'Prueba · Comida 🍽️',
+      'Así se verá el recordatorio de registrar comida.',
+      ),
+      'weight': (
+      9103,
+      'Prueba · Peso ⚖️',
+      'Así se verá el recordatorio semanal de peso.',
+      ),
+      'progress': (
+      9104,
+      'Prueba · Progreso 📊',
+      'Así se verá el recordatorio de revisar progreso.',
+      ),
+      'streak': (
+      9105,
+      'Prueba · Racha 🔥',
+      'Registra 3 de 4 hábitos para no perder la racha.',
+      ),
+      'general': (
       9999,
       'Balancore',
       'Las notificaciones están activas ✅',
-      _details(),
-    );
+      ),
+    };
+    final data = map[kind] ?? map['general']!;
+    await _plugin.show(data.$1, data.$2, data.$3, _details());
   }
 }
