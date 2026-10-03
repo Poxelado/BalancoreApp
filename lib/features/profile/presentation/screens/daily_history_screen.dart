@@ -163,6 +163,18 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final historyAsync = ref.watch(dailyLogsHistoryProvider(_days));
+    // Abrir con macros si se pidió desde Nutrición
+    final forcedMetric = ref.watch(habitsMetricProvider);
+    if (forcedMetric != null && _selected == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() {
+          _selected = _Metric.values[forcedMetric.clamp(0, _Metric.values.length - 1)];
+        });
+        ref.read(habitsMetricProvider.notifier).state = null;
+      });
+    }
+
     final primary = Theme.of(context).colorScheme.primary;
     final groupByMonth = _days >= 90;
 

@@ -100,3 +100,13 @@ void invalidateProgressData(dynamic ref) {
   ref.invalidate(workoutHistoryProvider);
   ref.invalidate(activeWorkoutSessionProvider);
 }
+
+
+/// 0 Progreso, 1 Nutrición, 2 Inicio, 3 Rutina, 4 Perfil
+final shellTabProvider = StateProvider<int>((ref) => 2);
+
+/// 0 Entrenos, 1 Constancia, 2 Hábitos
+final progressSectionProvider = StateProvider<int>((ref) => 1);
+
+/// null = resumen, 0 kcal, 1 agua, 2 sueño, 3 macros
+final habitsMetricProvider = StateProvider<int?>((ref) => null);

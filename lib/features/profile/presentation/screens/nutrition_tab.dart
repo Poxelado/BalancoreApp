@@ -117,9 +117,13 @@ class _TodayTab extends ConsumerWidget {
             ),
             const Spacer(),
             TextButton.icon(
-              onPressed: null,
+              onPressed: () {
+                ref.read(habitsMetricProvider.notifier).state = 3; // macros
+                ref.read(progressSectionProvider.notifier).state = 2; // hábitos
+                ref.read(shellTabProvider.notifier).state = 0; // progreso
+              },
               icon: const Icon(Icons.show_chart, size: 18),
-              label: const Text('Ver en Progreso'),
+              label: const Text('Ver progreso'),
             ),
           ],
         ),

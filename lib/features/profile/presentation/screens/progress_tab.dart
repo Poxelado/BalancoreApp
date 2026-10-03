@@ -38,15 +38,13 @@ class ProgressTab extends ConsumerStatefulWidget {
 }
 
 class _ProgressTabState extends ConsumerState<ProgressTab> {
-  /// 0 = Entrenos, 1 = Constancia, 2 = Hábitos
-  int _section = 1;
   int _trainPeriodDays = 30;
-  /// Por defecto: 1 semana
   int _summaryPeriodDays = 7;
 
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
+    final section = ref.watch(progressSectionProvider);
 
     return Column(
       children: [
@@ -62,7 +60,7 @@ class _ProgressTabState extends ConsumerState<ProgressTab> {
               ),
               ButtonSegment(
                 value: 1,
-                label: Text('Constancia'),
+                label: Text('Registros'),
                 icon: Icon(Icons.calendar_view_week, size: 13),
               ),
               ButtonSegment(
@@ -71,10 +69,9 @@ class _ProgressTabState extends ConsumerState<ProgressTab> {
                 icon: Icon(Icons.water_drop_outlined, size: 13),
               ),
             ],
-            selected: {_section},
+            selected: {section},
             onSelectionChanged: (s) {
-              setState(() => _section = s.first);
-              // Al cambiar de pestaña, refrescar datos de progreso
+              ref.read(progressSectionProvider.notifier).state = s.first;
               invalidateProgressData(ref);
             },
             style: ButtonStyle(
@@ -95,7 +92,7 @@ class _ProgressTabState extends ConsumerState<ProgressTab> {
               await Future.wait([
                 ref.refresh(
                   workoutHistoryProvider(
-                    _section == 0
+                    section == 0
                         ? _trainPeriodDays + 14
                         : _summaryPeriodDays + 14,
                   ).future,
@@ -106,7 +103,7 @@ class _ProgressTabState extends ConsumerState<ProgressTab> {
                 ref.refresh(todayLogProvider.future),
               ]);
             },
-            child: switch (_section) {
+            child: switch (section) {
               0 => _WorkoutsSection(
                 primary: primary,
                 periodDays: _trainPeriodDays,
@@ -391,7 +388,7 @@ class _WeekSummarySection extends ConsumerWidget {
                         color: primary,
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 4),
                     Expanded(
                       child: _MetricCard(
                         icon: Icons.local_fire_department,
@@ -402,7 +399,7 @@ class _WeekSummarySection extends ConsumerWidget {
                         color: const Color(0xFFFF9800),
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 4),
                     Expanded(
                       child: _MetricCard(
                         icon: Icons.percent,
@@ -412,7 +409,7 @@ class _WeekSummarySection extends ConsumerWidget {
                         color: const Color(0xFF4CAF50),
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 4),
                     Expanded(
                       child: _MetricCard(
                         icon: Icons.sports_gymnastics,
@@ -840,42 +837,63 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color, size: 16),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
+    return LayoutBuilder(
+      builder: (context, c) {
+        final narrow = c.maxWidth < 72;
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(
+            horizontal: narrow ? 2 : 4,
+            vertical: 8,
           ),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.25)),
           ),
-          Text(
-            subtitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: narrow ? 14 : 16),
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: narrow ? 13 : 15,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+              ),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: narrow ? 9 : 11,
+                  ),
+                ),
+              ),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  subtitle,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: narrow ? 8 : 9,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

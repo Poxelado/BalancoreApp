@@ -9,6 +9,7 @@ import 'routine_tab.dart';
 import 'nutrition_tab.dart';
 import 'edit_profile_screen.dart';
 import 'progress_tab.dart';
+import 'home_tab.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -18,7 +19,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  int _currentIndex = 0;
+  // tab via shellTabProvider (default Inicio = 2)
   @override
   void dispose() {
     super.dispose();
@@ -254,7 +255,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final profile = ref.watch(userProfileProvider).value;
     final themePrefs = ref.watch(themePreferencesProvider);
     final primary = Theme.of(context).colorScheme.primary;
-    final isProfileTab = _currentIndex == 0;
+    final isProfileTab = ref.watch(shellTabProvider) == 4;
     final username = (profile?.username?.isNotEmpty == true)
         ? '@${profile!.username}'
         : '@usuario';
@@ -323,14 +324,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ]
             : null,
       ),
-      body: _buildPage(_currentIndex),
+      body: _buildPage(ref.watch(shellTabProvider)),
       bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed, // importante con 4 ítems
-        currentIndex: _currentIndex,
-        onTap: (i) => setState(() => _currentIndex = i),
+        type: BottomNavigationBarType.fixed,
+        currentIndex: ref.watch(shellTabProvider),
+        onTap: (i) => ref.read(shellTabProvider.notifier).state = i,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.pie_chart_outline), label: 'Nutrición'),
           BottomNavigationBarItem(icon: Icon(Icons.insights), label: 'Progreso'),
+          BottomNavigationBarItem(icon: Icon(Icons.pie_chart_outline), label: 'Nutrición'),
+          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Inicio'),
           BottomNavigationBarItem(icon: Icon(Icons.fitness_center), label: 'Rutina'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
         ],
@@ -340,12 +342,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Widget _buildPage(int index) {
     switch (index) {
-      case 3: return const ProfileTab();
-      case 0: return const NutritionTab();
-      case 2: return const RoutineTab();
-      case 1: return const ProgressTab();
-      default:
+      case 0:
+        return const ProgressTab();
+      case 1:
+        return const NutritionTab();
+      case 2:
+        return const HomeTab();
+      case 3:
+        return const RoutineTab();
+      case 4:
         return const ProfileTab();
+      default:
+        return const HomeTab();
     }
   }
 

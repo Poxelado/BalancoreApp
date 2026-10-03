@@ -7,6 +7,7 @@ import '../../../training/presentation/screens/weekly_routine_screen.dart';
 import '../../../training/presentation/screens/exercise_library_screen.dart';
 import '../../../training/presentation/screens/edit_routine_day_screen.dart';
 import '../../../training/presentation/screens/workout_session_screen.dart';
+import 'home_tab.dart';
 
 class RoutineTab extends ConsumerStatefulWidget {
   const RoutineTab({super.key});
@@ -16,27 +17,6 @@ class RoutineTab extends ConsumerStatefulWidget {
 }
 
 class _RoutineTabState extends ConsumerState<RoutineTab> {
-  final PageController _habitsController = PageController();
-  int _habitsPage = 0;
-
-  @override
-  void dispose() {
-    _habitsController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _updateWater(int value) async {
-    final uid = ref.read(authServiceProvider).currentUser!.uid;
-    await ref.read(profileRepositoryProvider).updateTodayLog(uid, waterGlasses: value);
-    invalidateProgressData(ref);
-  }
-
-  Future<void> _updateSleep(double value) async {
-    final uid = ref.read(authServiceProvider).currentUser!.uid;
-    await ref.read(profileRepositoryProvider).updateTodayLog(uid, sleepHours: value);
-    invalidateProgressData(ref);
-  }
-
   Future<void> _startWorkout(RoutineDay day) async {
     if (day.isRestDay) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -175,83 +155,9 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
         ),
         const SizedBox(height: 24),
 
-        // ═══ 2) Agua / Sueño ══════════════════════════════
-        Text(
-          'Hoy',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: primary,
-          ),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 130,
-          child: logAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Text('Error: $e'),
-            data: (log) {
-              return Column(
-                children: [
-                  Expanded(
-                    child: PageView(
-                      controller: _habitsController,
-                      onPageChanged: (i) => setState(() => _habitsPage = i),
-                      children: [
-                        _HabitCard(
-                          icon: Icons.water_drop,
-                          iconColor: Colors.blue,
-                          title: 'Agua',
-                          value: '${log.waterGlasses} / 8 vasos',
-                          onMinus: log.waterGlasses > 0
-                              ? () => _updateWater(log.waterGlasses - 1)
-                              : null,
-                          onPlus: log.waterGlasses < 20
-                              ? () => _updateWater(log.waterGlasses + 1)
-                              : null,
-                        ),
-                        _HabitCard(
-                          icon: Icons.bedtime,
-                          iconColor: Colors.indigo,
-                          title: 'Sueño',
-                          value: '${log.sleepHours.toStringAsFixed(1)} h',
-                          onMinus: log.sleepHours > 0
-                              ? () => _updateSleep(
-                            (log.sleepHours - 0.5).clamp(0, 24),
-                          )
-                              : null,
-                          onPlus: log.sleepHours < 16
-                              ? () => _updateSleep(
-                            (log.sleepHours + 0.5).clamp(0, 24),
-                          )
-                              : null,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(2, (i) {
-                      return Container(
-                        width: 8,
-                        height: 8,
-                        margin: const EdgeInsets.symmetric(horizontal: 3),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: i == _habitsPage
-                              ? primary
-                              : Colors.grey.shade300,
-                        ),
-                      );
-                    }),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 24),
+        // ═══ 2) Agua (sync con Inicio) ════════════════
+        const CompactWaterControl(),
+        const SizedBox(height: 16),
 
         // ═══ 3) Biblioteca ════════════════════════════════
         Card(
