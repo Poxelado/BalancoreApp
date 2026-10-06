@@ -2,10 +2,13 @@ import '../../profile/domain/user_profile.dart';
 
 /// Progresión por reglas simples (sobrecarga progresiva, sin IA).
 class ProgressionSuggestion {
-  /// Peso sugerido por serie (índice = serie).
+  /// Peso sugerido por serie (lo que conviene intentar hoy).
   final List<double> weights;
   /// Reps sugeridas por serie.
   final List<int> reps;
+  /// Lo que hiciste la vez pasada (columna PREVIA).
+  final List<double> previousWeights;
+  final List<int> previousReps;
   /// Texto corto para la UI.
   final String message;
   /// true si recomienda subir peso respecto a la última sesión.
@@ -14,26 +17,63 @@ class ProgressionSuggestion {
   const ProgressionSuggestion({
     required this.weights,
     required this.reps,
+    required this.previousWeights,
+    required this.previousReps,
     required this.message,
     this.isIncrease = false,
   });
+
+  String previaLabel(int setIndex) {
+    if (previousWeights.isEmpty) return '—';
+    final i = setIndex < previousWeights.length
+        ? setIndex
+        : previousWeights.length - 1;
+    final w = previousWeights[i];
+    final r = i < previousReps.length
+        ? previousReps[i]
+        : (previousReps.isNotEmpty ? previousReps.last : 0);
+    if (w <= 0 && r <= 0) return '—';
+    final ws = w == w.roundToDouble() ? '${w.toInt()}' : w.toStringAsFixed(1);
+    return '$ws × $r';
+  }
+
+  double weightFor(int setIndex) {
+    if (weights.isEmpty) return 0;
+    return setIndex < weights.length ? weights[setIndex] : weights.last;
+  }
+
+  int repsFor(int setIndex) {
+    if (reps.isEmpty) return 0;
+    return setIndex < reps.length ? reps[setIndex] : reps.last;
+  }
 }
 
 class ProgressionRules {
   /// Incremento estándar de peso (kg).
   static const double weightStep = 2.5;
 
-  /// Busca la última sesión completada que tenga el ejercicio con series hechas.
+  static bool _matches(WorkoutExerciseLog ex, String exerciseId, String? name) {
+    if (exerciseId.isNotEmpty && ex.exerciseId == exerciseId) return true;
+    if (name != null &&
+        name.isNotEmpty &&
+        ex.exerciseName.toLowerCase().trim() == name.toLowerCase().trim()) {
+      return true;
+    }
+    return false;
+  }
+
+  /// Última vez que este ejercicio se registró con series completadas.
   static WorkoutExerciseLog? lastLoggedExercise(
       List<WorkoutSession> history,
-      String exerciseId,
-      ) {
-    // history suele venir más reciente primero
-    final sorted = [...history]..sort((a, b) => b.startedAt.compareTo(a.startedAt));
+      String exerciseId, {
+        String? exerciseName,
+      }) {
+    final sorted = [...history]
+      ..sort((a, b) => b.startedAt.compareTo(a.startedAt));
     for (final session in sorted) {
       if (!session.completed) continue;
       for (final ex in session.exercises) {
-        if (ex.exerciseId != exerciseId) continue;
+        if (!_matches(ex, exerciseId, exerciseName)) continue;
         if (ex.sets.any((s) => s.completed && (s.weight > 0 || s.reps > 0))) {
           return ex;
         }
@@ -42,24 +82,36 @@ class ProgressionRules {
     return null;
   }
 
-  /// Sugiere peso/reps para [setCount] series según rendimiento anterior.
+  /// Sugiere peso/reps según la última sesión.
   static ProgressionSuggestion? suggest({
     required String exerciseId,
     required int setCount,
     required int targetReps,
     required List<WorkoutSession> history,
+    String? exerciseName,
   }) {
     if (setCount <= 0) return null;
-    final prev = lastLoggedExercise(history, exerciseId);
+    final prev = lastLoggedExercise(
+      history,
+      exerciseId,
+      exerciseName: exerciseName,
+    );
     if (prev == null) return null;
 
     final completed = prev.sets.where((s) => s.completed).toList();
     if (completed.isEmpty) return null;
 
+    final prevW = <double>[];
+    final prevR = <int>[];
+    for (final s in prev.sets) {
+      prevW.add(s.weight);
+      prevR.add(s.reps);
+    }
+
     final allHitReps = completed.every((s) => s.reps >= targetReps);
     final anyMissed = completed.any((s) => s.reps < targetReps);
-    final avgWeight = completed.fold<double>(0, (a, s) => a + s.weight) /
-        completed.length;
+    final avgWeight =
+        completed.fold<double>(0, (a, s) => a + s.weight) / completed.length;
 
     final weights = <double>[];
     final repsList = <int>[];
@@ -70,11 +122,9 @@ class ProgressionRules {
       final baseR = base.reps > 0 ? base.reps : targetReps;
 
       if (allHitReps && baseW > 0) {
-        // Cumplió reps en todas las series → subir peso
         weights.add(_roundStep(baseW + weightStep));
         repsList.add(targetReps);
       } else if (anyMissed) {
-        // No llegó a las reps → mantener peso, mismo objetivo
         weights.add(baseW);
         repsList.add(targetReps);
       } else {
@@ -93,15 +143,14 @@ class ProgressionRules {
     return ProgressionSuggestion(
       weights: weights,
       reps: repsList,
+      previousWeights: prevW,
+      previousReps: prevR,
       message: msg,
       isIncrease: isIncrease,
     );
   }
 
-  static double _roundStep(double w) {
-    // Redondea al múltiplo de 0.5 más cercano (soporta 1.25 si se desea)
-    return (w * 2).round() / 2.0;
-  }
+  static double _roundStep(double w) => (w * 2).round() / 2.0;
 
   static String _fmt(double w) {
     if (w == w.roundToDouble()) return '${w.toInt()}';

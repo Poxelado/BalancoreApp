@@ -83,8 +83,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
 
   Future<void> _loadProgression() async {
     try {
-      final history =
-      await ref.read(workoutHistoryProvider(120).future);
+      final history = await ref.read(workoutHistoryProvider(120).future);
       final map = <String, ProgressionSuggestion>{};
       for (final ex in _session.exercises) {
         final target = ex.sets.isNotEmpty
@@ -92,11 +91,14 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
             : 10;
         final sug = ProgressionRules.suggest(
           exerciseId: ex.exerciseId,
+          exerciseName: ex.exerciseName,
           setCount: ex.sets.length,
           targetReps: target,
           history: history,
         );
-        if (sug != null) map[ex.exerciseId] = sug;
+        // Clave por id o por nombre si id vacío
+        final key = ex.exerciseId.isNotEmpty ? ex.exerciseId : ex.exerciseName;
+        if (sug != null) map[key] = sug;
       }
       if (!mounted) return;
       setState(() {
@@ -104,14 +106,27 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
           ..clear()
           ..addAll(map);
       });
-      // Prefill solo si es sesión nueva y pesos vacíos
-      final isFresh = widget.existing == null ||
-          (!_session.exercises.any(
-                  (e) => e.sets.any((s) => s.completed || s.weight > 0)));
-      if (isFresh && map.isNotEmpty) {
-        _applyAllSuggestions(auto: true);
+      // Campos vacíos + hint desvanecido (solo series no completadas)
+      if (widget.existing == null ||
+          !_session.exercises.any((e) => e.sets.any((s) => s.completed))) {
+        for (final ex in _session.exercises) {
+          for (final s in ex.sets) {
+            if (s.completed) continue;
+            final key = _key(ex, s);
+            _weightCtrls[key]?.clear();
+            _repsCtrls[key]?.clear();
+          }
+        }
+        if (mounted) setState(() {});
       }
     } catch (_) {}
+  }
+
+  ProgressionSuggestion? _sugFor(WorkoutExerciseLog ex) {
+    if (_suggestions.containsKey(ex.exerciseId)) {
+      return _suggestions[ex.exerciseId];
+    }
+    return _suggestions[ex.exerciseName];
   }
 
   void _applyAllSuggestions({bool auto = false}) {
@@ -120,12 +135,12 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
     var changed = false;
     for (var ei = 0; ei < exercises.length; ei++) {
       final ex = exercises[ei];
-      final sug = _suggestions[ex.exerciseId];
+      final sug = _sugFor(ex);
       if (sug == null) continue;
       final sets = [...ex.sets];
       for (var i = 0; i < sets.length; i++) {
-        final w = i < sug.weights.length ? sug.weights[i] : sug.weights.last;
-        final r = i < sug.reps.length ? sug.reps[i] : sug.reps.last;
+        final w = sug.weightFor(i);
+        final r = sug.repsFor(i);
         // auto: solo rellena si peso vacío; manual: siempre
         if (auto && sets[i].weight > 0) continue;
         sets[i] = sets[i].copyWith(weight: w, reps: r);
@@ -146,7 +161,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
 
   void _applySuggestionForExercise(int exerciseIndex) {
     final ex = _session.exercises[exerciseIndex];
-    final sug = _suggestions[ex.exerciseId];
+    final sug = _sugFor(ex);
     if (sug == null) return;
     final exercises = [..._session.exercises];
     final sets = [...ex.sets];
@@ -315,15 +330,43 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
   }
 
   Future<void> _toggleComplete(int exerciseIndex, int setIndex) async {
-    // sync fields first without cascade on complete alone
     final ex = _session.exercises[exerciseIndex];
     final s = ex.sets[setIndex];
     final key = _key(ex, s);
-    final w = double.tryParse(
-      (_weightCtrls[key]?.text ?? '').replaceAll(',', '.'),
-    ) ??
-        s.weight;
-    final r = int.tryParse(_repsCtrls[key]?.text ?? '') ?? s.reps;
+    final sug = _sugFor(ex);
+
+    // Texto del campo; si vacío, usar sugerencia / previa (desvanecido → sólido)
+    var wText = (_weightCtrls[key]?.text ?? '').trim();
+    var rText = (_repsCtrls[key]?.text ?? '').trim();
+
+    double w = double.tryParse(wText.replaceAll(',', '.')) ?? 0;
+    int r = int.tryParse(rText) ?? 0;
+
+    if (!s.completed) {
+      // Al marcar: confirmar valores sugeridos si el usuario no escribió
+      if (w <= 0 && sug != null) {
+        w = sug.weightFor(setIndex);
+        if (w <= 0 && setIndex < sug.previousWeights.length) {
+          w = sug.previousWeights[setIndex];
+        }
+      }
+      if (w <= 0) w = s.weight;
+
+      if (r <= 0 && sug != null) {
+        r = sug.repsFor(setIndex);
+        if (r <= 0 && setIndex < sug.previousReps.length) {
+          r = sug.previousReps[setIndex];
+        }
+      }
+      if (r <= 0) r = s.reps > 0 ? s.reps : 0;
+
+      // Volcar a los campos (ya no desvanecidos)
+      if (w > 0) _weightCtrls[key]?.text = _fmtWeight(w);
+      if (r > 0) _repsCtrls[key]?.text = '$r';
+    } else {
+      if (w <= 0) w = s.weight;
+      if (r <= 0) r = s.reps;
+    }
 
     final exercises = List<WorkoutExerciseLog>.from(_session.exercises);
     final sets = List<WorkoutSetLog>.from(ex.sets);
@@ -339,6 +382,65 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
     if (!wasDone) {
       HapticFeedback.lightImpact();
       _startRest();
+    }
+  }
+
+
+  Future<void> _editExerciseRest(int exerciseIndex) async {
+    final ex = _session.exercises[exerciseIndex];
+    var sec = ex.restSeconds > 0 ? ex.restSeconds : 60;
+    final options = [30, 45, 60, 90, 120, 150, 180, 240, 300];
+    final chosen = await showModalBottomSheet<int>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'Descanso · ${ex.exerciseName}',
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const Divider(height: 1),
+              for (final s in options)
+                ListTile(
+                  title: Text(_fmtRest(s)),
+                  trailing: s == sec ? const Icon(Icons.check) : null,
+                  onTap: () => Navigator.pop(ctx, s),
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+    if (chosen == null) return;
+    final exercises = List<WorkoutExerciseLog>.from(_session.exercises);
+    exercises[exerciseIndex] = ex.copyWith(restSeconds: chosen);
+    setState(() => _session = _session.copyWith(exercises: exercises));
+    await _persist(silent: true);
+    // Guardar para próximos entrenos (memoria del ejercicio)
+    final user = ref.read(authServiceProvider).currentUser;
+    if (user != null && ex.exerciseId.isNotEmpty) {
+      try {
+        await ref.read(profileRepositoryProvider).saveExerciseDefault(
+          uid: user.uid,
+          exerciseId: ex.exerciseId,
+          plannedSets: [
+            for (final s in ex.sets)
+              PlannedSet(weight: s.weight, reps: s.reps),
+          ],
+          restSeconds: chosen,
+          notes: ex.notes,
+        );
+      } catch (_) {}
     }
   }
 
@@ -371,6 +473,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
     setState(() => _restRemaining = null);
   }
 
+  /// Solo afecta la sesión actual, NO la plantilla de rutina.
   Future<void> _deleteSet(int exerciseIndex, int setIndex) async {
     final exercises = List<WorkoutExerciseLog>.from(_session.exercises);
     final ex = exercises[exerciseIndex];
@@ -785,9 +888,43 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                           },
                           child: Text(
                             ex.exerciseName,
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
                           ),
-                        )
+                        ),
+                        if (ex.muscleGroup.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              ex.muscleGroup,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 6),
+                        InkWell(
+                          onTap: () => _editExerciseRest(_exerciseIndex),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.timer_outlined,
+                                  size: 16, color: primary),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Descanso ${_fmtRest(ex.restSeconds > 0 ? ex.restSeconds : 60)}',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: primary,
+                                ),
+                              ),
+                              Icon(Icons.edit, size: 14, color: primary),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -804,11 +941,11 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                 ],
               ),
             ),
-            if (_suggestions[ex.exerciseId] != null)
+            if (_sugFor(ex) != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
                 child: Material(
-                  color: (_suggestions[ex.exerciseId]!.isIncrease
+                  color: (_sugFor(ex)!.isIncrease
                       ? Colors.green
                       : Theme.of(context).colorScheme.primary)
                       .withValues(alpha: 0.12),
@@ -819,18 +956,18 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                     child: Row(
                       children: [
                         Icon(
-                          _suggestions[ex.exerciseId]!.isIncrease
+                          _sugFor(ex)!.isIncrease
                               ? Icons.trending_up
                               : Icons.history,
                           size: 20,
-                          color: _suggestions[ex.exerciseId]!.isIncrease
+                          color: _sugFor(ex)!.isIncrease
                               ? Colors.green
                               : Theme.of(context).colorScheme.primary,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            _suggestions[ex.exerciseId]!.message,
+                            _sugFor(ex)!.message,
                             style: const TextStyle(fontSize: 12),
                           ),
                         ),
@@ -908,16 +1045,15 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                         () => TextEditingController(text: '${s.reps}'),
                   );
 
-                  String previa = '—';
-                  if (i > 0) {
-                    final prev = ex.sets[i - 1];
-                    if (prev.weight > 0 || prev.completed) {
-                      previa =
-                      '${prev.weight > 0 ? _fmtWeight(prev.weight) : '-'} × ${prev.reps}';
-                    }
-                  } else {
-                    previa = 'obj. ${s.reps}';
-                  }
+                  final sug = _sugFor(ex);
+                  final String previa =
+                  sug != null ? sug.previaLabel(i) : '—';
+                  final hintW = sug != null && sug.weightFor(i) > 0
+                      ? _fmtWeight(sug.weightFor(i))
+                      : (s.weight > 0 ? _fmtWeight(s.weight) : null);
+                  final hintR = sug != null && sug.repsFor(i) > 0
+                      ? '${sug.repsFor(i)}'
+                      : (s.reps > 0 ? '${s.reps}' : null);
 
                   return Dismissible(
                     key: ValueKey('${ex.exerciseId}_${s.setNumber}_$i'),
@@ -979,10 +1115,21 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                                 const TextInputType.numberWithOptions(
                                     decimal: true),
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: s.completed
+                                      ? null
+                                      : ((_weightCtrls[key]?.text.isEmpty ?? true)
+                                      ? Colors.grey
+                                      : null),
+                                ),
                                 decoration: InputDecoration(
                                   isDense: true,
+                                  hintText: s.completed ? null : hintW,
+                                  hintStyle: TextStyle(
+                                    color: Colors.grey.withValues(alpha: 0.55),
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                   contentPadding: const EdgeInsets.symmetric(
                                       horizontal: 8, vertical: 10),
                                   filled: true,
@@ -1007,10 +1154,21 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                                 controller: _repsCtrls[key],
                                 keyboardType: TextInputType.number,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: s.completed
+                                      ? null
+                                      : ((_repsCtrls[key]?.text.isEmpty ?? true)
+                                      ? Colors.grey
+                                      : null),
+                                ),
                                 decoration: InputDecoration(
                                   isDense: true,
+                                  hintText: s.completed ? null : hintR,
+                                  hintStyle: TextStyle(
+                                    color: Colors.grey.withValues(alpha: 0.55),
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                   contentPadding: const EdgeInsets.symmetric(
                                       horizontal: 8, vertical: 10),
                                   filled: true,
