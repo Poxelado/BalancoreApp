@@ -155,7 +155,7 @@ class HomeTab extends ConsumerWidget {
                             onMinus: log.waterGlasses > 0
                                 ? () => _setWater(ref, log.waterGlasses - 1)
                                 : null,
-                            onPlus: log.waterGlasses < 20
+                            onPlus: log.waterGlasses < (ref.watch(userProfileProvider).value?.targetWaterGlasses ?? 12)
                                 ? () => _setWater(ref, log.waterGlasses + 1)
                                 : null,
                           ),
@@ -332,7 +332,7 @@ class CompactWaterControl extends ConsumerWidget {
               invalidateProgressData(ref);
             }
                 : null,
-            onPlus: log.waterGlasses < 20
+            onPlus: log.waterGlasses < (ref.watch(userProfileProvider).value?.targetWaterGlasses ?? 12)
                 ? () async {
               final uid =
                   ref.read(authServiceProvider).currentUser?.uid;

@@ -73,6 +73,20 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     super.dispose();
   }
 
+  Future<String> _resolvedActivity() async {
+    try {
+      final list = await ref.read(workoutHistoryProvider(14).future);
+      final now = DateTime.now();
+      final weekAgo = now.subtract(const Duration(days: 7));
+      final n = list
+          .where((s) => s.completed && s.startedAt.isAfter(weekAgo))
+          .length;
+      return UserProfile.activityFromWeeklyWorkouts(n);
+    } catch (_) {
+      return _activityLevel;
+    }
+  }
+
   void _recalculate({bool silent = false}) {
     final weight = double.tryParse(_weightController.text) ??
         widget.profile.currentWeight;
@@ -136,14 +150,23 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         throw 'El usuario es obligatorio (mín. 3 caracteres).';
       }
 
-      await ref.read(profileRepositoryProvider).changeUsername(
-        uid: widget.profile.uid,
-        email: widget.profile.email ?? '',
-        oldUsername: widget.profile.username,
-        newUsername: newUsername,
-      );
+      final oldU = (widget.profile.username ?? '').toLowerCase();
+      var changeDates = List<String>.from(widget.profile.usernameChangeDates);
+      if (newUsername != oldU) {
+        if (!widget.profile.canChangeUsername) {
+          throw 'Ya cambiaste el usuario 3 veces en los últimos 30 días.';
+        }
+        await ref.read(profileRepositoryProvider).changeUsername(
+          uid: widget.profile.uid,
+          email: widget.profile.email ?? '',
+          oldUsername: widget.profile.username,
+          newUsername: newUsername,
+        );
+        changeDates.add(DateTime.now().toIso8601String());
+      }
 
       final waterMl = UserProfile.calculateWaterMl(weightKg: weight);
+      final activity = await _resolvedActivity();
 
       final updated = widget.profile.copyWith(
         displayName: _nameController.text.trim().isEmpty
@@ -157,13 +180,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         currentWeight: weight,
         height: height,
         age: age,
-        activityLevel: _activityLevel,
+        activityLevel: activity,
         goal: _goal,
         targetCalories: _targetCalories,
         targetProtein: _targetProtein,
         targetCarbs: _targetCarbs,
         targetFat: _targetFat,
         targetWaterMl: waterMl,
+        usernameChangeDates: changeDates,
       );
 
       await ref.read(profileRepositoryProvider).saveProfile(updated);
@@ -225,19 +249,43 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           TextField(
             controller: _nameController,
             decoration: const InputDecoration(
-              labelText: 'Nombre',
+              labelText: 'Nombre (opcional)',
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.person_outline),
             ),
           ),
           const SizedBox(height: 12),
-          TextField(
-            controller: _usernameController,
+          InputDecorator(
             decoration: const InputDecoration(
-              labelText: 'Usuario *',
+              labelText: 'Correo',
               border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.alternate_email),
+              prefixIcon: Icon(Icons.email_outlined),
+              helperText: 'El correo no se puede cambiar',
             ),
+            child: Text(
+              widget.profile.email ?? '—',
+              style: TextStyle(color: Colors.grey.shade700),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _usernameController,
+            decoration: InputDecoration(
+              labelText: 'Usuario *',
+              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.alternate_email),
+              helperText: widget.profile.canChangeUsername
+                  ? 'Máximo 3 cambios en 30 días (usados: ${widget.profile.usernameChangesLast30Days()}/3)'
+                  : 'Límite de 3 cambios/mes alcanzado',
+            ),
+            enabled: widget.profile.canChangeUsername ||
+                _usernameController.text.trim().toLowerCase() ==
+                    (widget.profile.username ?? ''),
+            validator: (v) {
+              final u = (v ?? '').trim().replaceAll('@', '').toLowerCase();
+              if (u.length < 3) return 'Mínimo 3 caracteres';
+              return null;
+            },
           ),
           const SizedBox(height: 12),
           TextField(

@@ -42,8 +42,12 @@ class ProfileRepository {
     final entry = WeightEntry(id: '', weight: weight, date: date);
     await _userDoc(uid).doc(uid).collection('weightHistory').add(entry.toMap());
 
-    // Actualizar peso actual del perfil
-    await updateProfileFields(uid, {'currentWeight': weight});
+    // Peso actual + agua recomendada proporcional al peso
+    final waterMl = UserProfile.calculateWaterMl(weightKg: weight);
+    await updateProfileFields(uid, {
+      'currentWeight': weight,
+      'targetWaterMl': waterMl,
+    });
   }
 
   // ─── Rutinas ────────────────────────────────────────────
@@ -391,6 +395,12 @@ class ProfileRepository {
 
   // ─── Usernames únicos (colección global) ─────────────────
   // usernames/{usernameLower} -> { uid, email, username }
+
+
+  Future<void> updateWaterTargetForWeight(String uid, double weightKg) async {
+    final ml = UserProfile.calculateWaterMl(weightKg: weightKg);
+    await updateProfileFields(uid, {'targetWaterMl': ml, 'currentWeight': weightKg});
+  }
 
   Future<bool> isUsernameAvailable(String username, {String? exceptUid}) async {
     final key = username.trim().toLowerCase().replaceAll('@', '');

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
+import '../../../profile/domain/user_profile.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -32,6 +33,43 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
+
+    // Diálogo de carga mientras se crea la cuenta
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: Center(
+          child: Card(
+            margin: const EdgeInsets.all(32),
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(
+                    color: Theme.of(ctx).colorScheme.primary,
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Creando tu cuenta…',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Estamos preparando tu espacio en Balancore',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
     try {
       final username = _usernameController.text
           .trim()
@@ -57,17 +95,31 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         email: _emailController.text,
       );
 
+      // Perfil mínimo: onboarding incompleto → AuthWrapper abre onboarding
+      await repo.saveProfile(
+        UserProfile(
+          uid: cred.user!.uid,
+          email: _emailController.text.trim(),
+          username: username,
+          sex: 'Masculino',
+          currentWeight: 70,
+          height: 170,
+          age: 25,
+          activityLevel: 'Sedentario',
+          goal: 'Mantenimiento',
+          targetCalories: 2000,
+          onboardingCompleted: false,
+        ),
+      );
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cuenta creada correctamente'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        // AuthWrapper llevará a onboarding si hace falta
+        Navigator.of(context).pop(); // cierra loading
+        // Sale del registro → AuthWrapper muestra Onboarding
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
       if (mounted) {
+        Navigator.of(context).pop(); // cierra loading
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString()),
@@ -79,6 +131,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

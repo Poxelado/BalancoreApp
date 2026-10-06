@@ -39,6 +39,8 @@ class UserProfile {
   final int targetFat; // g
   /// ml de agua recomendados al día (~35 ml/kg).
   final int targetWaterMl;
+  /// Fechas ISO de cambios de username (para límite 3/mes).
+  final List<String> usernameChangeDates;
   final bool onboardingCompleted;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -61,6 +63,7 @@ class UserProfile {
     this.targetCarbs = 0,
     this.targetFat = 0,
     this.targetWaterMl = 0,
+    this.usernameChangeDates = const [],
     this.onboardingCompleted = false,
     this.createdAt,
     this.updatedAt,
@@ -99,6 +102,7 @@ class UserProfile {
       'targetCarbs': targetCarbs,
       'targetFat': targetFat,
       'targetWaterMl': targetWaterMl,
+      'usernameChangeDates': usernameChangeDates,
       'onboardingCompleted': onboardingCompleted,
       'createdAt':
       createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
@@ -127,6 +131,9 @@ class UserProfile {
       targetCarbs: map['targetCarbs'] ?? 0,
       targetFat: map['targetFat'] ?? 0,
       targetWaterMl: map['targetWaterMl'] ?? 0,
+      usernameChangeDates: (map['usernameChangeDates'] is List)
+          ? (map['usernameChangeDates'] as List).map((e) => e.toString()).toList()
+          : const [],
       onboardingCompleted: map['onboardingCompleted'] ?? false,
       createdAt: map['createdAt'] != null
           ? DateTime.tryParse(map['createdAt'])
@@ -153,6 +160,7 @@ class UserProfile {
     int? targetCarbs,
     int? targetFat,
     int? targetWaterMl,
+    List<String>? usernameChangeDates,
     bool? onboardingCompleted,
   }) {
     return UserProfile(
@@ -173,6 +181,7 @@ class UserProfile {
       targetCarbs: targetCarbs ?? this.targetCarbs,
       targetFat: targetFat ?? this.targetFat,
       targetWaterMl: targetWaterMl ?? this.targetWaterMl,
+      usernameChangeDates: usernameChangeDates ?? this.usernameChangeDates,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
@@ -238,6 +247,35 @@ class UserProfile {
   /// Vasos de 250 ml.
   static int waterGlassesFromMl(int ml) =>
       (ml / 250).round().clamp(6, 20);
+
+
+  /// Nivel de actividad según entrenos completados en los últimos 7 días.
+  static String activityFromWeeklyWorkouts(int sessionsLast7Days) {
+    if (sessionsLast7Days <= 0) return 'Sedentario';
+    if (sessionsLast7Days <= 2) return 'Ligero';
+    if (sessionsLast7Days <= 4) return 'Moderado';
+    if (sessionsLast7Days <= 5) return 'Activo';
+    return 'Muy activo';
+  }
+
+  /// Cambios de username en los últimos 30 días.
+  int usernameChangesLast30Days({DateTime? now}) {
+    final n = now ?? DateTime.now();
+    final cutoff = n.subtract(const Duration(days: 30));
+    var count = 0;
+    for (final s in usernameChangeDates) {
+      final d = DateTime.tryParse(s);
+      if (d != null && !d.isBefore(cutoff)) count++;
+    }
+    return count;
+  }
+
+  bool get canChangeUsername => usernameChangesLast30Days() < 3;
+
+  int get targetWaterGlasses =>
+      waterGlassesFromMl(targetWaterMl > 0
+          ? targetWaterMl
+          : calculateWaterMl(weightKg: currentWeight));
 
   static String waterLabel(double weightKg) {
     final ml = calculateWaterMl(weightKg: weightKg);

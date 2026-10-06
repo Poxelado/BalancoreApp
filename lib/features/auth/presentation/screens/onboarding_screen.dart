@@ -35,6 +35,31 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   bool? _wantNotifs;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _prefillFromAuth());
+  }
+
+  bool _usernameLocked = false;
+
+  Future<void> _prefillFromAuth() async {
+    final user = ref.read(authServiceProvider).currentUser;
+    if (user == null) return;
+    final profile =
+    await ref.read(profileRepositoryProvider).getProfile(user.uid);
+    if (!mounted) return;
+    if (profile?.username != null && profile!.username!.isNotEmpty) {
+      setState(() {
+        _usernameController.text = profile.username!;
+        _usernameLocked = true;
+      });
+    }
+    if (profile?.displayName != null && profile!.displayName!.isNotEmpty) {
+      _nameController.text = profile.displayName!;
+    }
+  }
+
+  @override
   void dispose() {
     _pageController.dispose();
     _nameController.dispose();
@@ -122,7 +147,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       );
 
       final uname = _usernameController.text.trim().replaceAll('@', '').toLowerCase();
-      if (uname.isNotEmpty) {
+      if (uname.isNotEmpty && !_usernameLocked) {
         await ref.read(profileRepositoryProvider).claimUsername(
           username: uname,
           uid: user.uid,
@@ -325,8 +350,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           const SizedBox(height: 16),
           TextFormField(
             controller: _usernameController,
+            enabled: !_usernameLocked,
+            readOnly: _usernameLocked,
             decoration: const InputDecoration(
-              labelText: 'Usuario (opcional)',
+              labelText: _usernameLocked ? 'Usuario (definido al registrarte)' : 'Usuario *',
+              helperText: _usernameLocked ? 'En perfil podrás cambiarlo máx. 3 veces al mes' : null,
               prefixIcon: Icon(Icons.alternate_email),
               border: OutlineInputBorder(),
               hintText: 'sin espacios',
@@ -480,88 +508,89 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Widget _buildGoalPage(Color primary) {
     final macros = _previewMacros;
     return SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
           const Text(
-          'Tu objetivo',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Ajusta las calorías según lo que quieras lograr.',
-          style: TextStyle(color: Colors.grey.shade600),
-        ),
-        const SizedBox(height: 16),
-        ...UserProfile.goals.map((g) {
-      final selected = _goal == g;
-      final subtitle = switch (g) {
-        'Perder grasa' => 'Déficit ~15 % sobre tu gasto',
-        'Ganar músculo' => 'Superávit ~10 % sobre tu gasto',
-        _ => 'Mantener peso actual',
-      };
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: ListTile(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-              color: selected ? primary : Colors.grey.shade300,
-            ),
+            'Tu objetivo',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
-          selected: selected,
-          selectedTileColor: primary.withValues(alpha: 0.08),
-          title: Text(g),
-          subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
-          trailing: selected
-              ? Icon(Icons.check_circle, color: primary)
-              : null,
-          onTap: () => setState(() => _goal = g),
-        ),
-      );
-    }),
-    const SizedBox(height: 24),
-    Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Text(
-              'Tu plan diario estimado',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: primary,
-            ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          '$_previewCalories',
-          style: TextStyle(
-            fontSize: 36,
-            fontWeight: FontWeight.bold,
-            color: primary,
+          const SizedBox(height: 8),
+          Text(
+            'Ajusta las calorías según lo que quieras lograr.',
+            style: TextStyle(color: Colors.grey.shade600),
           ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            const Icon(Icons.water_drop, size: 20),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Agua: $_previewWater',
-                style: const TextStyle(fontSize: 14),
+          const SizedBox(height: 16),
+          ...UserProfile.goals.map((g) {
+            final selected = _goal == g;
+            final subtitle = switch (g) {
+              'Perder grasa' => 'Déficit ~15 % sobre tu gasto',
+              'Ganar músculo' => 'Superávit ~10 % sobre tu gasto',
+              _ => 'Mantener peso actual',
+            };
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: selected ? primary : Colors.grey.shade300,
+                  ),
+                ),
+                selected: selected,
+                selectedTileColor: primary.withValues(alpha: 0.08),
+                title: Text(g),
+                subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
+                trailing: selected
+                    ? Icon(Icons.check_circle, color: primary)
+                    : null,
+                onTap: () => setState(() => _goal = g),
               ),
+            );
+          }),
+          const SizedBox(height: 24),
+          Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
-          ],
-        ),
-    ,
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  Text(
+                    'Tu plan diario estimado',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: primary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '$_previewCalories',
+                    style: TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.bold,
+                      color: primary,
+                    ),
                   ),
                   const Text('kcal / día', style: TextStyle(color: Colors.grey)),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.water_drop, size: 18, color: primary),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          'Agua: $_previewWater',
+                          style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
