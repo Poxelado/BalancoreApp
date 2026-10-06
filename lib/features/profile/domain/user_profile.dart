@@ -751,7 +751,7 @@ class WorkoutExerciseLog {
 }
 
 class WorkoutSession {
-  final String id; // yyyy-MM-dd
+  final String id; // único por sesión (no solo la fecha)
   final String dayName;
   final String title;
   final DateTime startedAt;
@@ -778,6 +778,16 @@ class WorkoutSession {
   static String dateKey([DateTime? d]) {
     final n = d ?? DateTime.now();
     return '${n.year}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}';
+  }
+
+  static String newSessionId([DateTime? at]) {
+    final n = at ?? DateTime.now();
+    final date = dateKey(n);
+    final h = n.hour.toString().padLeft(2, '0');
+    final m = n.minute.toString().padLeft(2, '0');
+    final s = n.second.toString().padLeft(2, '0');
+    final ms = n.millisecond.toString().padLeft(3, '0');
+    return '${date}_${h}${m}${s}_$ms';
   }
 
   static String weekdayName([DateTime? d]) {
@@ -817,7 +827,7 @@ class WorkoutSession {
     }).toList();
 
     return WorkoutSession(
-      id: dateKey(d),
+      id: newSessionId(),
       dayName: routine.day,
       title: routine.title,
       startedAt: DateTime.now(),

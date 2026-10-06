@@ -55,16 +55,17 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
     }
 
     final sessionDate = WorkoutSession.dateOfWeekday(day.day);
-    final key = WorkoutSession.dateKey(sessionDate);
     final user = ref.read(authServiceProvider).currentUser;
     WorkoutSession? existing;
     if (user != null) {
+      // Solo reanuda si hay una sesión INCOMPLETA de esta misma rutina
       existing = await ref
           .read(profileRepositoryProvider)
-          .getWorkoutSession(user.uid, key);
-      if (existing != null && existing.completed) {
-        existing = null; // nueva sesión si ya terminó
-      }
+          .findIncompleteSessionForRoutine(
+        user.uid,
+        dayName: day.day,
+        title: day.title,
+      );
     }
 
     if (!mounted) return;
@@ -79,6 +80,8 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
       ),
     );
     ref.invalidate(todayWorkoutSessionProvider);
+    ref.invalidate(activeWorkoutSessionProvider);
+    ref.invalidate(workoutHistoryProvider);
   }
 
   @override
