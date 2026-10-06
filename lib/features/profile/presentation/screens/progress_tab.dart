@@ -6,6 +6,7 @@ import '../providers/profile_provider.dart';
 import '../../../training/presentation/screens/workout_session_screen.dart';
 import '../../../training/presentation/screens/edit_workout_history_screen.dart';
 import 'daily_history_screen.dart';
+import '../widgets/weekly_macro_card.dart';
 
 RoutineDay _routineFromSession(WorkoutSession s) {
   return RoutineDay(
@@ -1139,8 +1140,9 @@ class _HabitsSection extends StatelessWidget {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(8, 4, 8, 24),
-      children: [
-        const DailyHistoryScreen(embedded: true),
+      children: const [
+        WeeklyMacroCard(),
+        DailyHistoryScreen(embedded: true),
       ],
     );
   }
