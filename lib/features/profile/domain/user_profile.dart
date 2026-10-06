@@ -272,10 +272,12 @@ class UserProfile {
 
   bool get canChangeUsername => usernameChangesLast30Days() < 3;
 
-  int get targetWaterGlasses =>
-      waterGlassesFromMl(targetWaterMl > 0
-          ? targetWaterMl
-          : calculateWaterMl(weightKg: currentWeight));
+  int get targetWaterGlasses {
+    final ml = targetWaterMl > 0
+        ? targetWaterMl
+        : calculateWaterMl(weightKg: currentWeight);
+    return UserProfile.waterGlassesFromMl(ml);
+  }
 
   static String waterLabel(double weightKg) {
     final ml = calculateWaterMl(weightKg: weightKg);

@@ -33,6 +33,13 @@ class HomeTab extends ConsumerWidget {
       loading: () => Center(child: CircularProgressIndicator(color: primary)),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (log) {
+        final profile = ref.watch(userProfileProvider).value;
+        final maxGlasses = profile?.targetWaterGlasses ?? 10;
+        final goalMl = profile != null && profile.targetWaterMl > 0
+            ? profile.targetWaterMl
+            : (profile != null
+            ? UserProfile.calculateWaterMl(weightKg: profile.currentWeight)
+            : kWaterGoalMl);
         final session = trainAsync.valueOrNull;
         final trainedToday = session != null && session.completed;
         final hasWater = log.waterGlasses > 0;
@@ -150,12 +157,12 @@ class HomeTab extends ConsumerWidget {
                             icon: Icons.water_drop,
                             iconColor: const Color(0xFF2196F3),
                             label: ml > 0
-                                ? '${ml}ml / ${kWaterGoalMl ~/ 1000}L'
-                                : '0ml / 2L',
+                                ? '${ml}ml / ${(goalMl / 1000).toStringAsFixed(1)}L'
+                                : '0ml / ${(goalMl / 1000).toStringAsFixed(1)}L',
                             onMinus: log.waterGlasses > 0
                                 ? () => _setWater(ref, log.waterGlasses - 1)
                                 : null,
-                            onPlus: log.waterGlasses < (ref.watch(userProfileProvider).value?.targetWaterGlasses ?? 12)
+                            onPlus: log.waterGlasses < maxGlasses
                                 ? () => _setWater(ref, log.waterGlasses + 1)
                                 : null,
                           ),
@@ -319,7 +326,7 @@ class CompactWaterControl extends ConsumerWidget {
           child: _CompactHabit(
             icon: Icons.water_drop,
             iconColor: const Color(0xFF2196F3),
-            label: ml > 0 ? '${ml}ml / 2L' : '0ml / 2L',
+            label: ml > 0 ? '${ml}ml / 2L' : '0ml / ${(goalMl / 1000).toStringAsFixed(1)}L',
             onMinus: log.waterGlasses > 0
                 ? () async {
               final uid =
@@ -332,7 +339,7 @@ class CompactWaterControl extends ConsumerWidget {
               invalidateProgressData(ref);
             }
                 : null,
-            onPlus: log.waterGlasses < (ref.watch(userProfileProvider).value?.targetWaterGlasses ?? 12)
+            onPlus: log.waterGlasses < maxGlasses
                 ? () async {
               final uid =
                   ref.read(authServiceProvider).currentUser?.uid;
