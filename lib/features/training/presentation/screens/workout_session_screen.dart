@@ -903,41 +903,111 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text('RPE (esfuerzo)', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                        const SizedBox(height: 4),
-                        SizedBox(
-                          height: 36,
-                          child: ListView(
-                            scrollDirection: Axis.horizontal,
+                        const SizedBox(height: 10),
+                        // RPE compacto: una fila 1–10 sin scroll
+                        Container(
+                          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                          decoration: BoxDecoration(
+                            color: primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: primary.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              for (var r = 1; r <= 10; r++)
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 6),
-                                  child: ChoiceChip(
-                                    label: Text('$r'),
-                                    selected: ex.rpe == r,
-                                    onSelected: (_) => _setExerciseRpe(_exerciseIndex, r),
-                                    visualDensity: VisualDensity.compact,
-                                    labelStyle: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: ex.rpe == r ? Colors.white : null,
+                              Row(
+                                children: [
+                                  Icon(Icons.speed, size: 16, color: primary),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'RPE',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: primary,
+                                      letterSpacing: 0.3,
                                     ),
-                                    selectedColor: primary,
                                   ),
-                                ),
+                                  const Spacer(),
+                                  Text(
+                                    ex.rpe != null
+                                        ? '${ex.rpe} · ${_rpeLabel(ex.rpe!)}'
+                                        : 'Esfuerzo percibido',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  for (var r = 1; r <= 10; r++) ...[
+                                    if (r > 1) const SizedBox(width: 3),
+                                    Expanded(
+                                      child: Material(
+                                        color: ex.rpe == r
+                                            ? _rpeColor(r)
+                                            : (Theme.of(context).brightness ==
+                                            Brightness.dark
+                                            ? Colors.white
+                                            .withValues(alpha: 0.08)
+                                            : Colors.black
+                                            .withValues(alpha: 0.06)),
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: InkWell(
+                                          borderRadius:
+                                          BorderRadius.circular(8),
+                                          onTap: () => _setExerciseRpe(
+                                              _exerciseIndex, r),
+                                          child: SizedBox(
+                                            height: 32,
+                                            child: Center(
+                                              child: Text(
+                                                '$r',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: ex.rpe == r
+                                                      ? Colors.white
+                                                      : Colors.grey.shade500,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Fácil',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey.shade500,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Máximo',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey.shade500,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
                         ),
-                        if (ex.rpe != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              _rpeLabel(ex.rpe!),
-                              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                            ),
-                          ),
                       ],
                     ),
                   ),
@@ -1254,6 +1324,31 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
     );
   }
 
+
+  String _rpeLabel(int r) {
+    if (r <= 3) return 'Muy fácil';
+    if (r <= 5) return 'Moderado';
+    if (r <= 7) return 'Exigente';
+    if (r <= 9) return 'Muy duro';
+    return 'Máximo';
+  }
+
+  Color _rpeColor(int r) {
+    if (r <= 3) return const Color(0xFF4CAF50);
+    if (r <= 5) return const Color(0xFF8BC34A);
+    if (r <= 6) return const Color(0xFFFFC107);
+    if (r <= 8) return const Color(0xFFFF9800);
+    return const Color(0xFFE53935);
+  }
+
+  Future<void> _setExerciseRpe(int exerciseIndex, int rpe) async {
+    final exercises = List<WorkoutExerciseLog>.from(_session.exercises);
+    final ex = exercises[exerciseIndex];
+    exercises[exerciseIndex] = ex.copyWith(rpe: rpe);
+    setState(() => _session = _session.copyWith(exercises: exercises));
+    await _persist(silent: true);
+  }
+
   Widget _h(String t, int flex) => Expanded(
     flex: flex,
     child: Text(
@@ -1313,21 +1408,6 @@ class _SessionRestTimeSheetState extends State<_SessionRestTimeSheet> {
     if (m > 0) return '${m}min 0s';
     return '${s}s';
   }
-  String _rpeLabel(int r) {
-    if (r <= 3) return 'Muy fácil';
-    if (r <= 5) return 'Moderado';
-    if (r <= 7) return 'Exigente';
-    if (r <= 9) return 'Muy duro';
-    return 'Máximo';
-  }
-  Future<void> _setExerciseRpe(int exerciseIndex, int rpe) async {
-    final exercises = List<WorkoutExerciseLog>.from(_session.exercises);
-    final ex = exercises[exerciseIndex];
-    exercises[exerciseIndex] = ex.copyWith(rpe: rpe);
-    setState(() => _session = _session.copyWith(exercises: exercises));
-    await _persist(silent: true);
-  }
-
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
