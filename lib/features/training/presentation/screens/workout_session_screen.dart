@@ -8,6 +8,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../profile/domain/user_profile.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import 'exercise_detail_screen.dart';
+import '../../domain/progression_rules.dart';
 
 const _kRestSecondsKey = 'balancore_rest_seconds';
 
@@ -43,6 +44,9 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
 
   final Map<String, TextEditingController> _weightCtrls = {};
   final Map<String, TextEditingController> _repsCtrls = {};
+  /// exerciseId -> suggestion from history
+  final Map<String, ProgressionSuggestion> _suggestions = {};
+  bool _progressionApplied = false;
 
   @override
   void initState() {
@@ -71,8 +75,97 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
     _loadRestPref();
     _initControllers();
     // Guardar al entrar para que exista en historial / mini player
-    WidgetsBinding.instance.addPostFrameCallback((_) => _persist());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _persist();
+      _loadProgression();
+    });
   }
+
+  Future<void> _loadProgression() async {
+    try {
+      final history =
+      await ref.read(workoutHistoryProvider(120).future);
+      final map = <String, ProgressionSuggestion>{};
+      for (final ex in _session.exercises) {
+        final target = ex.sets.isNotEmpty
+            ? (ex.sets.first.reps > 0 ? ex.sets.first.reps : 10)
+            : 10;
+        final sug = ProgressionRules.suggest(
+          exerciseId: ex.exerciseId,
+          setCount: ex.sets.length,
+          targetReps: target,
+          history: history,
+        );
+        if (sug != null) map[ex.exerciseId] = sug;
+      }
+      if (!mounted) return;
+      setState(() {
+        _suggestions
+          ..clear()
+          ..addAll(map);
+      });
+      // Prefill solo si es sesión nueva y pesos vacíos
+      final isFresh = widget.existing == null ||
+          (!_session.exercises.any(
+                  (e) => e.sets.any((s) => s.completed || s.weight > 0)));
+      if (isFresh && map.isNotEmpty) {
+        _applyAllSuggestions(auto: true);
+      }
+    } catch (_) {}
+  }
+
+  void _applyAllSuggestions({bool auto = false}) {
+    if (_progressionApplied && auto) return;
+    final exercises = [..._session.exercises];
+    var changed = false;
+    for (var ei = 0; ei < exercises.length; ei++) {
+      final ex = exercises[ei];
+      final sug = _suggestions[ex.exerciseId];
+      if (sug == null) continue;
+      final sets = [...ex.sets];
+      for (var i = 0; i < sets.length; i++) {
+        final w = i < sug.weights.length ? sug.weights[i] : sug.weights.last;
+        final r = i < sug.reps.length ? sug.reps[i] : sug.reps.last;
+        // auto: solo rellena si peso vacío; manual: siempre
+        if (auto && sets[i].weight > 0) continue;
+        sets[i] = sets[i].copyWith(weight: w, reps: r);
+        final key = '${ex.exerciseId}_${sets[i].setNumber}';
+        _weightCtrls[key]?.text = w > 0 ? _fmtWeight(w) : '';
+        _repsCtrls[key]?.text = '$r';
+        changed = true;
+      }
+      exercises[ei] = ex.copyWith(sets: sets);
+    }
+    if (!changed) return;
+    setState(() {
+      _session = _session.copyWith(exercises: exercises);
+      _progressionApplied = true;
+    });
+    _persist(silent: true);
+  }
+
+  void _applySuggestionForExercise(int exerciseIndex) {
+    final ex = _session.exercises[exerciseIndex];
+    final sug = _suggestions[ex.exerciseId];
+    if (sug == null) return;
+    final exercises = [..._session.exercises];
+    final sets = [...ex.sets];
+    for (var i = 0; i < sets.length; i++) {
+      final w = i < sug.weights.length ? sug.weights[i] : sug.weights.last;
+      final r = i < sug.reps.length ? sug.reps[i] : sug.reps.last;
+      sets[i] = sets[i].copyWith(weight: w, reps: r);
+      final key = '${ex.exerciseId}_${sets[i].setNumber}';
+      _weightCtrls[key]?.text = w > 0 ? _fmtWeight(w) : '';
+      _repsCtrls[key]?.text = '$r';
+    }
+    exercises[exerciseIndex] = ex.copyWith(sets: sets);
+    setState(() => _session = _session.copyWith(exercises: exercises));
+    _persist(silent: true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(sug.message)),
+    );
+  }
+
 
   Future<void> _loadRestPref() async {
     final prefs = await SharedPreferences.getInstance();
@@ -711,6 +804,46 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                 ],
               ),
             ),
+            if (_suggestions[ex.exerciseId] != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                child: Material(
+                  color: (_suggestions[ex.exerciseId]!.isIncrease
+                      ? Colors.green
+                      : Theme.of(context).colorScheme.primary)
+                      .withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _suggestions[ex.exerciseId]!.isIncrease
+                              ? Icons.trending_up
+                              : Icons.history,
+                          size: 20,
+                          color: _suggestions[ex.exerciseId]!.isIncrease
+                              ? Colors.green
+                              : Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _suggestions[ex.exerciseId]!.message,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () =>
+                              _applySuggestionForExercise(_exerciseIndex),
+                          child: const Text('Aplicar'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             if (_restRemaining != null)
               Material(
                 color: primary.withValues(alpha: 0.15),
