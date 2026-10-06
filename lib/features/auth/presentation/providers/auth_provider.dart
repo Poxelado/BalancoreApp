@@ -31,33 +31,64 @@ class AuthService {
     }
   }
 
-  Future<UserCredential?> loginWithEmail({
-    required String email,
+  /// Login con correo O nombre de usuario.
+  /// [resolveUsername] devuelve el email asociado al username, o null.
+  Future<UserCredential?> loginWithEmailOrUsername({
+    required String identifier,
     required String password,
+    required Future<String?> Function(String username) resolveUsername,
   }) async {
+    final raw = identifier.trim();
+    if (raw.isEmpty) throw 'Ingresa tu correo o usuario.';
+
+    String email;
+    if (raw.contains('@')) {
+      email = raw;
+    } else {
+      final username = raw.replaceAll('@', '').toLowerCase();
+      final resolved = await resolveUsername(username);
+      if (resolved == null || resolved.isEmpty) {
+        throw 'No existe una cuenta con ese usuario. Debes registrarte.';
+      }
+      email = resolved;
+    }
+
     try {
       return await _auth.signInWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
     } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found' ||
+          e.code == 'invalid-credential' ||
+          e.code == 'wrong-password' ||
+          e.code == 'INVALID_LOGIN_CREDENTIALS') {
+        throw 'No existe una cuenta con esas credenciales o la contraseña es incorrecta. Si eliminaste la cuenta, regístrate de nuevo.';
+      }
       throw _handleAuthException(e);
     }
   }
 
+  Future<UserCredential?> loginWithEmail({
+    required String email,
+    required String password,
+  }) async {
+    return loginWithEmailOrUsername(
+      identifier: email,
+      password: password,
+      resolveUsername: (_) async => null,
+    );
+  }
+
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return null;
-
-      final GoogleSignInAuthentication googleAuth =
-      await googleUser.authentication;
-
+      final googleAuth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
-
       return await _auth.signInWithCredential(credential);
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
@@ -81,6 +112,8 @@ class AuthService {
     ]);
   }
 
+  /// Borra el usuario de Firebase Auth.
+  /// Debe llamarse ANTES de borrar Firestore solo si tiene éxito.
   Future<void> deleteAccount() async {
     final user = _auth.currentUser;
     if (user == null) throw 'No hay usuario autenticado';
@@ -104,11 +137,11 @@ class AuthService {
       case 'weak-password':
         return 'La contraseña es muy débil (mínimo 6 caracteres).';
       case 'user-not-found':
-        return 'No existe una cuenta con este correo.';
+        return 'No existe una cuenta con este correo. Debes registrarte.';
       case 'wrong-password':
         return 'Contraseña incorrecta.';
       case 'invalid-credential':
-        return 'Credenciales incorrectas.';
+        return 'Credenciales incorrectas. Si no tienes cuenta, regístrate.';
       case 'too-many-requests':
         return 'Demasiados intentos. Intenta más tarde.';
       case 'account-exists-with-different-credential':

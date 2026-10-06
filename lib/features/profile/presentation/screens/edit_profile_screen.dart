@@ -130,13 +130,26 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
     setState(() => _isLoading = true);
     try {
+      final newUsername =
+      _usernameController.text.trim().replaceAll('@', '').toLowerCase();
+      if (newUsername.length < 3) {
+        throw 'El usuario es obligatorio (mín. 3 caracteres).';
+      }
+
+      await ref.read(profileRepositoryProvider).changeUsername(
+        uid: widget.profile.uid,
+        email: widget.profile.email ?? '',
+        oldUsername: widget.profile.username,
+        newUsername: newUsername,
+      );
+
+      final waterMl = UserProfile.calculateWaterMl(weightKg: weight);
+
       final updated = widget.profile.copyWith(
         displayName: _nameController.text.trim().isEmpty
             ? null
             : _nameController.text.trim(),
-        username: _usernameController.text.trim().isEmpty
-            ? null
-            : _usernameController.text.trim().replaceAll('@', ''),
+        username: newUsername,
         bio: _bioController.text.trim().isEmpty
             ? null
             : _bioController.text.trim(),
@@ -150,6 +163,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         targetProtein: _targetProtein,
         targetCarbs: _targetCarbs,
         targetFat: _targetFat,
+        targetWaterMl: waterMl,
       );
 
       await ref.read(profileRepositoryProvider).saveProfile(updated);
@@ -220,7 +234,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           TextField(
             controller: _usernameController,
             decoration: const InputDecoration(
-              labelText: 'Usuario',
+              labelText: 'Usuario *',
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.alternate_email),
             ),

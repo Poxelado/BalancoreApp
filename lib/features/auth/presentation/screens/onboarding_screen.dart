@@ -59,6 +59,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
+  String get _previewWater {
+    final w = double.tryParse(_weightController.text) ?? 70;
+    return UserProfile.waterLabel(w);
+  }
+
   ({int protein, int carbs, int fat}) get _previewMacros {
     final w = double.tryParse(_weightController.text) ?? 70;
     return UserProfile.calculateMacros(
@@ -100,9 +105,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         displayName: _nameController.text.trim().isEmpty
             ? null
             : _nameController.text.trim(),
-        username: _usernameController.text.trim().isEmpty
-            ? null
-            : _usernameController.text.trim().replaceAll('@', ''),
+        username: _usernameController.text.trim().replaceAll('@', '').toLowerCase(),
         sex: _sex,
         currentWeight: weight,
         height: height,
@@ -113,9 +116,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         targetProtein: macros.protein,
         targetCarbs: macros.carbs,
         targetFat: macros.fat,
+        targetWaterMl: UserProfile.calculateWaterMl(weightKg: weight),
         onboardingCompleted: true,
         createdAt: DateTime.now(),
       );
+
+      final uname = _usernameController.text.trim().replaceAll('@', '').toLowerCase();
+      if (uname.isNotEmpty) {
+        await ref.read(profileRepositoryProvider).claimUsername(
+          username: uname,
+          uid: user.uid,
+          email: user.email ?? '',
+        );
+      }
 
       await ref.read(profileRepositoryProvider).saveProfile(profile);
       await ref.read(profileRepositoryProvider).addWeightEntry(
@@ -467,72 +480,86 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Widget _buildGoalPage(Color primary) {
     final macros = _previewMacros;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
           const Text(
-            'Tu objetivo',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Ajusta las calorías según lo que quieras lograr.',
-            style: TextStyle(color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 16),
-          ...UserProfile.goals.map((g) {
-            final selected = _goal == g;
-            final subtitle = switch (g) {
-              'Perder grasa' => 'Déficit ~15 % sobre tu gasto',
-              'Ganar músculo' => 'Superávit ~10 % sobre tu gasto',
-              _ => 'Mantener peso actual',
-            };
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: selected ? primary : Colors.grey.shade300,
-                  ),
-                ),
-                selected: selected,
-                selectedTileColor: primary.withValues(alpha: 0.08),
-                title: Text(g),
-                subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
-                trailing: selected
-                    ? Icon(Icons.check_circle, color: primary)
-                    : null,
-                onTap: () => setState(() => _goal = g),
-              ),
-            );
-          }),
-          const SizedBox(height: 24),
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+          'Tu objetivo',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Ajusta las calorías según lo que quieras lograr.',
+          style: TextStyle(color: Colors.grey.shade600),
+        ),
+        const SizedBox(height: 16),
+        ...UserProfile.goals.map((g) {
+      final selected = _goal == g;
+      final subtitle = switch (g) {
+        'Perder grasa' => 'Déficit ~15 % sobre tu gasto',
+        'Ganar músculo' => 'Superávit ~10 % sobre tu gasto',
+        _ => 'Mantener peso actual',
+      };
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: ListTile(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: selected ? primary : Colors.grey.shade300,
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  Text(
-                    'Tu plan diario estimado',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: primary,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    '$_previewCalories',
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: primary,
-                    ),
+          ),
+          selected: selected,
+          selectedTileColor: primary.withValues(alpha: 0.08),
+          title: Text(g),
+          subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
+          trailing: selected
+              ? Icon(Icons.check_circle, color: primary)
+              : null,
+          onTap: () => setState(() => _goal = g),
+        ),
+      );
+    }),
+    const SizedBox(height: 24),
+    Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Text(
+              'Tu plan diario estimado',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: primary,
+            ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          '$_previewCalories',
+          style: TextStyle(
+            fontSize: 36,
+            fontWeight: FontWeight.bold,
+            color: primary,
+          ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            const Icon(Icons.water_drop, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Agua: $_previewWater',
+                style: const TextStyle(fontSize: 14),
+              ),
+            ),
+          ],
+        ),
+    ,
                   ),
                   const Text('kcal / día', style: TextStyle(color: Colors.grey)),
                   const SizedBox(height: 16),

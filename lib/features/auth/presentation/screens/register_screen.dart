@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
+import '../../../profile/presentation/providers/profile_provider.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -11,6 +12,7 @@ class RegisterScreen extends ConsumerStatefulWidget {
 
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -21,6 +23,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   void dispose() {
     _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -28,19 +31,40 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isLoading = true);
-
     try {
-      await ref.read(authServiceProvider).registerWithEmail(
-        email: _emailController.text.trim(),
+      final username = _usernameController.text
+          .trim()
+          .replaceAll('@', '')
+          .toLowerCase();
+      final repo = ref.read(profileRepositoryProvider);
+      final available = await repo.isUsernameAvailable(username);
+      if (!available) {
+        throw 'Ese nombre de usuario ya está en uso.';
+      }
+
+      final cred = await ref.read(authServiceProvider).registerWithEmail(
+        email: _emailController.text,
         password: _passwordController.text,
       );
+      if (cred?.user == null) {
+        throw 'No se pudo crear la cuenta.';
+      }
 
-      // Importante: volver a la ruta raíz.
-      // AuthWrapper detectará el nuevo usuario y mostrará Onboarding.
+      await repo.claimUsername(
+        username: username,
+        uid: cred!.user!.uid,
+        email: _emailController.text,
+      );
+
       if (mounted) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cuenta creada correctamente'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // AuthWrapper llevará a onboarding si hace falta
       }
     } catch (e) {
       if (mounted) {
@@ -82,6 +106,29 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   const SizedBox(height: 32),
 
                   // Email
+
+                  // Usuario (obligatorio, único)
+                  TextFormField(
+                    controller: _usernameController,
+                    textInputAction: TextInputAction.next,
+                    autocorrect: false,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre de usuario *',
+                      hintText: 'solo minúsculas, números, . y _',
+                      prefixIcon: Icon(Icons.alternate_email),
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      final v = (value ?? '').trim().replaceAll('@', '').toLowerCase();
+                      if (v.isEmpty) return 'El usuario es obligatorio';
+                      if (v.length < 3) return 'Mínimo 3 caracteres';
+                      if (!RegExp(r'^[a-z0-9._]+$').hasMatch(v)) {
+                        return 'Solo a-z, 0-9, punto y guión bajo';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,

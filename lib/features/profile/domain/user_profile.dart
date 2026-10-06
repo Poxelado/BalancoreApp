@@ -37,6 +37,8 @@ class UserProfile {
   final int targetProtein; // g
   final int targetCarbs; // g
   final int targetFat; // g
+  /// ml de agua recomendados al día (~35 ml/kg).
+  final int targetWaterMl;
   final bool onboardingCompleted;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -58,6 +60,7 @@ class UserProfile {
     this.targetProtein = 0,
     this.targetCarbs = 0,
     this.targetFat = 0,
+    this.targetWaterMl = 0,
     this.onboardingCompleted = false,
     this.createdAt,
     this.updatedAt,
@@ -95,6 +98,7 @@ class UserProfile {
       'targetProtein': targetProtein,
       'targetCarbs': targetCarbs,
       'targetFat': targetFat,
+      'targetWaterMl': targetWaterMl,
       'onboardingCompleted': onboardingCompleted,
       'createdAt':
       createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
@@ -122,6 +126,7 @@ class UserProfile {
       targetProtein: map['targetProtein'] ?? 0,
       targetCarbs: map['targetCarbs'] ?? 0,
       targetFat: map['targetFat'] ?? 0,
+      targetWaterMl: map['targetWaterMl'] ?? 0,
       onboardingCompleted: map['onboardingCompleted'] ?? false,
       createdAt: map['createdAt'] != null
           ? DateTime.tryParse(map['createdAt'])
@@ -147,6 +152,7 @@ class UserProfile {
     int? targetProtein,
     int? targetCarbs,
     int? targetFat,
+    int? targetWaterMl,
     bool? onboardingCompleted,
   }) {
     return UserProfile(
@@ -166,6 +172,7 @@ class UserProfile {
       targetProtein: targetProtein ?? this.targetProtein,
       targetCarbs: targetCarbs ?? this.targetCarbs,
       targetFat: targetFat ?? this.targetFat,
+      targetWaterMl: targetWaterMl ?? this.targetWaterMl,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
@@ -221,6 +228,23 @@ class UserProfile {
     ((calories - proteinKcal - fatKcal) / 4).round().clamp(0, 1000);
     return (protein: protein, carbs: carbs, fat: fat);
   }
+
+  /// ~35 ml por kg de peso corporal (guía habitual de hidratación).
+  static int calculateWaterMl({required double weightKg}) {
+    if (weightKg <= 0) return 2000;
+    return (weightKg * 35).round().clamp(1500, 5000);
+  }
+
+  /// Vasos de 250 ml.
+  static int waterGlassesFromMl(int ml) =>
+      (ml / 250).round().clamp(6, 20);
+
+  static String waterLabel(double weightKg) {
+    final ml = calculateWaterMl(weightKg: weightKg);
+    final glasses = waterGlassesFromMl(ml);
+    return '$ml ml/día (~$glasses vasos de 250 ml)';
+  }
+
 }
 
 class WeightEntry {

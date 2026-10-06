@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
+import '../../../profile/presentation/providers/profile_provider.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
@@ -27,23 +28,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isLoading = true);
     try {
-      await ref.read(authServiceProvider).loginWithEmail(
-        email: _emailController.text,
+      final repo = ref.read(profileRepositoryProvider);
+      await ref.read(authServiceProvider).loginWithEmailOrUsername(
+        identifier: _emailController.text,
         password: _passwordController.text,
+        resolveUsername: (u) => repo.resolveUsernameToEmail(u),
       );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+
 
   Future<void> _loginWithGoogle() async {
     setState(() => _isLoading = true);
@@ -117,7 +123,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           keyboardType: TextInputType.emailAddress,
                           textInputAction: TextInputAction.next,
                           decoration: const InputDecoration(
-                            labelText: 'Correo electrónico',
+                            labelText: 'Correo o usuario',
                             prefixIcon: Icon(Icons.email_outlined),
                             border: OutlineInputBorder(),
                           ),

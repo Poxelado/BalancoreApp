@@ -55,11 +55,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final user = ref.read(authServiceProvider).currentUser;
       if (user == null) return;
       final uid = user.uid;
-      await ref.read(profileRepositoryProvider).deleteUserData(uid);
+      final profile =
+      await ref.read(profileRepositoryProvider).getProfile(uid);
+      final username = profile?.username;
+
+      // 1) Auth primero: si falla, no tocamos Firestore
       await ref.read(authServiceProvider).deleteAccount();
+
+      // 2) Solo si Auth se eliminó, limpiar datos
+      try {
+        await ref
+            .read(profileRepositoryProvider)
+            .releaseUsername(username);
+      } catch (_) {}
+      try {
+        await ref.read(profileRepositoryProvider).deleteUserData(uid);
+      } catch (_) {}
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cuenta eliminada')),
+          const SnackBar(
+            content: Text(
+              'Cuenta eliminada. Puedes registrarte de nuevo si quieres.',
+            ),
+          ),
         );
       }
     } catch (e) {
