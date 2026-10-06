@@ -34,7 +34,7 @@ class DailyHistoryScreen extends ConsumerStatefulWidget {
 class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
   late int _days;
   _Metric? _selected;
-  String? _expandedMonth;
+  String? _expandedSection; // mes yyyy-MM o semana yyyy-MM-dd (lunes)
 
   static const _ranges = <(int, String, String)>[
     (7, '1 semana', 'Última semana'),
@@ -177,6 +177,7 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
 
     final primary = Theme.of(context).colorScheme.primary;
     final groupByMonth = _days >= 90;
+    final groupByWeek = _days >= 30 && _days < 90;
 
     final header = Padding(
       padding: EdgeInsets.fromLTRB(widget.embedded ? 8 : 16, 12, widget.embedded ? 8 : 16, 8),
@@ -256,6 +257,8 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
             Text(
               groupByMonth
                   ? 'Meses del rango'
+                  : groupByWeek
+                  ? 'Semanas del rango'
                   : 'Registros del rango',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
@@ -265,6 +268,8 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
             const SizedBox(height: 10),
             if (groupByMonth)
               ..._buildMonthSections(logs)
+            else if (groupByWeek)
+              ..._buildWeekSections(logs)
             else
               ...logs.map(
                     (log) => _HistoryRow(
@@ -345,6 +350,119 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
     return const SizedBox.shrink();
   }
 
+
+  DateTime? _parseLogDate(String date) {
+    final p = date.split('-');
+    if (p.length < 3) return null;
+    return DateTime(int.parse(p[0]), int.parse(p[1]), int.parse(p[2]));
+  }
+
+  DateTime _mondayOf(DateTime d) {
+    final day = DateTime(d.year, d.month, d.day);
+    return day.subtract(Duration(days: day.weekday - 1));
+  }
+
+  String _fmtD(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
+
+  /// Agrupa por semana (Lun–Dom) para rango 1 mes.
+  List<Widget> _buildWeekSections(List<DailyLog> logsDesc) {
+    final primary = Theme.of(context).colorScheme.primary;
+    final map = <String, List<DailyLog>>{};
+    for (final log in logsDesc) {
+      final d = _parseLogDate(log.date);
+      if (d == null) continue;
+      final mon = _mondayOf(d);
+      final key =
+          '${mon.year}-${mon.month.toString().padLeft(2, '0')}-${mon.day.toString().padLeft(2, '0')}';
+      map.putIfAbsent(key, () => []).add(log);
+    }
+    final keys = map.keys.toList()
+      ..sort((a, b) => b.compareTo(a)); // más reciente primero
+
+    // Número de semana dentro del mes (1–5)
+    int weekOfMonth(DateTime monday) {
+      return ((monday.day - 1) ~/ 7) + 1;
+    }
+
+    const monthNames = [
+      '',
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre'
+    ];
+
+    return keys.map((key) {
+      final days = map[key]!
+        ..sort((a, b) => b.date.compareTo(a.date));
+      final mon = _parseLogDate(key)!;
+      final sun = mon.add(const Duration(days: 6));
+      final wom = weekOfMonth(mon);
+      final monthName = monthNames[mon.month];
+      final label =
+          '$monthName · Semana $wom  (${_fmtD(mon)} – ${_fmtD(sun)})';
+      final expanded = _expandedSection == key;
+
+      final totalCal =
+      days.fold<int>(0, (s, l) => s + l.consumedCalories);
+      final totalWater =
+      days.fold<int>(0, (s, l) => s + l.waterGlasses);
+      final avgSleep = days.isEmpty
+          ? 0.0
+          : days.fold<double>(0, (s, l) => s + l.sleepHours) / days.length;
+
+      return Card(
+        margin: const EdgeInsets.only(bottom: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Column(
+          children: [
+            ListTile(
+              title: Text(label,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              subtitle: Text(
+                '${days.length} días · $totalCal kcal · $totalWater vasos · ${avgSleep.toStringAsFixed(1)} h sueño',
+                style: const TextStyle(fontSize: 12),
+              ),
+              trailing: Icon(
+                expanded ? Icons.expand_less : Icons.expand_more,
+                color: primary,
+              ),
+              onTap: () {
+                setState(() {
+                  _expandedSection = expanded ? null : key;
+                });
+              },
+            ),
+            if (expanded)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+                child: Column(
+                  children: days
+                      .map(
+                        (log) => _HistoryRow(
+                      log: log,
+                      filter: _selected,
+                      onEdit: () => _editLog(log),
+                    ),
+                  )
+                      .toList(),
+                ),
+              ),
+          ],
+        ),
+      );
+    }).toList();
+  }
+
   List<Widget> _buildMonthSections(List<DailyLog> logsDesc) {
     // logsDesc: más reciente primero
     final byMonth = <String, List<DailyLog>>{};
@@ -357,7 +475,7 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
 
     return months.map((monthKey) {
       final days = byMonth[monthKey]!;
-      final expanded = _expandedMonth == monthKey;
+      final expanded = _expandedSection == monthKey;
       final label = _monthLabel(monthKey);
       final primary = Theme.of(context).colorScheme.primary;
 
@@ -388,7 +506,7 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
               ),
               onTap: () {
                 setState(() {
-                  _expandedMonth = expanded ? null : monthKey;
+                  _expandedSection = expanded ? null : monthKey;
                 });
               },
             ),
@@ -558,7 +676,7 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
         selected: selected,
         onSelected: (_) => setState(() {
           _days = days;
-          _expandedMonth = null;
+          _expandedSection = null;
         }),
       ),
     );

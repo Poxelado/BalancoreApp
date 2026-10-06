@@ -3,9 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/macro_week_analysis.dart';
 import '../providers/profile_provider.dart';
 
-/// Card de análisis semanal de macros (Progreso → Hábitos).
-class WeeklyMacroCard extends ConsumerWidget {
+/// Card desplegable de análisis semanal de macros (Progreso → Hábitos).
+class WeeklyMacroCard extends ConsumerStatefulWidget {
   const WeeklyMacroCard({super.key});
+
+  @override
+  ConsumerState<WeeklyMacroCard> createState() => _WeeklyMacroCardState();
+}
+
+class _WeeklyMacroCardState extends ConsumerState<WeeklyMacroCard> {
+  bool _expanded = false;
 
   static String _fmtDate(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
@@ -17,7 +24,7 @@ class WeeklyMacroCard extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
     final profile = ref.watch(userProfileProvider).value;
     final logsAsync = ref.watch(dailyLogsHistoryProvider(14));
@@ -34,171 +41,166 @@ class WeeklyMacroCard extends ConsumerWidget {
           profile: profile,
         );
 
-        if (report.daysWithData == 0) {
-          return Card(
-            margin: const EdgeInsets.fromLTRB(8, 4, 8, 12),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Icon(Icons.pie_chart_outline, color: primary),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Macros de esta semana\nRegistra comidas en Nutrición para ver el análisis.',
-                      style: TextStyle(height: 1.35),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
+        final subtitle = report.daysWithData == 0
+            ? 'Registra comidas en Nutrición para ver el análisis'
+            : '${_fmtDate(report.weekStart)} – ${_fmtDate(report.weekEnd)}'
+            ' · ${report.daysWithData} días con datos';
 
         return Card(
           margin: const EdgeInsets.fromLTRB(8, 4, 8, 12),
           clipBehavior: Clip.antiAlias,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.insights, color: primary, size: 22),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+          child: Column(
+            children: [
+              ListTile(
+                leading: Icon(Icons.insights, color: primary),
+                title: Text(
+                  'Macros · esta semana',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: primary,
+                  ),
+                ),
+                subtitle: Text(
+                  subtitle,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+                trailing: Icon(
+                  _expanded ? Icons.expand_less : Icons.expand_more,
+                  color: primary,
+                ),
+                onTap: () => setState(() => _expanded = !_expanded),
+              ),
+              if (_expanded && report.daysWithData == 0)
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Text(
+                    'Cuando registres kcal o macros en Nutrición, aquí verás '
+                        'promedios, cumplimiento de proteína y comparación con la semana pasada.',
+                  ),
+                ),
+              if (_expanded && report.daysWithData > 0)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Divider(height: 1),
+                      const SizedBox(height: 12),
+                      Row(
                         children: [
-                          Text(
-                            'Macros · esta semana',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: primary,
+                          Expanded(
+                            child: _HitChip(
+                              label: 'Proteína OK',
+                              value:
+                              '${report.daysHitProtein}/${report.daysWithData}',
+                              color: const Color(0xFF4CAF50),
                             ),
                           ),
-                          Text(
-                            '${_fmtDate(report.weekStart)} – ${_fmtDate(report.weekEnd)}'
-                                ' · ${report.daysWithData} días con datos',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _HitChip(
+                              label: 'Kcal en rango',
+                              value:
+                              '${report.daysHitCalories}/${report.daysWithData}',
+                              color: const Color(0xFFFF9800),
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _HitChip(
-                        label: 'Proteína OK',
-                        value:
-                        '${report.daysHitProtein}/${report.daysWithData}',
-                        color: const Color(0xFF4CAF50),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _HitChip(
-                        label: 'Kcal en rango',
-                        value:
-                        '${report.daysHitCalories}/${report.daysWithData}',
+                      const SizedBox(height: 14),
+                      _MacroBar(
+                        label: 'Kcal',
+                        avg: report.avgCalories,
+                        target: report.targetCalories.toDouble(),
+                        delta: report.deltaCalories,
                         color: const Color(0xFFFF9800),
+                        unit: '',
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                _MacroBar(
-                  label: 'Kcal',
-                  avg: report.avgCalories,
-                  target: report.targetCalories.toDouble(),
-                  delta: report.deltaCalories,
-                  color: const Color(0xFFFF9800),
-                  unit: '',
-                ),
-                _MacroBar(
-                  label: 'Proteína',
-                  avg: report.avgProtein,
-                  target: report.targetProtein.toDouble(),
-                  delta: report.deltaProtein,
-                  color: const Color(0xFF4CAF50),
-                  unit: 'g',
-                ),
-                _MacroBar(
-                  label: 'Carbos',
-                  avg: report.avgCarbs,
-                  target: report.targetCarbs.toDouble(),
-                  delta: report.deltaCarbs,
-                  color: const Color(0xFFFFC107),
-                  unit: 'g',
-                ),
-                _MacroBar(
-                  label: 'Grasas',
-                  avg: report.avgFat,
-                  target: report.targetFat.toDouble(),
-                  delta: report.deltaFat,
-                  color: const Color(0xFFE91E63),
-                  unit: 'g',
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Distribución calórica media',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade700,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: SizedBox(
-                    height: 10,
-                    child: Row(
-                      children: [
-                        if (report.proteinCalPct > 0)
-                          Expanded(
-                            flex: report.proteinCalPct.round().clamp(1, 100),
-                            child: Container(color: const Color(0xFF4CAF50)),
+                      _MacroBar(
+                        label: 'Proteína',
+                        avg: report.avgProtein,
+                        target: report.targetProtein.toDouble(),
+                        delta: report.deltaProtein,
+                        color: const Color(0xFF4CAF50),
+                        unit: 'g',
+                      ),
+                      _MacroBar(
+                        label: 'Carbos',
+                        avg: report.avgCarbs,
+                        target: report.targetCarbs.toDouble(),
+                        delta: report.deltaCarbs,
+                        color: const Color(0xFFFFC107),
+                        unit: 'g',
+                      ),
+                      _MacroBar(
+                        label: 'Grasas',
+                        avg: report.avgFat,
+                        target: report.targetFat.toDouble(),
+                        delta: report.deltaFat,
+                        color: const Color(0xFFE91E63),
+                        unit: 'g',
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Distribución calórica media',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: SizedBox(
+                          height: 10,
+                          child: Row(
+                            children: [
+                              if (report.proteinCalPct > 0)
+                                Expanded(
+                                  flex:
+                                  report.proteinCalPct.round().clamp(1, 100),
+                                  child: Container(
+                                      color: const Color(0xFF4CAF50)),
+                                ),
+                              if (report.carbsCalPct > 0)
+                                Expanded(
+                                  flex:
+                                  report.carbsCalPct.round().clamp(1, 100),
+                                  child: Container(
+                                      color: const Color(0xFFFFC107)),
+                                ),
+                              if (report.fatCalPct > 0)
+                                Expanded(
+                                  flex: report.fatCalPct.round().clamp(1, 100),
+                                  child: Container(
+                                      color: const Color(0xFFE91E63)),
+                                ),
+                            ],
                           ),
-                        if (report.carbsCalPct > 0)
-                          Expanded(
-                            flex: report.carbsCalPct.round().clamp(1, 100),
-                            child: Container(color: const Color(0xFFFFC107)),
-                          ),
-                        if (report.fatCalPct > 0)
-                          Expanded(
-                            flex: report.fatCalPct.round().clamp(1, 100),
-                            child: Container(color: const Color(0xFFE91E63)),
-                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'P ${report.proteinCalPct.round()}% · '
+                            'C ${report.carbsCalPct.round()}% · '
+                            'G ${report.fatCalPct.round()}%',
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.grey.shade600),
+                      ),
+                      if (report.prevAvgCalories != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Vs semana pasada: kcal ${_delta(report.deltaCalories)} · '
+                              'prot ${_delta(report.deltaProtein, suffix: 'g')}',
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.grey.shade600),
+                        ),
                       ],
-                    ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'P ${report.proteinCalPct.round()}% · '
-                      'C ${report.carbsCalPct.round()}% · '
-                      'G ${report.fatCalPct.round()}%',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                ),
-                if (report.prevAvgCalories != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Vs semana pasada: kcal ${_delta(report.deltaCalories)} · '
-                        'prot ${_delta(report.deltaProtein, suffix: 'g')}',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                  ),
-                ],
-              ],
-            ),
+            ],
           ),
         );
       },
