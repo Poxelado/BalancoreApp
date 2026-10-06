@@ -693,6 +693,7 @@ class WorkoutExerciseLog {
   final List<WorkoutSetLog> sets;
   /// Descanso entre series de este ejercicio (segundos).
   final int restSeconds;
+  final int? rpe;
 
   const WorkoutExerciseLog({
     required this.exerciseId,
@@ -701,6 +702,7 @@ class WorkoutExerciseLog {
     this.notes = '',
     this.sets = const [],
     this.restSeconds = 60,
+    this.rpe,
   });
 
   Map<String, dynamic> toMap() => {
@@ -710,6 +712,7 @@ class WorkoutExerciseLog {
     'notes': notes,
     'sets': sets.map((s) => s.toMap()).toList(),
     'restSeconds': restSeconds,
+    'rpe': rpe,
   };
 
   factory WorkoutExerciseLog.fromMap(Map<String, dynamic> map) {
@@ -729,6 +732,7 @@ class WorkoutExerciseLog {
       notes: _str(map['notes']),
       sets: sets,
       restSeconds: map['restSeconds'] ?? 60,
+      rpe: map['rpe'] as int?,
     );
   }
 
@@ -736,6 +740,7 @@ class WorkoutExerciseLog {
     List<WorkoutSetLog>? sets,
     String? notes,
     int? restSeconds,
+    int? rpe,
   }) {
     return WorkoutExerciseLog(
       exerciseId: exerciseId,
@@ -744,6 +749,7 @@ class WorkoutExerciseLog {
       notes: notes ?? this.notes,
       sets: sets ?? this.sets,
       restSeconds: restSeconds ?? this.restSeconds,
+      rpe: rpe ?? this.rpe,
     );
   }
 

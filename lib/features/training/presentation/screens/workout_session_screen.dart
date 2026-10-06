@@ -903,6 +903,41 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                             ],
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        Text('RPE (esfuerzo)', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        const SizedBox(height: 4),
+                        SizedBox(
+                          height: 36,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            children: [
+                              for (var r = 1; r <= 10; r++)
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 6),
+                                  child: ChoiceChip(
+                                    label: Text('$r'),
+                                    selected: ex.rpe == r,
+                                    onSelected: (_) => _setExerciseRpe(_exerciseIndex, r),
+                                    visualDensity: VisualDensity.compact,
+                                    labelStyle: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: ex.rpe == r ? Colors.white : null,
+                                    ),
+                                    selectedColor: primary,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        if (ex.rpe != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              _rpeLabel(ex.rpe!),
+                              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -1277,6 +1312,20 @@ class _SessionRestTimeSheetState extends State<_SessionRestTimeSheet> {
     if (m > 0 && s > 0) return '${m}min ${s.toString().padLeft(2, '0')}s';
     if (m > 0) return '${m}min 0s';
     return '${s}s';
+  }
+  String _rpeLabel(int r) {
+    if (r <= 3) return 'Muy fácil';
+    if (r <= 5) return 'Moderado';
+    if (r <= 7) return 'Exigente';
+    if (r <= 9) return 'Muy duro';
+    return 'Máximo';
+  }
+  Future<void> _setExerciseRpe(int exerciseIndex, int rpe) async {
+    final exercises = List<WorkoutExerciseLog>.from(_session.exercises);
+    final ex = exercises[exerciseIndex];
+    exercises[exerciseIndex] = ex.copyWith(rpe: rpe);
+    setState(() => _session = _session.copyWith(exercises: exercises));
+    await _persist(silent: true);
   }
 
   @override
