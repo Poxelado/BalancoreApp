@@ -8,6 +8,7 @@ import '../../../training/presentation/screens/exercise_library_screen.dart';
 import '../../../training/presentation/screens/edit_routine_day_screen.dart';
 import '../../../training/presentation/screens/workout_session_screen.dart';
 import 'home_tab.dart';
+import '../../../training/domain/rest_day_suggestion.dart';
 
 class RoutineTab extends ConsumerStatefulWidget {
   const RoutineTab({super.key});
@@ -97,6 +98,7 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
 
         // ─── Sesión en curso (mini player) ────────────────
         _ActiveSessionBanner(),
+        const _RestDayBanner(),
         // ═══ 1) RUTINA SEMANAL (arriba de todo) ═══════════
         Row(
           children: [
@@ -394,6 +396,45 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
 
 }
 
+class _RestDayBanner extends ConsumerWidget {
+  const _RestDayBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final historyAsync = ref.watch(workoutHistoryProvider(14));
+    return historyAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (history) {
+        final advice = RestDayRules.evaluate(history);
+        if (!advice.suggestRest) return const SizedBox.shrink();
+
+        final strong = advice.level == 'strong';
+        final bg = strong
+            ? Colors.orange.withValues(alpha: 0.15)
+            : Colors.blueGrey.withValues(alpha: 0.12);
+        final fg = strong ? Colors.deepOrange : Colors.blueGrey;
+
+        return Card(
+          color: bg,
+          margin: const EdgeInsets.only(bottom: 12),
+          child: ListTile(
+            leading: Icon(
+              strong ? Icons.hotel : Icons.self_improvement,
+              color: fg,
+            ),
+            title: Text(
+              strong ? 'Sugerencia: descanso' : 'Recuperación recomendada',
+              style: TextStyle(fontWeight: FontWeight.bold, color: fg),
+            ),
+            subtitle: Text(advice.message),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _HabitCard extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
@@ -410,6 +451,7 @@ class _HabitCard extends StatelessWidget {
     this.onMinus,
     this.onPlus,
   });
+
 
   @override
   Widget build(BuildContext context) {
