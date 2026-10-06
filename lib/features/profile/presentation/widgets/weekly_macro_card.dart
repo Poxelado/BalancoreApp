@@ -20,7 +20,6 @@ class WeeklyMacroCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final primary = Theme.of(context).colorScheme.primary;
     final profile = ref.watch(userProfileProvider).value;
-    // 14 días: semana actual + anterior
     final logsAsync = ref.watch(dailyLogsHistoryProvider(14));
 
     return logsAsync.when(
@@ -94,8 +93,6 @@ class WeeklyMacroCard extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 14),
-
-                // Cumplimiento
                 Row(
                   children: [
                     Expanded(
@@ -118,8 +115,6 @@ class WeeklyMacroCard extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 14),
-
-                // Promedios vs meta
                 _MacroBar(
                   label: 'Kcal',
                   avg: report.avgCalories,
@@ -140,9 +135,7 @@ class WeeklyMacroCard extends ConsumerWidget {
                   label: 'Carbos',
                   avg: report.avgCarbs,
                   target: report.targetCarbs.toDouble(),
-                  delta: report.prevAvgCarbs != null
-                      ? report.avgCarbs - report.prevAvgCarbs!
-                      : null,
+                  delta: report.deltaCarbs,
                   color: const Color(0xFFFFC107),
                   unit: 'g',
                 ),
@@ -150,13 +143,10 @@ class WeeklyMacroCard extends ConsumerWidget {
                   label: 'Grasas',
                   avg: report.avgFat,
                   target: report.targetFat.toDouble(),
-                  delta: report.prevAvgFat != null
-                      ? report.avgFat - report.prevAvgFat!
-                      : null,
+                  delta: report.deltaFat,
                   color: const Color(0xFFE91E63),
                   unit: 'g',
                 ),
-
                 const SizedBox(height: 8),
                 Text(
                   'Distribución calórica media',

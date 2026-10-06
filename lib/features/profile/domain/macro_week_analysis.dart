@@ -1,6 +1,6 @@
 import 'user_profile.dart';
 
-/// Resumen de macros de una semana (Lun–Dom o últimos 7 días).
+/// Resumen de macros de una semana (Lun–Dom).
 class MacroWeekReport {
   final DateTime weekStart;
   final DateTime weekEnd;
@@ -17,9 +17,7 @@ class MacroWeekReport {
   final int targetProtein;
   final int targetCarbs;
   final int targetFat;
-  /// Días en que la proteína llegó ≥ 90% de la meta.
   final int daysHitProtein;
-  /// Días en que las kcal estuvieron entre 90–110% de la meta.
   final int daysHitCalories;
 
   const MacroWeekReport({
@@ -48,7 +46,6 @@ class MacroWeekReport {
   double get caloriesPctOfTarget =>
       targetCalories > 0 ? (avgCalories / targetCalories) * 100 : 0;
 
-  /// % del total calórico medio que aporta cada macro (aprox).
   double get proteinCalPct {
     final t = avgCalories;
     if (t <= 0) return 0;
@@ -67,10 +64,17 @@ class MacroWeekReport {
     return (avgFat * 9 / t) * 100;
   }
 
-  double? deltaCalories =>
-  prevAvgCalories == null ? null : avgCalories - prevAvgCalories!;
-  double? deltaProtein =>
-  prevAvgProtein == null ? null : avgProtein - prevAvgProtein!;
+  double? get deltaCalories =>
+      prevAvgCalories == null ? null : avgCalories - prevAvgCalories!;
+
+  double? get deltaProtein =>
+      prevAvgProtein == null ? null : avgProtein - prevAvgProtein!;
+
+  double? get deltaCarbs =>
+      prevAvgCarbs == null ? null : avgCarbs - prevAvgCarbs!;
+
+  double? get deltaFat =>
+      prevAvgFat == null ? null : avgFat - prevAvgFat!;
 }
 
 class MacroWeekAnalysis {
@@ -78,7 +82,7 @@ class MacroWeekAnalysis {
 
   static DateTime startOfWeek(DateTime d) {
     final x = _day(d);
-    return x.subtract(Duration(days: x.weekday - 1)); // lunes
+    return x.subtract(Duration(days: x.weekday - 1));
   }
 
   static DateTime? _parseLogDate(String date) {
@@ -112,7 +116,7 @@ class MacroWeekAnalysis {
       ) {
     final usable = logs.where(_hasMacroData).toList();
     if (usable.isEmpty) {
-      return (cal: 0, p: 0, c: 0, f: 0, n: 0);
+      return (cal: 0.0, p: 0.0, c: 0.0, f: 0.0, n: 0);
     }
     final n = usable.length;
     final cal =
