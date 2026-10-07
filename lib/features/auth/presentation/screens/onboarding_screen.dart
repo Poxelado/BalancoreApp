@@ -352,12 +352,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             controller: _usernameController,
             enabled: !_usernameLocked,
             readOnly: _usernameLocked,
-            decoration: InputDecoration(   // ← sin "const"
-              labelText: _usernameLocked ? 'Usuario (definido al registrarte)' : 'Usuario *',
-              helperText: _usernameLocked ? 'En perfil podrás cambiarlo máx. 3 veces al mes' : null,
+            decoration: InputDecoration(  // sin const
+              labelText: _usernameLocked
+                  ? 'Usuario (definido al registrarte)'
+                  : 'Usuario *',
+              helperText: _usernameLocked
+                  ? 'En perfil podrás cambiarlo máx. 3 veces al mes'
+                  : null,
               prefixIcon: const Icon(Icons.alternate_email),
               border: const OutlineInputBorder(),
               hintText: 'sin espacios',
+              filled: _usernameLocked,
+              fillColor: _usernameLocked
+                  ? Colors.grey.withValues(alpha: 0.12)
+                  : null,
             ),
           ),
           const SizedBox(height: 24),
@@ -466,20 +474,57 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Nivel de actividad',
-            style: TextStyle(fontWeight: FontWeight.w600),
+          Builder(
+            builder: (context) {
+              final w = double.tryParse(_weightController.text) ?? 70;
+              final ml = UserProfile.calculateWaterMl(weightKg: w);
+              final glasses = UserProfile.waterGlassesFromMl(ml);
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: primary.withValues(alpha: 0.25)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.water_drop, color: primary, size: 32),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Agua recomendada',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: primary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '$ml ml/día  ·  ~$glasses vasos',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          Text(
+                            'Se calcula con tu peso (~35 ml/kg). Se ajustará solo.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
-          const SizedBox(height: 8),
-          ...UserProfile.activityLevels.map((level) {
-            final selected = _activityLevel == level;
-            final subtitle = switch (level) {
-              'Sedentario' => 'Poco o nada de ejercicio',
-              'Ligero' => '1–3 días / semana',
-              'Moderado' => '3–5 días / semana',
-              'Activo' => '6–7 días / semana',
-              _ => 'Entrenamiento intenso diario',
-            };
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: ListTile(

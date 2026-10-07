@@ -373,20 +373,27 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            value: _activityLevel,
-            decoration: const InputDecoration(
-              labelText: 'Nivel de actividad',
-              border: OutlineInputBorder(),
-            ),
-            items: UserProfile.activityLevels
-                .map((l) => DropdownMenuItem(value: l, child: Text(l)))
-                .toList(),
-            onChanged: (v) {
-              if (v == null) return;
-              setState(() => _activityLevel = v);
-              if (!_manualCalories) _recalculate(silent: true);
+          // En vez del Dropdown de actividad:
+          Builder(
+            builder: (context) {
+              final weight = double.tryParse(_weightController.text) ??
+                  widget.profile.currentWeight;
+              final ml = UserProfile.calculateWaterMl(weightKg: weight);
+              final glasses = UserProfile.waterGlassesFromMl(ml);
+              return InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'Agua recomendada',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.water_drop_outlined),
+                  helperText: 'Se calcula con tu peso. El nivel de actividad se ajusta solo según tus entrenos semanales.',
+                ),
+                child: Text(
+                  '$ml ml/día  ·  ~$glasses vasos de 250 ml',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              );
             },
+          ),
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(

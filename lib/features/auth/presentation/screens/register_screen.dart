@@ -34,7 +34,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
-    // Diálogo de carga mientras se crea la cuenta
+    // Diálogo de carga más profesional
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -42,25 +42,39 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         canPop: false,
         child: Center(
           child: Card(
-            margin: const EdgeInsets.all(32),
+            margin: const EdgeInsets.symmetric(horizontal: 40),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             child: Padding(
-              padding: const EdgeInsets.all(28),
+              padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircularProgressIndicator(
-                    color: Theme.of(ctx).colorScheme.primary,
+                  SizedBox(
+                    width: 56,
+                    height: 56,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      color: Theme.of(ctx).colorScheme.primary,
+                    ),
                   ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Creando tu cuenta…',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Creando tu cuenta',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 17,
+                      color: Theme.of(ctx).colorScheme.onSurface,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Estamos preparando tu espacio en Balancore',
+                    'Estamos preparando tu espacio en Balancore.\nEsto toma solo unos segundos.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.4,
+                      color: Colors.grey.shade600,
+                    ),
                   ),
                 ],
               ),
@@ -75,31 +89,29 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           .trim()
           .replaceAll('@', '')
           .toLowerCase();
+      final email = _emailController.text.trim();
       final repo = ref.read(profileRepositoryProvider);
+
       final available = await repo.isUsernameAvailable(username);
-      if (!available) {
-        throw 'Ese nombre de usuario ya está en uso.';
-      }
+      if (!available) throw 'Ese nombre de usuario ya está en uso.';
 
       final cred = await ref.read(authServiceProvider).registerWithEmail(
-        email: _emailController.text,
+        email: email,
         password: _passwordController.text,
       );
-      if (cred?.user == null) {
-        throw 'No se pudo crear la cuenta.';
-      }
+      if (cred?.user == null) throw 'No se pudo crear la cuenta.';
 
       await repo.claimUsername(
         username: username,
         uid: cred!.user!.uid,
-        email: _emailController.text,
+        email: email,
       );
 
-      // Perfil mínimo: onboarding incompleto → AuthWrapper abre onboarding
+      // Perfil mínimo → AuthWrapper detecta onboarding incompleto
       await repo.saveProfile(
         UserProfile(
           uid: cred.user!.uid,
-          email: _emailController.text.trim(),
+          email: email,
           username: username,
           sex: 'Masculino',
           currentWeight: 70,
@@ -112,9 +124,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         ),
       );
 
+      // Invalidar para que AuthWrapper vea el perfil nuevo
+      ref.invalidate(userProfileProvider);
+
       if (mounted) {
         Navigator.of(context).pop(); // cierra loading
-        // Sale del registro → AuthWrapper muestra Onboarding
+        // Volver a la raíz: AuthWrapper mostrará OnboardingScreen
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
@@ -124,6 +139,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           SnackBar(
             content: Text(e.toString()),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
