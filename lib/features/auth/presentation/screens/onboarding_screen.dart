@@ -352,11 +352,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             controller: _usernameController,
             enabled: !_usernameLocked,
             readOnly: _usernameLocked,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(   // ← sin "const"
               labelText: _usernameLocked ? 'Usuario (definido al registrarte)' : 'Usuario *',
               helperText: _usernameLocked ? 'En perfil podrás cambiarlo máx. 3 veces al mes' : null,
-              prefixIcon: Icon(Icons.alternate_email),
-              border: OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.alternate_email),
+              border: const OutlineInputBorder(),
               hintText: 'sin espacios',
             ),
           ),

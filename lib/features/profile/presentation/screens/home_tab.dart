@@ -304,6 +304,8 @@ class _StreakIcon extends StatelessWidget {
 class CompactWaterControl extends ConsumerWidget {
   const CompactWaterControl({super.key});
 
+
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final logAsync = ref.watch(todayLogProvider);
@@ -313,7 +315,16 @@ class CompactWaterControl extends ConsumerWidget {
         child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
       ),
       error: (e, _) => Text('$e'),
+      // En CompactWaterControl → data: (log) {
       data: (log) {
+        final profile = ref.watch(userProfileProvider).value;
+        final maxGlasses = profile?.targetWaterGlasses ?? 10;
+        final goalMl = profile != null && profile.targetWaterMl > 0
+            ? profile.targetWaterMl
+            : (profile != null
+            ? UserProfile.calculateWaterMl(weightKg: profile.currentWeight)
+            : kWaterGoalMl);
+
         final ml = log.waterGlasses * kMlPerGlass;
         return Container(
           decoration: BoxDecoration(
@@ -326,11 +337,12 @@ class CompactWaterControl extends ConsumerWidget {
           child: _CompactHabit(
             icon: Icons.water_drop,
             iconColor: const Color(0xFF2196F3),
-            label: ml > 0 ? '${ml}ml / 2L' : '0ml / ${(goalMl / 1000).toStringAsFixed(1)}L',
+            label: ml > 0
+                ? '${ml}ml / ${(goalMl / 1000).toStringAsFixed(1)}L'
+                : '0ml / ${(goalMl / 1000).toStringAsFixed(1)}L',
             onMinus: log.waterGlasses > 0
                 ? () async {
-              final uid =
-                  ref.read(authServiceProvider).currentUser?.uid;
+              final uid = ref.read(authServiceProvider).currentUser?.uid;
               if (uid == null) return;
               await ref.read(profileRepositoryProvider).updateTodayLog(
                 uid,
@@ -341,8 +353,7 @@ class CompactWaterControl extends ConsumerWidget {
                 : null,
             onPlus: log.waterGlasses < maxGlasses
                 ? () async {
-              final uid =
-                  ref.read(authServiceProvider).currentUser?.uid;
+              final uid = ref.read(authServiceProvider).currentUser?.uid;
               if (uid == null) return;
               await ref.read(profileRepositoryProvider).updateTodayLog(
                 uid,
