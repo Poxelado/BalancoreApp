@@ -394,7 +394,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               );
             },
           ),
-          ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
             value: _goal,

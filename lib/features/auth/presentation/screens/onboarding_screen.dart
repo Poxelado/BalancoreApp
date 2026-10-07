@@ -525,6 +525,27 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               );
             },
           ),
+          const SizedBox(height: 24),
+          const Text(
+            'Nivel de actividad',
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Se usa para estimar calorías. Luego puede ajustarse con tus entrenos.',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          const SizedBox(height: 12),
+          ...UserProfile.activityLevels.map((level) {
+            final selected = _activityLevel == level;
+            const subtitles = {
+              'Sedentario': 'Poco o nada de ejercicio',
+              'Ligero': '1–3 días/semana',
+              'Moderado': '3–5 días/semana',
+              'Activo': '6–7 días/semana',
+              'Muy activo': 'Entrenamiento intenso diario',
+            };
+            final subtitle = subtitles[level] ?? '';
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: ListTile(
