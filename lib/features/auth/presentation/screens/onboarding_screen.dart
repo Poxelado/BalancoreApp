@@ -17,7 +17,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _formKey = GlobalKey<FormState>();
   final _pageController = PageController();
   final _nameController = TextEditingController();
-  final _usernameController = TextEditingController();
   final _weightController = TextEditingController(text: '70');
   final _heightController = TextEditingController(text: '170');
   final _ageController = TextEditingController(text: '25');
@@ -33,7 +32,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   int _weightWeekday = DateTime.monday;
   int _streakInterval = 4;
   bool? _wantNotifs;
-  bool _usernameLocked = false;
 
   @override
   void initState() {
@@ -44,43 +42,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Future<void> _prefillFromAuth() async {
     final user = ref.read(authServiceProvider).currentUser;
     if (user == null) return;
-
-    // 1) Lo más fiable: lo que se guardó al registrar
-    final pending = ref.read(pendingUsernameProvider);
-
-    // 2) Perfil en Firestore
     UserProfile? profile = ref.read(userProfileProvider).value;
     profile ??= await ref.read(profileRepositoryProvider).getProfile(user.uid);
-
     if (!mounted) return;
-
-    final fromProfile =
-    profile?.username?.trim().replaceAll('@', '').toLowerCase();
-    final fromPending = pending?.trim().replaceAll('@', '').toLowerCase();
-
-    final resolved = (fromProfile != null && fromProfile.isNotEmpty)
-        ? fromProfile
-        : (fromPending != null && fromPending.isNotEmpty ? fromPending : null);
-
-    setState(() {
-      if (resolved != null) {
-        _usernameController.text = resolved;
-        _usernameLocked = true;
-      }
-      if (profile?.displayName != null && profile!.displayName!.isNotEmpty) {
-        _nameController.text = profile.displayName!;
-      }
-      if (profile != null && profile.sex.isNotEmpty) {
-        _sex = profile.sex;
-      }
-    });
+    if (profile?.displayName != null && profile!.displayName!.isNotEmpty) {
+      _nameController.text = profile.displayName!;
+    }
   }
+
 
   @override
   void dispose() {
     _pageController.dispose();
     _nameController.dispose();
-    _usernameController.dispose();
     _weightController.dispose();
     _heightController.dispose();
     _ageController.dispose();
@@ -133,15 +107,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       final height = double.parse(_heightController.text);
       final age = int.parse(_ageController.text);
 
-      // Resolver username: campo → pending → perfil
-      var uname =
-      _usernameController.text.trim().replaceAll('@', '').toLowerCase();
-      if (uname.isEmpty) {
-        uname = (ref.read(pendingUsernameProvider) ?? '')
-            .trim()
-            .replaceAll('@', '')
-            .toLowerCase();
-      }
+      // Username solo viene del registro (perfil o pending)
+      var uname = (ref.read(pendingUsernameProvider) ?? '')
+          .trim()
+          .replaceAll('@', '')
+          .toLowerCase();
       if (uname.isEmpty) {
         final existing =
         await ref.read(profileRepositoryProvider).getProfile(user.uid);
@@ -149,7 +119,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             (existing?.username ?? '').trim().replaceAll('@', '').toLowerCase();
       }
       if (uname.isEmpty || uname.length < 3) {
-        throw 'No se encontró tu nombre de usuario. Vuelve a la pantalla de registro.';
+        throw 'No se encontró tu nombre de usuario del registro. Cierra sesión y regístrate de nuevo.';
       }
 
       final calories = UserProfile.calculateTMB(
@@ -188,15 +158,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         createdAt: DateTime.now(),
       );
 
-      // Solo claim si no venía del registro
-      if (!_usernameLocked) {
-        await ref.read(profileRepositoryProvider).claimUsername(
-          username: uname,
-          uid: user.uid,
-          email: user.email ?? '',
-        );
-      }
-
+      // Username ya reclamado en registro; solo actualizar perfil
       await ref.read(profileRepositoryProvider).saveProfile(profile);
       await ref.read(profileRepositoryProvider).addWeightEntry(
         user.uid,
@@ -375,7 +337,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Estos datos se verán en tu perfil. Puedes cambiarlos después.',
+            'Tu usuario ya quedó definido al crear la cuenta. Aquí solo el nombre (opcional) y el sexo.',
             style: TextStyle(color: Colors.grey.shade600),
           ),
           const SizedBox(height: 24),
@@ -386,22 +348,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               labelText: 'Nombre (opcional)',
               prefixIcon: Icon(Icons.person_outline),
               border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Usuario bloqueado: viene del registro
-          TextFormField(
-            controller: _usernameController,
-            enabled: false,
-            readOnly: true,
-            decoration: InputDecoration(
-              labelText: 'Usuario',
-              helperText:
-              'Puedes cambiarlo más adelante en la configuración de tu perfil (máx. 3 veces al mes).',
-              prefixIcon: const Icon(Icons.alternate_email),
-              border: const OutlineInputBorder(),
-              filled: true,
-              fillColor: Colors.grey.withValues(alpha: 0.12),
             ),
           ),
           const SizedBox(height: 24),
