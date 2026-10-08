@@ -295,6 +295,63 @@ class ProfileRepository {
     }, SetOptions(merge: true));
   }
 
+
+
+  // ─── Recetas / platos ───────────────────────────────────
+  CollectionReference _savedRecipes(String uid) =>
+      _userDoc(uid).doc(uid).collection('savedRecipes');
+
+  Future<List<SavedRecipe>> getSavedRecipes(String uid) async {
+    final snap = await _savedRecipes(uid).get();
+    final list = snap.docs
+        .map((d) => SavedRecipe.fromMap(
+      d.id,
+      d.data() as Map<String, dynamic>,
+    ))
+        .toList();
+    list.sort((a, b) {
+      final c = b.useCount.compareTo(a.useCount);
+      if (c != 0) return c;
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+    return list;
+  }
+
+  Future<String> saveRecipe(String uid, SavedRecipe recipe) async {
+    final data = recipe.toMap();
+    if (recipe.id.isEmpty) {
+      final ref = await _savedRecipes(uid).add(data);
+      return ref.id;
+    }
+    await _savedRecipes(uid).doc(recipe.id).set(data, SetOptions(merge: true));
+    return recipe.id;
+  }
+
+  Future<void> deleteRecipe(String uid, String recipeId) async {
+    await _savedRecipes(uid).doc(recipeId).delete();
+  }
+
+  Future<void> incrementRecipeUse(String uid, String recipeId) async {
+    await _savedRecipes(uid).doc(recipeId).set({
+      'useCount': FieldValue.increment(1),
+      'updatedAt': DateTime.now().toIso8601String(),
+    }, SetOptions(merge: true));
+  }
+
+  /// Registra un plato en el día (con escala de porción).
+  Future<void> addRecipeMeal(
+      String uid,
+      SavedRecipe recipe, {
+        required String mealType,
+        double scale = 1.0,
+      }) async {
+    final meal = recipe.toMealEntry(mealType: mealType, scale: scale);
+    await addMeal(uid, meal);
+    if (recipe.id.isNotEmpty) {
+      await incrementRecipeUse(uid, recipe.id);
+    }
+  }
+
   /// Comidas recientes de los últimos [days] días (únicas por nombre).
   Future<List<MealEntry>> getRecentMeals(String uid, {int days = 14}) async {
     final logs = await getDailyLogsHistory(uid, days: days);

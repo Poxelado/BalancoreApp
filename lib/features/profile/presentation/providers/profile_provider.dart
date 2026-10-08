@@ -47,6 +47,13 @@ final savedFoodsProvider = FutureProvider<List<SavedFood>>((ref) async {
   return ref.watch(profileRepositoryProvider).getSavedFoods(user.uid);
 });
 
+final savedRecipesProvider = FutureProvider<List<SavedRecipe>>((ref) async {
+  final user = ref.watch(authServiceProvider).currentUser;
+  if (user == null) return [];
+  return ref.watch(profileRepositoryProvider).getSavedRecipes(user.uid);
+});
+
+
 final recentMealsProvider = FutureProvider<List<MealEntry>>((ref) async {
   final user = ref.watch(authStateProvider).value;
   if (user == null) return [];
