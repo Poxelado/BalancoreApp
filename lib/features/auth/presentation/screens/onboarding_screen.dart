@@ -456,7 +456,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 24),
-          // Agua estimada (en vez de elegir actividad a mano)
+          const Text(
+            'Nivel de actividad',
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Úsalo para estimar tus calorías. Luego se puede refinar con tus entrenos.',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          const SizedBox(height: 12),
+          ..._activityOptions(primary),
+          const SizedBox(height: 24),
+          // Agua recomendada según peso
           Builder(
             builder: (context) {
               final w = double.tryParse(_weightController.text) ?? 70;
@@ -511,6 +523,75 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         ],
       ),
     );
+  }
+
+
+  List<Widget> _activityOptions(Color primary) {
+    const items = <(String, String)>[
+      ('Sedentario', 'Poco o nada de ejercicio'),
+      ('Ligero', '1–3 días / semana'),
+      ('Moderado', '3–5 días / semana'),
+      ('Activo', '6–7 días / semana'),
+      ('Muy activo', 'Entrenamiento intenso diario'),
+    ];
+    return [
+      for (final (value, subtitle) in items)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Material(
+            color: _activityLevel == value
+                ? primary.withValues(alpha: 0.12)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => setState(() => _activityLevel = value),
+              child: Container(
+                width: double.infinity,
+                padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _activityLevel == value
+                        ? primary
+                        : Colors.grey.shade400,
+                    width: _activityLevel == value ? 1.5 : 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            value,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color:
+                              _activityLevel == value ? primary : null,
+                            ),
+                          ),
+                          Text(
+                            subtitle,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_activityLevel == value)
+                      Icon(Icons.check_circle, color: primary, size: 22),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+    ];
   }
 
   Widget _buildGoalPage(Color primary) {

@@ -166,7 +166,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       }
 
       final waterMl = UserProfile.calculateWaterMl(weightKg: weight);
-      final activity = await _resolvedActivity();
 
       final updated = widget.profile.copyWith(
         displayName: _nameController.text.trim().isEmpty
@@ -180,7 +179,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         currentWeight: weight,
         height: height,
         age: age,
-        activityLevel: activity,
+        activityLevel: _activityLevel,
         goal: _goal,
         targetCalories: _targetCalories,
         targetProtein: _targetProtein,
@@ -373,7 +372,25 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          // En vez del Dropdown de actividad:
+          DropdownButtonFormField<String>(
+            value: UserProfile.activityLevels.contains(_activityLevel)
+                ? _activityLevel
+                : 'Sedentario',
+            decoration: const InputDecoration(
+              labelText: 'Nivel de actividad',
+              border: OutlineInputBorder(),
+              helperText: 'Influye en el cálculo de calorías objetivo',
+            ),
+            items: UserProfile.activityLevels
+                .map((a) => DropdownMenuItem(value: a, child: Text(a)))
+                .toList(),
+            onChanged: (v) {
+              if (v == null) return;
+              setState(() => _activityLevel = v);
+              if (!_manualCalories) _recalculate(silent: true);
+            },
+          ),
+          const SizedBox(height: 12),
           Builder(
             builder: (context) {
               final weight = double.tryParse(_weightController.text) ??
@@ -385,7 +402,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   labelText: 'Agua recomendada',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.water_drop_outlined),
-                  helperText: 'Se calcula con tu peso. El nivel de actividad se ajusta solo según tus entrenos semanales.',
+                  helperText: 'Se calcula con tu peso (~35 ml/kg)',
                 ),
                 child: Text(
                   '$ml ml/día  ·  ~$glasses vasos de 250 ml',
