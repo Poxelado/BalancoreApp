@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/empty_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/user_profile.dart';
@@ -206,13 +207,14 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
         final logsAsc = [...logs]..sort((a, b) => a.date.compareTo(b.date));
 
         if (logs.isEmpty) {
-          return const Center(
+          // empty state abajo
+          return Center(
             child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Text(
-                'No hay días con registros en este rango.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
+              padding: const EdgeInsets.all(24),
+              child: EmptyState(
+                icon: Icons.insights_outlined,
+                title: 'Sin registros en este rango',
+                subtitle: 'Registra comidas, agua o sueño para ver el historial.',
               ),
             ),
           );

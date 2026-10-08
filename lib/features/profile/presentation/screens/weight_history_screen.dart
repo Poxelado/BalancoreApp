@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/empty_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
@@ -39,7 +40,12 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
       ref.invalidate(weightHistoryProvider);
       ref.invalidate(userProfileProvider);
       _weightController.clear();
-      if (mounted) Navigator.pop(context); // cierra el bottom sheet
+      if (mounted) {
+        Navigator.pop(context); // cierra el bottom sheet
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Peso guardado')),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -127,9 +133,12 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (entries) {
           if (entries.isEmpty) {
-            return const Center(
-              child: Text('Aún no hay registros de peso.\nToca + para agregar el primero.',
-                  textAlign: TextAlign.center),
+            return EmptyState(
+              icon: Icons.monitor_weight_outlined,
+              title: 'Sin registros de peso',
+              subtitle: 'Agrega tu primer peso para ver el historial y la tendencia.',
+              actionLabel: 'Registrar peso',
+              onAction: _showAddWeightSheet,
             );
           }
 

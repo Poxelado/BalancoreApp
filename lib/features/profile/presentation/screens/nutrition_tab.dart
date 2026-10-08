@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/empty_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/user_profile.dart';
@@ -285,13 +286,20 @@ class _TodayTab extends ConsumerWidget {
 
         if (log.meals.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            child: Center(
-              child: Text(
-                'Sin comidas hoy.\nUsa "Agregar" o un alimento reciente.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: EmptyState(
+              icon: Icons.restaurant_outlined,
+              title: 'Sin comidas hoy',
+              subtitle: 'Registra algo para macros, racha y progreso.',
+              actionLabel: 'Agregar comida',
+              onAction: () {
+                // el botón Agregar del tab ya está arriba; scroll hint
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Usa "Agregar" arriba o un alimento reciente'),
+                  ),
+                );
+              },
             ),
           ),
       ],
@@ -510,6 +518,11 @@ class _TodayTab extends ConsumerWidget {
                           await repo.updateMeal(user.uid, meal);
                         } else {
                           await repo.addMeal(user.uid, meal);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Comida registrada')),
+                            );
+                          }
                           if (alsoSaveFood) {
                             await repo.saveFood(
                               user.uid,

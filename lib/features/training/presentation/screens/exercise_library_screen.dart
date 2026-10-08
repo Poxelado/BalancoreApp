@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/empty_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/exercise.dart';
@@ -109,11 +110,10 @@ class _ExerciseLibraryScreenState extends ConsumerState<ExerciseLibraryScreen> {
               const SizedBox(height: 8),
               Expanded(
                 child: filtered.isEmpty
-                    ? const Center(
-                  child: Text(
-                    'Sin ejercicios con ese filtro',
-                    style: TextStyle(color: Colors.grey),
-                  ),
+                    ? const EmptyState(
+                  icon: Icons.search_off,
+                  title: 'Sin ejercicios',
+                  subtitle: 'Prueba otro filtro o busca por nombre.',
                 )
                     : ListView.builder(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
