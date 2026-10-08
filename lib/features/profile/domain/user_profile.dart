@@ -523,6 +523,7 @@ class SavedFood {
   final int proteinGrams;
   final int carbsGrams;
   final int fatGrams;
+  final int? portionGrams; // gramos de la porción guardada
   final String? defaultMealType;
   final int useCount;
   final String? updatedAt;
@@ -534,6 +535,7 @@ class SavedFood {
     this.proteinGrams = 0,
     this.carbsGrams = 0,
     this.fatGrams = 0,
+    this.portionGrams,
     this.defaultMealType,
     this.useCount = 0,
     this.updatedAt,
@@ -545,6 +547,7 @@ class SavedFood {
     'proteinGrams': proteinGrams,
     'carbsGrams': carbsGrams,
     'fatGrams': fatGrams,
+    if (portionGrams != null) 'portionGrams': portionGrams,
     'defaultMealType': defaultMealType,
     'useCount': useCount,
     'updatedAt': updatedAt ?? DateTime.now().toIso8601String(),
@@ -558,6 +561,9 @@ class SavedFood {
       proteinGrams: map['proteinGrams'] ?? 0,
       carbsGrams: map['carbsGrams'] ?? 0,
       fatGrams: map['fatGrams'] ?? 0,
+      portionGrams: map['portionGrams'] is int
+          ? map['portionGrams'] as int
+          : int.tryParse('${map['portionGrams'] ?? ''}'),
       defaultMealType: map['defaultMealType'],
       useCount: map['useCount'] ?? 0,
       updatedAt: map['updatedAt']?.toString(),
@@ -573,6 +579,7 @@ class SavedFood {
       proteinGrams: proteinGrams,
       carbsGrams: carbsGrams,
       fatGrams: fatGrams,
+      grams: portionGrams,
     );
   }
 }
@@ -585,6 +592,8 @@ class MealEntry {
   final int proteinGrams;
   final int carbsGrams;
   final int fatGrams;
+  final int? grams; // porción en g (o ml≈g)
+  final String? servingLabel; // ej. "155 ml", "1 ud"
   final String createdAt;
 
   MealEntry({
@@ -595,6 +604,8 @@ class MealEntry {
     this.proteinGrams = 0,
     this.carbsGrams = 0,
     this.fatGrams = 0,
+    this.grams,
+    this.servingLabel,
     String? createdAt,
   }) : createdAt = createdAt ?? DateTime.now().toIso8601String();
 
@@ -608,6 +619,8 @@ class MealEntry {
     'proteinGrams': proteinGrams,
     'carbsGrams': carbsGrams,
     'fatGrams': fatGrams,
+    if (grams != null) 'grams': grams,
+    if (servingLabel != null) 'servingLabel': servingLabel,
     'createdAt': createdAt,
   };
 
@@ -619,6 +632,10 @@ class MealEntry {
       calories: map['calories'] ?? 0,
       proteinGrams: map['proteinGrams'] ?? 0,
       carbsGrams: map['carbsGrams'] ?? 0,
+      grams: map['grams'] is int
+          ? map['grams'] as int
+          : int.tryParse('${map['grams'] ?? ''}'),
+      servingLabel: map['servingLabel']?.toString(),
       fatGrams: map['fatGrams'] ?? 0,
       createdAt: _str(map['createdAt'], DateTime.now().toIso8601String()),
     );

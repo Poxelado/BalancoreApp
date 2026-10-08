@@ -25,7 +25,6 @@ class OffProduct {
     this.servingGrams,
   });
 
-  /// Macros para [grams] de producto.
   ({int kcal, int protein, int carbs, int fat}) forGrams(double grams) {
     final f = grams / 100.0;
     return (
@@ -48,28 +47,64 @@ class OpenFoodFactsService {
   OpenFoodFactsService._();
   static final instance = OpenFoodFactsService._();
 
-  static const _userAgent = 'Balancore/1.0 (Flutter; thesis app)';
-  static const _timeout = Duration(seconds: 12);
+  static const _userAgent = 'Balancore/1.0 (Flutter; Android; thesis)';
+  static const _timeout = Duration(seconds: 15);
+
+  /// Hosts alternativos: world a veces responde 503.
+  static const _hosts = [
+    'world.openfoodfacts.org',
+    'world.openfoodfacts.net',
+  ];
+
+  Future<http.Response> _get(Uri Function(String host) build) async {
+    Object? lastError;
+    for (final host in _hosts) {
+      for (var attempt = 0; attempt < 2; attempt++) {
+        try {
+          final res = await http
+              .get(
+            build(host),
+            headers: {
+              'User-Agent': _userAgent,
+              'Accept': 'application/json',
+            },
+          )
+              .timeout(_timeout);
+          // 503/502 = reintentar o siguiente host
+          if (res.statusCode == 503 || res.statusCode == 502) {
+            lastError = 'Open Food Facts no disponible (${res.statusCode})';
+            await Future<void>.delayed(Duration(milliseconds: 400 * (attempt + 1)));
+            continue;
+          }
+          return res;
+        } catch (e) {
+          lastError = e;
+          await Future<void>.delayed(Duration(milliseconds: 300 * (attempt + 1)));
+        }
+      }
+    }
+    throw lastError ?? 'Open Food Facts: sin respuesta';
+  }
 
   Future<List<OffProduct>> search(String query, {int pageSize = 20}) async {
     final q = query.trim();
     if (q.isEmpty) return [];
 
-    final uri = Uri.https('world.openfoodfacts.org', '/cgi/search.pl', {
-      'search_terms': q,
-      'search_simple': '1',
-      'action': 'process',
-      'json': '1',
-      'page_size': '$pageSize',
-      'fields':
-      'code,product_name,brands,nutriments,image_front_small_url,serving_quantity',
-    });
+    final res = await _get(
+          (host) => Uri.https(host, '/cgi/search.pl', {
+        'search_terms': q,
+        'search_simple': '1',
+        'action': 'process',
+        'json': '1',
+        'page_size': '$pageSize',
+        'fields':
+        'code,product_name,brands,nutriments,image_front_small_url,serving_quantity',
+      }),
+    );
 
-    final res = await http
-        .get(uri, headers: {'User-Agent': _userAgent})
-        .timeout(_timeout);
     if (res.statusCode != 200) {
-      throw 'Open Food Facts: error ${res.statusCode}';
+      throw 'Open Food Facts temporalmente no disponible '
+          '(código ${res.statusCode}). Intenta de nuevo en unos segundos.';
     }
     final data = jsonDecode(res.body) as Map<String, dynamic>;
     final products = data['products'] as List? ?? [];
@@ -86,19 +121,16 @@ class OpenFoodFactsService {
     final code = barcode.trim().replaceAll(RegExp(r'\s'), '');
     if (code.isEmpty) return null;
 
-    final uri = Uri.https(
-      'world.openfoodfacts.org',
-      '/api/v2/product/$code.json',
-      {
+    final res = await _get(
+          (host) => Uri.https(host, '/api/v2/product/$code.json', {
         'fields':
         'code,product_name,brands,nutriments,image_front_small_url,serving_quantity',
-      },
+      }),
     );
-    final res = await http
-        .get(uri, headers: {'User-Agent': _userAgent})
-        .timeout(_timeout);
+
     if (res.statusCode != 200) {
-      throw 'Open Food Facts: error ${res.statusCode}';
+      throw 'Open Food Facts temporalmente no disponible '
+          '(código ${res.statusCode}). Intenta de nuevo.';
     }
     final data = jsonDecode(res.body) as Map<String, dynamic>;
     if (data['status'] != 1) return null;
@@ -130,7 +162,6 @@ class OpenFoodFactsService {
       return 0;
     }
 
-    // Prefer kcal; fallback from kJ (/4.184)
     var kcal = numVal([
       'energy-kcal_100g',
       'energy-kcal',
@@ -144,8 +175,6 @@ class OpenFoodFactsService {
     final protein = numVal(['proteins_100g', 'proteins']);
     final carbs = numVal(['carbohydrates_100g', 'carbohydrates']);
     final fat = numVal(['fat_100g', 'fat']);
-
-    // Si no hay casi nada de macros, no sirve
     if (kcal <= 0 && protein <= 0 && carbs <= 0 && fat <= 0) return null;
 
     double? serving;

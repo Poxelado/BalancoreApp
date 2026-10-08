@@ -262,7 +262,20 @@ class ProfileRepository {
 
   Future<String> saveFood(String uid, SavedFood food) async {
     final data = food.toMap();
+    // Evitar duplicados por nombre (case-insensitive)
     if (food.id.isEmpty) {
+      final existing = await getSavedFoods(uid);
+      final key = food.name.trim().toLowerCase();
+      for (final f in existing) {
+        if (f.name.trim().toLowerCase() == key) {
+          await _savedFoods(uid).doc(f.id).set({
+            ...data,
+            'useCount': f.useCount, // no resetear
+            'updatedAt': DateTime.now().toIso8601String(),
+          }, SetOptions(merge: true));
+          return f.id;
+        }
+      }
       final ref = await _savedFoods(uid).add(data);
       return ref.id;
     }

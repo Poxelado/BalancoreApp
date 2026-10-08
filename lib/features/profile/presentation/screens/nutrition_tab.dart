@@ -344,6 +344,7 @@ class _TodayTab extends ConsumerWidget {
         proteinGrams: m.proteinGrams,
         carbsGrams: m.carbsGrams,
         fatGrams: m.fatGrams,
+        portionGrams: m.grams,
         defaultMealType: m.mealType,
       ),
     );
@@ -366,14 +367,17 @@ class _TodayTab extends ConsumerWidget {
     await _openMealEditor(
       context,
       ref,
+      fromApi: true,
       prefill: MealEntry(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         name: result.name,
-        mealType: 'Snack',
+        mealType: _guessMealType(),
         calories: result.calories,
         proteinGrams: result.proteinGrams,
         carbsGrams: result.carbsGrams,
         fatGrams: result.fatGrams,
+        grams: result.grams,
+        servingLabel: result.servingLabel,
       ),
     );
   }
@@ -557,6 +561,7 @@ class _TodayTab extends ConsumerWidget {
       WidgetRef ref, {
         MealEntry? existing,
         MealEntry? prefill,
+        bool fromApi = false,
       }) async {
     final base = existing ?? prefill;
     final nameCtrl = TextEditingController(text: base?.name ?? '');
@@ -569,9 +574,12 @@ class _TodayTab extends ConsumerWidget {
     final fatCtrl =
     TextEditingController(text: base != null ? '${base.fatGrams}' : '0');
     String mealType = base?.mealType ?? _guessMealType();
-    bool alsoSaveFood = false;
+    bool alsoSaveFood = fromApi; // si viene de API, ofrecer guardar por defecto
+    // Desde API: campos bloqueados hasta que el usuario pida editar
+    bool macrosLocked = fromApi && existing == null;
     final primary = Theme.of(context).colorScheme.primary;
     final isEdit = existing != null;
+    final servingHint = base?.servingLabel;
 
     await showModalBottomSheet(
       context: context,
@@ -636,36 +644,147 @@ class _TodayTab extends ConsumerWidget {
                           label: const Text('Buscar en Open Food Facts'),
                         ),
                       ),
-                    // Rápidos desde guardados
-                    if (!isEdit) _SavedFoodChips(
-                      onPick: (food) {
-                        setModal(() {
-                          nameCtrl.text = food.name;
-                          calCtrl.text = '${food.calories}';
-                          proteinCtrl.text = '${food.proteinGrams}';
-                          carbsCtrl.text = '${food.carbsGrams}';
-                          fatCtrl.text = '${food.fatGrams}';
-                          if (food.defaultMealType != null) {
-                            mealType = food.defaultMealType!;
-                          }
-                        });
-                      },
+                    // Mis alimentos (desplegable)
+                    if (!isEdit)
+                      Theme(
+                        data: Theme.of(ctx)
+                            .copyWith(dividerColor: Colors.transparent),
+                        child: ExpansionTile(
+                          tilePadding: EdgeInsets.zero,
+                          childrenPadding: const EdgeInsets.only(bottom: 8),
+                          leading: Icon(Icons.bookmark_outline, color: primary),
+                          title: const Text(
+                            'Desde Mis alimentos',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          subtitle: const Text(
+                            'Toca para expandir y elegir un frecuente',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          children: [
+                            _SavedFoodChips(
+                              onPick: (food) {
+                                setModal(() {
+                                  nameCtrl.text = food.name;
+                                  calCtrl.text = '${food.calories}';
+                                  proteinCtrl.text = '${food.proteinGrams}';
+                                  carbsCtrl.text = '${food.carbsGrams}';
+                                  fatCtrl.text = '${food.fatGrams}';
+                                  if (food.defaultMealType != null) {
+                                    mealType = food.defaultMealType!;
+                                  }
+                                  macrosLocked = false;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    const SizedBox(height: 10),
+
+                    Text(
+                      'Momento del día',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        color: primary,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
+                      runSpacing: 8,
                       children: MealEntry.mealTypes.map((t) {
-                        return ChoiceChip(
-                          label: Text(t),
-                          selected: mealType == t,
-                          selectedColor: primary.withValues(alpha: 0.2),
+                        final selected = mealType == t;
+                        return FilterChip(
+                          label: Text(
+                            t,
+                            style: TextStyle(
+                              fontWeight:
+                              selected ? FontWeight.w700 : FontWeight.w500,
+                              color: selected ? Colors.white : primary,
+                            ),
+                          ),
+                          selected: selected,
+                          showCheckmark: false,
+                          selectedColor: primary,
+                          backgroundColor: primary.withValues(alpha: 0.12),
+                          side: BorderSide(
+                            color: selected
+                                ? primary
+                                : primary.withValues(alpha: 0.35),
+                            width: selected ? 1.5 : 1,
+                          ),
                           onSelected: (_) => setModal(() => mealType = t),
                         );
                       }).toList(),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
+
+                    if (servingHint != null && servingHint!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          'Porción: $servingHint',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+
+                    if (macrosLocked) ...[
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.lock_outline, size: 18, color: primary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Datos de Open Food Facts. Si hay un error, desbloquea para corregir.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: () =>
+                              setModal(() => macrosLocked = false),
+                          icon: const Icon(Icons.edit, size: 16),
+                          label: const Text('Editar valores manualmente'),
+                        ),
+                      ),
+                    ] else if (fromApi && !isEdit) ...[
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: () =>
+                              setModal(() => macrosLocked = true),
+                          icon: const Icon(Icons.lock_outline, size: 16),
+                          label: const Text('Volver a bloquear'),
+                        ),
+                      ),
+                    ],
+
                     TextField(
                       controller: nameCtrl,
+                      readOnly: macrosLocked,
                       textCapitalization: TextCapitalization.sentences,
                       decoration: const InputDecoration(
                         labelText: 'Nombre',
@@ -675,6 +794,7 @@ class _TodayTab extends ConsumerWidget {
                     const SizedBox(height: 12),
                     TextField(
                       controller: calCtrl,
+                      readOnly: macrosLocked,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
                         labelText: 'Calorías (kcal) *',
@@ -687,6 +807,7 @@ class _TodayTab extends ConsumerWidget {
                         Expanded(
                           child: TextField(
                             controller: proteinCtrl,
+                            readOnly: macrosLocked,
                             keyboardType: TextInputType.number,
                             decoration: const InputDecoration(
                               labelText: 'Prot (g)',
@@ -698,6 +819,7 @@ class _TodayTab extends ConsumerWidget {
                         Expanded(
                           child: TextField(
                             controller: carbsCtrl,
+                            readOnly: macrosLocked,
                             keyboardType: TextInputType.number,
                             decoration: const InputDecoration(
                               labelText: 'Carb (g)',
@@ -709,6 +831,7 @@ class _TodayTab extends ConsumerWidget {
                         Expanded(
                           child: TextField(
                             controller: fatCtrl,
+                            readOnly: macrosLocked,
                             keyboardType: TextInputType.number,
                             decoration: const InputDecoration(
                               labelText: 'Grasa (g)',
@@ -763,6 +886,9 @@ class _TodayTab extends ConsumerWidget {
                           int.tryParse(proteinCtrl.text) ?? 0,
                           carbsGrams: int.tryParse(carbsCtrl.text) ?? 0,
                           fatGrams: int.tryParse(fatCtrl.text) ?? 0,
+                          grams: existing?.grams ?? base?.grams,
+                          servingLabel:
+                          existing?.servingLabel ?? base?.servingLabel,
                         );
 
                         final repo = ref.read(profileRepositoryProvider);
@@ -785,6 +911,7 @@ class _TodayTab extends ConsumerWidget {
                                 proteinGrams: meal.proteinGrams,
                                 carbsGrams: meal.carbsGrams,
                                 fatGrams: meal.fatGrams,
+                                portionGrams: meal.grams,
                                 defaultMealType: meal.mealType,
                               ),
                             );
@@ -881,7 +1008,7 @@ class _SavedFoodsTab extends ConsumerWidget {
                           style: const TextStyle(
                               fontWeight: FontWeight.w600)),
                       subtitle: Text(
-                        '${f.calories} kcal · P ${f.proteinGrams} · C ${f.carbsGrams} · G ${f.fatGrams}',
+                        '${f.calories} kcal${f.portionGrams != null ? ' · ${f.portionGrams} g' : ''} · P ${f.proteinGrams} · C ${f.carbsGrams} · G ${f.fatGrams}',
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1245,8 +1372,9 @@ class _QuickFoodsBar extends ConsumerWidget {
 
 class _SavedFoodChips extends ConsumerWidget {
   final void Function(SavedFood food) onPick;
+  final bool showTitle;
 
-  const _SavedFoodChips({required this.onPick});
+  const _SavedFoodChips({required this.onPick, this.showTitle = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1264,9 +1392,11 @@ class _SavedFoodChips extends ConsumerWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Desde Mis alimentos',
-                style: TextStyle(fontSize: 12, color: Colors.grey)),
-            const SizedBox(height: 6),
+            if (showTitle) ...[
+              const Text('Desde Mis alimentos',
+                  style: TextStyle(fontSize: 12, color: Colors.grey)),
+              const SizedBox(height: 6),
+            ],
             Wrap(
               spacing: 6,
               runSpacing: 4,

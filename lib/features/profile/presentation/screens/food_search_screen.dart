@@ -12,6 +12,10 @@ class FoodSearchResult {
   final int proteinGrams;
   final int carbsGrams;
   final int fatGrams;
+  /// Gramos equivalentes (ml se tratan ≈ g para líquidos).
+  final int grams;
+  /// Texto legible: "155 ml", "1 ud", "100 g"
+  final String servingLabel;
   final String? barcode;
   final bool saveToLibrary;
 
@@ -21,6 +25,8 @@ class FoodSearchResult {
     required this.proteinGrams,
     required this.carbsGrams,
     required this.fatGrams,
+    required this.grams,
+    required this.servingLabel,
     this.barcode,
     this.saveToLibrary = true,
   });
@@ -121,10 +127,47 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen>
   }
 
   Future<void> _pickProduct(OffProduct p) async {
-    final gramsCtrl = TextEditingController(
-      text: (p.servingGrams ?? 100).round().toString(),
-    );
+    // unidad: porción OFF o 125 g por defecto (yogur típico)
+    final unitGrams = (p.servingGrams != null && p.servingGrams! > 0)
+        ? p.servingGrams!
+        : 125.0;
+    final qtyCtrl = TextEditingController(text: '1');
+    // 0=g 1=ml 2=ud
+    int unitMode = p.servingGrams != null ? 2 : 0;
+    if (unitMode == 2) {
+      qtyCtrl.text = '1';
+    } else {
+      qtyCtrl.text = (p.servingGrams ?? 100).round().toString();
+    }
     bool saveLib = widget.saveToLibrary;
+
+    double qtyValue() =>
+        double.tryParse(qtyCtrl.text.replaceAll(',', '.')) ?? 1;
+
+    double gramsFromUi() {
+      final q = qtyValue().clamp(0.1, 20000).toDouble();
+      switch (unitMode) {
+        case 1: // ml ≈ g
+          return q;
+        case 2: // unidades
+          return (q * unitGrams).toDouble();
+        default:
+          return q;
+      }
+    }
+
+    String labelFromUi() {
+      final q = qtyValue();
+      switch (unitMode) {
+        case 1:
+          return '${q == q.roundToDouble() ? q.toInt() : q} ml';
+        case 2:
+          final u = q == q.roundToDouble() ? '${q.toInt()}' : '$q';
+          return '$u ud (${gramsFromUi().round()} g)';
+        default:
+          return '${gramsFromUi().round()} g';
+      }
+    }
 
     final confirmed = await showModalBottomSheet<FoodSearchResult>(
       context: context,
@@ -135,11 +178,8 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen>
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setModal) {
-            final grams = double.tryParse(
-              gramsCtrl.text.replaceAll(',', '.'),
-            ) ??
-                100;
-            final m = p.forGrams(grams.clamp(1, 5000));
+            final grams = gramsFromUi();
+            final m = p.forGrams(grams.clamp(1, 20000));
             final primary = Theme.of(ctx).colorScheme.primary;
 
             return Padding(
@@ -168,7 +208,7 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen>
                         color: Colors.grey.shade600,
                       ),
                     ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
                     'Por 100 g: ${p.caloriesPer100g.round()} kcal · '
                         'P ${p.proteinPer100g.round()} · '
@@ -176,15 +216,59 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen>
                         'G ${p.fatPer100g.round()}',
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
                   ),
-                  const SizedBox(height: 14),
+                  if (p.servingGrams != null)
+                    Text(
+                      'Porción del envase (OFF): ${p.servingGrams!.round()} g',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Cantidad',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: primary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SegmentedButton<int>(
+                    segments: const [
+                      ButtonSegment(value: 0, label: Text('g'), icon: Icon(Icons.scale, size: 16)),
+                      ButtonSegment(value: 1, label: Text('ml'), icon: Icon(Icons.water_drop, size: 16)),
+                      ButtonSegment(value: 2, label: Text('ud'), icon: Icon(Icons.looks_one, size: 16)),
+                    ],
+                    selected: {unitMode},
+                    onSelectionChanged: (s) {
+                      setModal(() {
+                        unitMode = s.first;
+                        if (unitMode == 2) {
+                          qtyCtrl.text = '1';
+                        } else if (qtyCtrl.text == '1' || qtyCtrl.text.isEmpty) {
+                          qtyCtrl.text = (p.servingGrams ?? 100).round().toString();
+                        }
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 10),
                   TextField(
-                    controller: gramsCtrl,
-                    keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(
-                      labelText: 'Cantidad (gramos)',
-                      border: OutlineInputBorder(),
-                      suffixText: 'g',
+                    controller: qtyCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: unitMode == 0
+                          ? 'Gramos'
+                          : unitMode == 1
+                          ? 'Mililitros (líquidos ≈ g)'
+                          : 'Unidades (ej. 1 yogur)',
+                      border: const OutlineInputBorder(),
+                      suffixText: unitMode == 0
+                          ? 'g'
+                          : unitMode == 1
+                          ? 'ml'
+                          : 'ud',
+                      helperText: unitMode == 2
+                          ? '1 ud = ${unitGrams.round()} g'
+                          : unitMode == 1
+                          ? 'Para leche/yogur líquido; 1 ml ≈ 1 g'
+                          : null,
                     ),
                     onChanged: (_) => setModal(() {}),
                   ),
@@ -195,14 +279,26 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen>
                       color: primary.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      '${m.kcal} kcal  ·  P ${m.protein} g  ·  '
-                          'C ${m.carbs} g  ·  G ${m.fat} g',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: primary,
-                      ),
+                    child: Column(
+                      children: [
+                        Text(
+                          labelFromUi(),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${m.kcal} kcal  ·  P ${m.protein} g  ·  '
+                              'C ${m.carbs} g  ·  G ${m.fat} g',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: primary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -226,6 +322,8 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen>
                           proteinGrams: m.protein,
                           carbsGrams: m.carbs,
                           fatGrams: m.fat,
+                          grams: grams.round().clamp(1, 20000),
+                          servingLabel: labelFromUi(),
                           barcode: p.barcode.isEmpty ? null : p.barcode,
                           saveToLibrary: saveLib,
                         ),
@@ -242,11 +340,8 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen>
       },
     );
 
-    // Re-prompt save flag: use widget.saveToLibrary default if sheet dismissed
     if (confirmed == null || !mounted) return;
 
-    // Guardar en biblioteca si el checkbox quedó true (default true)
-    // Volvemos a mostrar un quick confirm if needed — simpler: always save when widget.saveToLibrary
     if (confirmed.saveToLibrary) {
       final user = ref.read(authServiceProvider).currentUser;
       if (user != null) {
@@ -259,6 +354,7 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen>
             proteinGrams: confirmed.proteinGrams,
             carbsGrams: confirmed.carbsGrams,
             fatGrams: confirmed.fatGrams,
+            portionGrams: confirmed.grams,
           ),
         );
         ref.invalidate(savedFoodsProvider);
