@@ -5,6 +5,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import 'daily_history_screen.dart';
+import 'food_search_screen.dart';
 
 class NutritionTab extends ConsumerWidget {
   const NutritionTab({super.key});
@@ -240,6 +241,22 @@ class _TodayTab extends ConsumerWidget {
                     fontWeight: FontWeight.bold,
                     color: primary)),
             const Spacer(),
+            IconButton(
+              tooltip: 'Buscar alimento (Open Food Facts)',
+              onPressed: () => _openFoodSearch(context, ref),
+              icon: const Icon(Icons.manage_search),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => _openCopyDaySheet(context, ref),
+              icon: const Icon(Icons.copy_all_outlined, size: 16),
+              label: const Text('Copiar'),
+              style: OutlinedButton.styleFrom(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+            const SizedBox(width: 8),
             FilledButton.icon(
               onPressed: () => _openMealEditor(context, ref),
               icon: const Icon(Icons.add, size: 18),
@@ -254,14 +271,19 @@ class _TodayTab extends ConsumerWidget {
         ),
         const SizedBox(height: 8),
 
-        // Atajos: recientes
-        _RecentQuickAdd(onPick: (meal) async {
-          await _openMealEditor(
+        // Atajos: frecuentes + recientes (1 toque)
+        _QuickFoodsBar(
+          onQuickAdd: (msg) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(msg), duration: const Duration(seconds: 1)),
+            );
+          },
+          onEditTemplate: (meal) => _openMealEditor(
             context,
             ref,
             prefill: meal,
-          );
-        }),
+          ),
+        ),
         const SizedBox(height: 8),
 
         ...MealEntry.mealTypes.map((type) {
@@ -333,6 +355,203 @@ class _TodayTab extends ConsumerWidget {
     }
   }
 
+
+
+  Future<void> _openFoodSearch(BuildContext context, WidgetRef ref) async {
+    final result = await Navigator.push<FoodSearchResult>(
+      context,
+      MaterialPageRoute(builder: (_) => const FoodSearchScreen()),
+    );
+    if (result == null || !context.mounted) return;
+    await _openMealEditor(
+      context,
+      ref,
+      prefill: MealEntry(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: result.name,
+        mealType: 'Snack',
+        calories: result.calories,
+        proteinGrams: result.proteinGrams,
+        carbsGrams: result.carbsGrams,
+        fatGrams: result.fatGrams,
+      ),
+    );
+  }
+
+  Future<void> _openCopyDaySheet(BuildContext context, WidgetRef ref) async {
+    final user = ref.read(authServiceProvider).currentUser;
+    if (user == null) return;
+    final primary = Theme.of(context).colorScheme.primary;
+
+    // Cargar últimos 21 días con comidas
+    final logs = await ref.read(profileRepositoryProvider).getDailyLogsHistory(
+      user.uid,
+      days: 21,
+    );
+    final now = DateTime.now();
+    final todayKey =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final candidates = logs
+        .where((l) => l.date != todayKey && l.meals.isNotEmpty)
+        .toList();
+
+    if (!context.mounted) return;
+    if (candidates.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No hay otros días con comidas para copiar'),
+        ),
+      );
+      return;
+    }
+
+    String? selectedDate = candidates.first.date;
+    bool replace = false;
+
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModal) {
+            final selected = candidates.firstWhere(
+                  (l) => l.date == selectedDate,
+              orElse: () => candidates.first,
+            );
+            final totalKcal = selected.meals.fold<int>(0, (s, m) => s + m.calories);
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Copiar comidas de otro día',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: primary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Elige un día y añade sus comidas a hoy.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 48,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: candidates.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (_, i) {
+                        final l = candidates[i];
+                        final sel = l.date == selectedDate;
+                        final parts = l.date.split('-');
+                        final label = parts.length == 3
+                            ? '${parts[2]}/${parts[1]}'
+                            : l.date;
+                        return ChoiceChip(
+                          label: Text(
+                            '$label · ${l.meals.length}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          selected: sel,
+                          onSelected: (_) =>
+                              setModal(() => selectedDate = l.date),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 180),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(ctx)
+                          .colorScheme
+                          .surfaceContainerHighest
+                          .withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        Text(
+                          '${selected.meals.length} comidas · $totalKcal kcal',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 6),
+                        for (final m in selected.meals)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              '• ${m.mealType}: ${m.name} (${m.calories} kcal)',
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Reemplazar comidas de hoy'),
+                    subtitle: const Text(
+                      'Si está apagado, se agregan a las ya registradas',
+                    ),
+                    value: replace,
+                    onChanged: (v) => setModal(() => replace = v),
+                  ),
+                  const SizedBox(height: 8),
+                  FilledButton.icon(
+                    onPressed: selectedDate == null
+                        ? null
+                        : () => Navigator.pop(ctx, true),
+                    icon: const Icon(Icons.copy_all),
+                    label: const Text('Copiar a hoy'),
+                    style: FilledButton.styleFrom(backgroundColor: primary),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (ok != true || selectedDate == null || !context.mounted) return;
+
+    final n = await ref.read(profileRepositoryProvider).copyMealsFromDay(
+      user.uid,
+      selectedDate!,
+      replace: replace,
+    );
+    invalidateProgressData(ref);
+    ref.invalidate(todayLogProvider);
+    ref.invalidate(recentMealsProvider);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            n == 0
+                ? 'No se copió ninguna comida'
+                : 'Se copiaron $n comida${n == 1 ? '' : 's'} a hoy',
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> _openMealEditor(
       BuildContext context,
       WidgetRef ref, {
@@ -384,6 +603,39 @@ class _TodayTab extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
+                    if (!isEdit)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: () async {
+                            Navigator.pop(ctx); // cierra editor
+                            final result = await Navigator.push<FoodSearchResult>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const FoodSearchScreen(),
+                              ),
+                            );
+                            if (result == null || !context.mounted) return;
+                            await _openMealEditor(
+                              context,
+                              ref,
+                              prefill: MealEntry(
+                                id: DateTime.now()
+                                    .millisecondsSinceEpoch
+                                    .toString(),
+                                name: result.name,
+                                mealType: mealType,
+                                calories: result.calories,
+                                proteinGrams: result.proteinGrams,
+                                carbsGrams: result.carbsGrams,
+                                fatGrams: result.fatGrams,
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.manage_search, size: 18),
+                          label: const Text('Buscar en Open Food Facts'),
+                        ),
+                      ),
                     // Rápidos desde guardados
                     if (!isEdit) _SavedFoodChips(
                       onPick: (food) {
@@ -857,49 +1109,139 @@ class _WaterRow extends ConsumerWidget {
   }
 }
 
-class _RecentQuickAdd extends ConsumerWidget {
-  final void Function(MealEntry meal) onPick;
 
-  const _RecentQuickAdd({required this.onPick});
+/// Frecuentes (savedFoods por useCount) + recientes — 1 toque = registrar.
+class _QuickFoodsBar extends ConsumerWidget {
+  final void Function(String msg) onQuickAdd;
+  final void Function(MealEntry meal) onEditTemplate;
+
+  const _QuickFoodsBar({
+    required this.onQuickAdd,
+    required this.onEditTemplate,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final primary = Theme.of(context).colorScheme.primary;
+    final foodsAsync = ref.watch(savedFoodsProvider);
     final recentAsync = ref.watch(recentMealsProvider);
-    return recentAsync.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (list) {
-        if (list.isEmpty) return const SizedBox.shrink();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Recientes',
-                style: TextStyle(fontSize: 13, color: Colors.grey)),
-            const SizedBox(height: 6),
-            SizedBox(
-              height: 40,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: list.length.clamp(0, 12),
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (context, i) {
-                  final m = list[i];
-                  return ActionChip(
+
+    final foods = foodsAsync.valueOrNull ?? [];
+    final recent = recentAsync.valueOrNull ?? [];
+    final frequent = foods.take(8).toList();
+
+    if (frequent.isEmpty && recent.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (frequent.isNotEmpty) ...[
+          Text(
+            'Frecuentes',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: primary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 40,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: frequent.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, i) {
+                final f = frequent[i];
+                return GestureDetector(
+                  onLongPress: () {
+                    onEditTemplate(
+                      f.toMeal(
+                        mealType: f.defaultMealType ?? 'Snack',
+                      ),
+                    );
+                  },
+                  child: ActionChip(
+                    avatar: Icon(Icons.bolt, size: 16, color: primary),
                     label: Text(
-                      '${m.name} (${m.calories})',
+                      f.name,
                       style: const TextStyle(fontSize: 12),
                     ),
-                    onPressed: () => onPick(m),
-                  );
-                },
-              ),
+                    onPressed: () async {
+                      final user = ref.read(authServiceProvider).currentUser;
+                      if (user == null) return;
+                      await ref
+                          .read(profileRepositoryProvider)
+                          .quickAddSavedFood(user.uid, f);
+                      invalidateProgressData(ref);
+                      ref.invalidate(todayLogProvider);
+                      ref.invalidate(savedFoodsProvider);
+                      onQuickAdd('${f.name} añadido');
+                    },
+                  ),
+                );
+              },
             ),
-          ],
-        );
-      },
+          ),
+          const SizedBox(height: 10),
+        ],
+        if (recent.isNotEmpty) ...[
+          Text(
+            'Recientes',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: primary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 40,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: recent.length.clamp(0, 12),
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, i) {
+                final m = recent[i];
+                return GestureDetector(
+                  onLongPress: () => onEditTemplate(m),
+                  child: ActionChip(
+                    avatar: const Icon(Icons.history, size: 16),
+                    label: Text(
+                      m.name,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    onPressed: () async {
+                      final user = ref.read(authServiceProvider).currentUser;
+                      if (user == null) return;
+                      await ref
+                          .read(profileRepositoryProvider)
+                          .quickAddMealTemplate(user.uid, m);
+                      invalidateProgressData(ref);
+                      ref.invalidate(todayLogProvider);
+                      ref.invalidate(recentMealsProvider);
+                      onQuickAdd('${m.name} añadido');
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            'Toque = registrar · Mantén = editar antes de guardar',
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          ),
+        ),
+      ],
     );
   }
 }
+
 
 class _SavedFoodChips extends ConsumerWidget {
   final void Function(SavedFood food) onPick;
