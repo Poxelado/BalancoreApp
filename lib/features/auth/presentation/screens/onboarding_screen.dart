@@ -33,6 +33,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   int _weightWeekday = DateTime.monday;
   int _streakInterval = 4;
   bool? _wantNotifs;
+  bool _usernameLocked = false;
 
   @override
   void initState() {
@@ -40,27 +41,38 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _prefillFromAuth());
   }
 
-  bool _usernameLocked = false;
-
-  // ─── Prefill más robusto ───────────────────────────────────
   Future<void> _prefillFromAuth() async {
     final user = ref.read(authServiceProvider).currentUser;
     if (user == null) return;
 
+    // 1) Lo más fiable: lo que se guardó al registrar
+    final pending = ref.read(pendingUsernameProvider);
+
+    // 2) Perfil en Firestore
     UserProfile? profile = ref.read(userProfileProvider).value;
     profile ??= await ref.read(profileRepositoryProvider).getProfile(user.uid);
 
-    if (!mounted || profile == null) return;
+    if (!mounted) return;
+
+    final fromProfile =
+    profile?.username?.trim().replaceAll('@', '').toLowerCase();
+    final fromPending = pending?.trim().replaceAll('@', '').toLowerCase();
+
+    final resolved = (fromProfile != null && fromProfile.isNotEmpty)
+        ? fromProfile
+        : (fromPending != null && fromPending.isNotEmpty ? fromPending : null);
 
     setState(() {
-      if (profile!.username != null && profile.username!.isNotEmpty) {
-        _usernameController.text = profile.username!;
+      if (resolved != null) {
+        _usernameController.text = resolved;
         _usernameLocked = true;
       }
-      if (profile.displayName != null && profile.displayName!.isNotEmpty) {
+      if (profile?.displayName != null && profile!.displayName!.isNotEmpty) {
         _nameController.text = profile.displayName!;
       }
-      if (profile.sex.isNotEmpty) _sex = profile.sex;
+      if (profile != null && profile.sex.isNotEmpty) {
+        _sex = profile.sex;
+      }
     });
   }
 
@@ -105,6 +117,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   Future<void> _saveAndContinue() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_wantNotifs == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Elige Sí o No en recordatorios para continuar.')),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
@@ -114,6 +132,25 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       final weight = double.parse(_weightController.text);
       final height = double.parse(_heightController.text);
       final age = int.parse(_ageController.text);
+
+      // Resolver username: campo → pending → perfil
+      var uname =
+      _usernameController.text.trim().replaceAll('@', '').toLowerCase();
+      if (uname.isEmpty) {
+        uname = (ref.read(pendingUsernameProvider) ?? '')
+            .trim()
+            .replaceAll('@', '')
+            .toLowerCase();
+      }
+      if (uname.isEmpty) {
+        final existing =
+        await ref.read(profileRepositoryProvider).getProfile(user.uid);
+        uname =
+            (existing?.username ?? '').trim().replaceAll('@', '').toLowerCase();
+      }
+      if (uname.isEmpty || uname.length < 3) {
+        throw 'No se encontró tu nombre de usuario. Vuelve a la pantalla de registro.';
+      }
 
       final calories = UserProfile.calculateTMB(
         sex: _sex,
@@ -128,11 +165,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         calories: calories,
         goal: _goal,
       );
-
-      final uname = _usernameController.text.trim().replaceAll('@', '').toLowerCase();
-      if (uname.isEmpty) {
-        throw 'Error: no hay nombre de usuario. Vuelve a registrarte.';
-      }
 
       final profile = UserProfile(
         uid: user.uid,
@@ -156,7 +188,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         createdAt: DateTime.now(),
       );
 
-
+      // Solo claim si no venía del registro
+      if (!_usernameLocked) {
+        await ref.read(profileRepositoryProvider).claimUsername(
+          username: uname,
+          uid: user.uid,
+          email: user.email ?? '',
+        );
+      }
 
       await ref.read(profileRepositoryProvider).saveProfile(profile);
       await ref.read(profileRepositoryProvider).addWeightEntry(
@@ -165,6 +204,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         DateTime.now(),
       );
 
+      ref.read(pendingUsernameProvider.notifier).state = null;
       ref.invalidate(userProfileProvider);
 
       await ref.read(notificationPreferencesProvider.notifier).update(
@@ -183,7 +223,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         ),
       );
       await NotificationService.instance.init();
-
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -197,8 +236,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   void _next() {
     if (_page == 0) {
-      // Validar identidad (nombre opcional, usuario obligatorio)
-      if (!_formKey.currentState!.validate()) return;
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
@@ -258,7 +295,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   ],
                 ),
               ),
-              // Indicador de pasos
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Row(
@@ -353,13 +389,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             ),
           ),
           const SizedBox(height: 16),
+          // Usuario bloqueado: viene del registro
           TextFormField(
             controller: _usernameController,
-            enabled: false,           // siempre bloqueado en onboarding
+            enabled: false,
             readOnly: true,
             decoration: InputDecoration(
               labelText: 'Usuario',
-              helperText: 'Puedes cambiarlo más adelante en la configuración de tu perfil (máx. 3 veces al mes).',
+              helperText:
+              'Puedes cambiarlo más adelante en la configuración de tu perfil (máx. 3 veces al mes).',
               prefixIcon: const Icon(Icons.alternate_email),
               border: const OutlineInputBorder(),
               filled: true,
@@ -472,6 +510,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 24),
+          // Agua estimada (en vez de elegir actividad a mano)
           Builder(
             builder: (context) {
               final w = double.tryParse(_weightController.text) ?? 70;
@@ -523,47 +562,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               );
             },
           ),
-          const SizedBox(height: 24),
-          const Text(
-            'Nivel de actividad',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Se usa para estimar calorías. Luego puede ajustarse con tus entrenos.',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
-          ),
-          const SizedBox(height: 12),
-          ...UserProfile.activityLevels.map((level) {
-            final selected = _activityLevel == level;
-            const subtitles = {
-              'Sedentario': 'Poco o nada de ejercicio',
-              'Ligero': '1–3 días/semana',
-              'Moderado': '3–5 días/semana',
-              'Activo': '6–7 días/semana',
-              'Muy activo': 'Entrenamiento intenso diario',
-            };
-            final subtitle = subtitles[level] ?? '';
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: selected ? primary : Colors.grey.shade300,
-                  ),
-                ),
-                selected: selected,
-                selectedTileColor: primary.withValues(alpha: 0.08),
-                title: Text(level),
-                subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
-                trailing: selected
-                    ? Icon(Icons.check_circle, color: primary)
-                    : null,
-                onTap: () => setState(() => _activityLevel = level),
-              ),
-            );
-          }),
         ],
       ),
     );
@@ -649,7 +647,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       Flexible(
                         child: Text(
                           'Agua: $_previewWater',
-                          style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                          style: TextStyle(
+                              fontSize: 13, color: Colors.grey.shade700),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -659,9 +658,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _macroPreview('Prot', '${macros.protein} g', Colors.orange),
+                      _macroPreview(
+                          'Prot', '${macros.protein} g', Colors.orange),
                       _macroPreview('Carb', '${macros.carbs} g', Colors.blue),
-                      _macroPreview('Grasa', '${macros.fat} g', Colors.redAccent),
+                      _macroPreview(
+                          'Grasa', '${macros.fat} g', Colors.redAccent),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -677,7 +678,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       ),
     );
   }
-
 
   Widget _buildRemindersPage(Color primary) {
     String hhmm(int m) =>
@@ -767,7 +767,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           const SizedBox(height: 24),
           Text(
             'Elige Sí o No para continuar.',
-            style: TextStyle(fontSize: 13, color: onSurface.withValues(alpha: 0.6)),
+            style: TextStyle(
+                fontSize: 13, color: onSurface.withValues(alpha: 0.6)),
           ),
         ],
         if (enabled) ...[

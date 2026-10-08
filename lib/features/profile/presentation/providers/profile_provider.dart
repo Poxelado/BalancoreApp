@@ -117,3 +117,6 @@ final progressSectionProvider = StateProvider<int>((ref) => 1);
 
 /// null = resumen, 0 kcal, 1 agua, 2 sueño, 3 macros
 final habitsMetricProvider = StateProvider<int?>((ref) => null);
+
+/// Username elegido en el registro; el onboarding lo usa si el perfil aún no carga.
+final pendingUsernameProvider = StateProvider<String?>((ref) => null);

@@ -34,7 +34,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
-    // Diálogo de carga más profesional
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -107,7 +106,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         email: email,
       );
 
-      // Perfil mínimo → AuthWrapper detecta onboarding incompleto
+      // Guardar para que el onboarding lo tenga sí o sí
+      ref.read(pendingUsernameProvider.notifier).state = username;
+
       await repo.saveProfile(
         UserProfile(
           uid: cred.user!.uid,
@@ -124,12 +125,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         ),
       );
 
-      // Invalidar para que AuthWrapper vea el perfil nuevo
       ref.invalidate(userProfileProvider);
 
       if (mounted) {
         Navigator.of(context).pop(); // cierra loading
-        // Volver a la raíz: AuthWrapper mostrará OnboardingScreen
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
@@ -147,7 +146,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -173,10 +171,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 32),
-
-                  // Email
-
-                  // Usuario (obligatorio, único)
                   TextFormField(
                     controller: _usernameController,
                     textInputAction: TextInputAction.next,
@@ -188,7 +182,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       border: OutlineInputBorder(),
                     ),
                     validator: (value) {
-                      final v = (value ?? '').trim().replaceAll('@', '').toLowerCase();
+                      final v =
+                      (value ?? '').trim().replaceAll('@', '').toLowerCase();
                       if (v.isEmpty) return 'El usuario es obligatorio';
                       if (v.length < 3) return 'Mínimo 3 caracteres';
                       if (!RegExp(r'^[a-z0-9._]+$').hasMatch(v)) {
@@ -217,8 +212,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-
-                  // Contraseña
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
@@ -228,7 +221,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                          _obscurePassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
                         ),
                         onPressed: () {
                           setState(() => _obscurePassword = !_obscurePassword);
@@ -246,8 +241,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-
-                  // Confirmar contraseña
                   TextFormField(
                     controller: _confirmPasswordController,
                     obscureText: _obscureConfirm,
@@ -257,7 +250,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscureConfirm ? Icons.visibility : Icons.visibility_off,
+                          _obscureConfirm
+                              ? Icons.visibility
+                              : Icons.visibility_off,
                         ),
                         onPressed: () {
                           setState(() => _obscureConfirm = !_obscureConfirm);
@@ -272,8 +267,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 32),
-
-                  // Botón Registrarse
                   ElevatedButton(
                     onPressed: _isLoading ? null : _register,
                     style: ElevatedButton.styleFrom(
