@@ -475,9 +475,22 @@ class ProfileRepository {
   }
 
   /// Borra el documento de perfil y subcolecciones del usuario.
+  /// Borra el documento de perfil, subcolecciones Y libera el username.
   Future<void> deleteUserData(String uid) async {
+    // 1) Leer el perfil ANTES de borrarlo para saber qué username liberar
+    final profile = await getProfile(uid);
+    final usernameToRelease = profile?.username;
+
     final userRef = _userDoc(uid).doc(uid);
-    final subs = ['weightHistory', 'routines', 'dailyLogs', 'savedFoods', 'customExercises', 'favoriteExercises', 'workoutSessions'];
+    final subs = [
+      'weightHistory',
+      'routines',
+      'dailyLogs',
+      'savedFoods',
+      'customExercises',
+      'favoriteExercises',
+      'workoutSessions',
+    ];
     for (final name in subs) {
       final snap = await userRef.collection(name).get();
       if (snap.docs.isEmpty) continue;
@@ -491,5 +504,8 @@ class ProfileRepository {
     if (doc.exists) {
       await userRef.delete();
     }
+
+    // 2) Liberar el username para que pueda reutilizarse
+    await releaseUsername(usernameToRelease);
   }
 }

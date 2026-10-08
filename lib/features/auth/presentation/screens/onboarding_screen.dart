@@ -42,21 +42,26 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   bool _usernameLocked = false;
 
+  // ─── Prefill más robusto ───────────────────────────────────
   Future<void> _prefillFromAuth() async {
     final user = ref.read(authServiceProvider).currentUser;
     if (user == null) return;
-    final profile =
-    await ref.read(profileRepositoryProvider).getProfile(user.uid);
-    if (!mounted) return;
-    if (profile?.username != null && profile!.username!.isNotEmpty) {
-      setState(() {
+
+    UserProfile? profile = ref.read(userProfileProvider).value;
+    profile ??= await ref.read(profileRepositoryProvider).getProfile(user.uid);
+
+    if (!mounted || profile == null) return;
+
+    setState(() {
+      if (profile!.username != null && profile.username!.isNotEmpty) {
         _usernameController.text = profile.username!;
         _usernameLocked = true;
-      });
-    }
-    if (profile?.displayName != null && profile!.displayName!.isNotEmpty) {
-      _nameController.text = profile.displayName!;
-    }
+      }
+      if (profile.displayName != null && profile.displayName!.isNotEmpty) {
+        _nameController.text = profile.displayName!;
+      }
+      if (profile.sex.isNotEmpty) _sex = profile.sex;
+    });
   }
 
   @override
@@ -124,13 +129,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         goal: _goal,
       );
 
+      final uname = _usernameController.text.trim().replaceAll('@', '').toLowerCase();
+      if (uname.isEmpty) {
+        throw 'Error: no hay nombre de usuario. Vuelve a registrarte.';
+      }
+
       final profile = UserProfile(
         uid: user.uid,
         email: user.email,
         displayName: _nameController.text.trim().isEmpty
             ? null
             : _nameController.text.trim(),
-        username: _usernameController.text.trim().replaceAll('@', '').toLowerCase(),
+        username: uname,
         sex: _sex,
         currentWeight: weight,
         height: height,
@@ -146,14 +156,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         createdAt: DateTime.now(),
       );
 
-      final uname = _usernameController.text.trim().replaceAll('@', '').toLowerCase();
-      if (uname.isNotEmpty && !_usernameLocked) {
-        await ref.read(profileRepositoryProvider).claimUsername(
-          username: uname,
-          uid: user.uid,
-          email: user.email ?? '',
-        );
-      }
+
 
       await ref.read(profileRepositoryProvider).saveProfile(profile);
       await ref.read(profileRepositoryProvider).addWeightEntry(
@@ -194,6 +197,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   void _next() {
     if (_page == 0) {
+      // Validar identidad (nombre opcional, usuario obligatorio)
+      if (!_formKey.currentState!.validate()) return;
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
@@ -350,22 +355,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           const SizedBox(height: 16),
           TextFormField(
             controller: _usernameController,
-            enabled: !_usernameLocked,
-            readOnly: _usernameLocked,
-            decoration: InputDecoration(  // sin const
-              labelText: _usernameLocked
-                  ? 'Usuario (definido al registrarte)'
-                  : 'Usuario *',
-              helperText: _usernameLocked
-                  ? 'En perfil podrás cambiarlo máx. 3 veces al mes'
-                  : null,
+            enabled: false,           // siempre bloqueado en onboarding
+            readOnly: true,
+            decoration: InputDecoration(
+              labelText: 'Usuario',
+              helperText: 'Puedes cambiarlo más adelante en la configuración de tu perfil (máx. 3 veces al mes).',
               prefixIcon: const Icon(Icons.alternate_email),
               border: const OutlineInputBorder(),
-              hintText: 'sin espacios',
-              filled: _usernameLocked,
-              fillColor: _usernameLocked
-                  ? Colors.grey.withValues(alpha: 0.12)
-                  : null,
+              filled: true,
+              fillColor: Colors.grey.withValues(alpha: 0.12),
             ),
           ),
           const SizedBox(height: 24),
