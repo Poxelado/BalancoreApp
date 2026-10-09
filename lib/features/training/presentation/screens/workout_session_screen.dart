@@ -8,6 +8,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../profile/domain/user_profile.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import 'exercise_detail_screen.dart';
+import '../../../../core/motivation/motivational_messages.dart';
 import '../../domain/progression_rules.dart';
 
 const _kRestSecondsKey = 'balancore_rest_seconds';
@@ -537,8 +538,24 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
       );
       await _persist();
       if (mounted) {
+        final history =
+        await ref.read(workoutHistoryProvider(120).future);
+        final completedBefore = history
+            .where((s) => s.completed && s.id != _session.id)
+            .length;
+        final msg = MotivationalMessages.pick(
+          MotivationContext(
+            justFinishedWorkout: true,
+            firstWorkoutEver: completedBefore == 0,
+            trainedToday: true,
+          ),
+          seed: DateTime.now().millisecondsSinceEpoch,
+        );
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('¡Entrenamiento guardado!')),
+          SnackBar(
+            content: Text(msg),
+            duration: const Duration(seconds: 4),
+          ),
         );
         Navigator.pop(context);
       }

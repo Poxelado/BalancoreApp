@@ -6,6 +6,7 @@ import '../providers/profile_provider.dart';
 import '../../../../core/notifications/smart_schedule.dart';
 import '../../../../core/notifications/inactivity_check.dart';
 import '../../../../core/first_run/first_run_prefs.dart';
+import '../../../../core/motivation/motivational_messages.dart';
 
 const int kMlPerGlass = 200;
 const int kWaterGoalMl = 2000;
@@ -19,6 +20,9 @@ class HomeTab extends ConsumerStatefulWidget {
 
 class _HomeTabState extends ConsumerState<HomeTab> {
   bool _tutorialChecked = false;
+  String? _motivationMsg;
+  String? _motivationKey;
+
 
   @override
   void initState() {
@@ -87,6 +91,34 @@ class _HomeTabState extends ConsumerState<HomeTab> {
           trainedToday,
         );
 
+        final workouts = workoutsAsync.valueOrNull ?? [];
+        final weekN = MotivationalMessages.workoutsInCurrentWeek(workouts);
+        final routines = ref.watch(routinesProvider).valueOrNull ?? [];
+        final firstEver =
+            workouts.where((s) => s.completed).isEmpty && !trainedToday;
+        final mCtx = MotivationContext(
+          streakDays: streak,
+          streakReadyToday: streakReady,
+          trainedToday: trainedToday,
+          isRestDay: MotivationalMessages.isRestDayFromRoutines(routines),
+          firstWorkoutEver: firstEver,
+          weekGoalMet: weekN >= 3,
+          workoutsThisWeek: weekN,
+          mealsToday: log.meals.length,
+        );
+        if (_motivationKey != mCtx.key) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            MotivationalMessages.advance();
+            setState(() {
+              _motivationKey = mCtx.key;
+              _motivationMsg = MotivationalMessages.pick(mCtx);
+            });
+          });
+        }
+
+
+
         final ml = log.waterGlasses * kMlPerGlass;
         final sleepLabel = log.sleepHours <= 0
             ? '— h'
@@ -125,6 +157,11 @@ class _HomeTabState extends ConsumerState<HomeTab> {
               _greeting(profile),
               style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
             ),
+            const SizedBox(height: 6),
+            if (_motivationMsg != null) ...[
+              const SizedBox(height: 6),
+              _MotivationBanner(message: _motivationMsg!),
+            ],
             const SizedBox(height: 8),
             Container(
               decoration: BoxDecoration(
@@ -243,12 +280,12 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                 ],
               ),
             ),
-          // 1) Racha + hábitos (agua / sueño)
-          const SizedBox(height: 4),
-          Text(
-            '3 de 4 hábitos del día mantienen la racha',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-          ),
+            // 1) Racha + hábitos (agua / sueño)
+            const SizedBox(height: 4),
+            Text(
+              '3 de 4 hábitos del día mantienen la racha',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
             const SizedBox(height: 8),
             // 3) Calorías + proteína
             Text(
@@ -963,3 +1000,38 @@ class CompactWaterControl extends ConsumerWidget {
   }
 }
 
+class _MotivationBanner extends StatelessWidget {
+  final String message;
+  const _MotivationBanner({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: primary.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.auto_awesome, size: 18, color: primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.3,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
