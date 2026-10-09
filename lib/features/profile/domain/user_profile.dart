@@ -524,6 +524,7 @@ class SavedFood {
   final int carbsGrams;
   final int fatGrams;
   final int? portionGrams; // gramos de la porción guardada
+  final String? servingLabel; // ej. "100 g", "200 ml", "1 ud"
   final String? defaultMealType;
   final int useCount;
   final String? updatedAt;
@@ -536,6 +537,7 @@ class SavedFood {
     this.carbsGrams = 0,
     this.fatGrams = 0,
     this.portionGrams,
+    this.servingLabel,
     this.defaultMealType,
     this.useCount = 0,
     this.updatedAt,
@@ -548,6 +550,7 @@ class SavedFood {
     'carbsGrams': carbsGrams,
     'fatGrams': fatGrams,
     if (portionGrams != null) 'portionGrams': portionGrams,
+    if (servingLabel != null) 'servingLabel': servingLabel,
     'defaultMealType': defaultMealType,
     'useCount': useCount,
     'updatedAt': updatedAt ?? DateTime.now().toIso8601String(),
@@ -564,6 +567,7 @@ class SavedFood {
       portionGrams: map['portionGrams'] is int
           ? map['portionGrams'] as int
           : int.tryParse('${map['portionGrams'] ?? ''}'),
+      servingLabel: map['servingLabel']?.toString(),
       defaultMealType: map['defaultMealType'],
       useCount: map['useCount'] ?? 0,
       updatedAt: map['updatedAt']?.toString(),
@@ -580,6 +584,7 @@ class SavedFood {
       carbsGrams: carbsGrams,
       fatGrams: fatGrams,
       grams: portionGrams,
+      servingLabel: servingLabel,
     );
   }
 }
