@@ -543,20 +543,11 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
         final completedBefore = history
             .where((s) => s.completed && s.id != _session.id)
             .length;
-        final msg = MotivationalMessages.pick(
-          MotivationContext(
-            justFinishedWorkout: true,
-            firstWorkoutEver: completedBefore == 0,
-            trainedToday: true,
-          ),
-          seed: DateTime.now().millisecondsSinceEpoch,
-        );
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            duration: const Duration(seconds: 4),
-          ),
-        );
+        MotivationalMessages.pickSync(MotivationContext(
+          justFinishedWorkout: true,
+          firstWorkoutEver: completedBefore == 0,
+          trainedToday: true,
+        ));
         Navigator.pop(context);
       }
     } finally {

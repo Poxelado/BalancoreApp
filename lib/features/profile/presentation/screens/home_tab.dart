@@ -105,14 +105,16 @@ class _HomeTabState extends ConsumerState<HomeTab> {
           weekGoalMet: weekN >= 3,
           workoutsThisWeek: weekN,
           mealsToday: log.meals.length,
+          waterGlasses: log.waterGlasses,
         );
         if (_motivationKey != mCtx.key) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
             if (!mounted) return;
-            MotivationalMessages.advance();
+            final msg = await MotivationalMessages.next(mCtx);
+            if (!mounted) return;
             setState(() {
               _motivationKey = mCtx.key;
-              _motivationMsg = MotivationalMessages.pick(mCtx);
+              _motivationMsg = msg;
             });
           });
         }
