@@ -83,7 +83,6 @@ class MotivationalMessages {
     'Un vaso de agua o una comida ya enciende el día.',
     'No hace falta perfecto: registra algo y avanza.',
     'Pequeños registros diarios vencen a la motivación de un día.',
-    'Monica dejame ver a los nenes tambien son mis hijos, deah que tiraba.',
   ];
 
   static const _generic = [
