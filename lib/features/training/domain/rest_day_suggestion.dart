@@ -96,7 +96,7 @@ class RestDayRules {
         parts.add('$sessionsLast7 sesiones esta semana');
       }
       if (isHighRpe) {
-        parts.add('RPE alto (~${avgRpe!.toStringAsFixed(1)})');
+        parts.add('RPE alto (~${avgRpe.toStringAsFixed(1)})');
       }
       return RestDayAdvice(
         suggestRest: true,

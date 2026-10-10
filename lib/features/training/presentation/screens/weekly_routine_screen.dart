@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../profile/domain/user_profile.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import '../../domain/routine_templates.dart';
 import 'edit_routine_day_screen.dart';

@@ -2,7 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../domain/user_profile.dart';
 
 class ProfileRepository {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  ProfileRepository({FirebaseFirestore? db})
+      : _db = db ?? FirebaseFirestore.instance;
+
+  final FirebaseFirestore _db;
 
   CollectionReference _userDoc(String uid) => _db.collection('users');
 

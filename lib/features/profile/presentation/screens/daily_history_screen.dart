@@ -668,21 +668,6 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
     if (parts.length != 3) return date;
     return '${parts[2]}/${parts[1]}/${parts[0]}';
   }
-
-  Widget _chip(String label, int days) {
-    final selected = _days == days;
-    return Padding(
-      padding: const EdgeInsets.only(left: 6),
-      child: ChoiceChip(
-        label: Text(label),
-        selected: selected,
-        onSelected: (_) => setState(() {
-          _days = days;
-          _expandedSection = null;
-        }),
-      ),
-    );
-  }
 }
 
 // ═══════════════════════════════════════════════════════════

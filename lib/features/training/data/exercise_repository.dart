@@ -2,7 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../domain/exercise.dart';
 
 class ExerciseRepository {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  ExerciseRepository({FirebaseFirestore? db})
+      : _db = db ?? FirebaseFirestore.instance;
+
+  final FirebaseFirestore _db;
 
   CollectionReference _custom(String uid) =>
       _db.collection('users').doc(uid).collection('customExercises');

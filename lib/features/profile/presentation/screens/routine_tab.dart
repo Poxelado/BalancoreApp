@@ -87,7 +87,6 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
 
   @override
   Widget build(BuildContext context) {
-    final logAsync = ref.watch(todayLogProvider);
     final routinesAsync = ref.watch(routinesProvider);
     final primary = Theme.of(context).colorScheme.primary;
     final todayName = WorkoutSession.weekdayName();
@@ -431,60 +430,6 @@ class _RestDayBanner extends ConsumerWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class _HabitCard extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String value;
-  final VoidCallback? onMinus;
-  final VoidCallback? onPlus;
-
-  const _HabitCard({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.value,
-    this.onMinus,
-    this.onPlus,
-  });
-
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        child: Row(
-          children: [
-            Icon(icon, color: iconColor, size: 36),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(fontSize: 14, color: Colors.grey)),
-                  Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                ],
-              ),
-            ),
-            IconButton(
-              onPressed: onMinus,
-              icon: Icon(Icons.remove_circle, color: onMinus != null ? iconColor : Colors.grey.shade300),
-            ),
-            IconButton(
-              onPressed: onPlus,
-              icon: Icon(Icons.add_circle, color: onPlus != null ? iconColor : Colors.grey.shade300, size: 32),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

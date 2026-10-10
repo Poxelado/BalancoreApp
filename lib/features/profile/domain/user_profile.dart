@@ -1061,7 +1061,6 @@ class WorkoutSession {
   }
 
   factory WorkoutSession.fromRoutine(RoutineDay routine, {DateTime? date}) {
-    final d = date ?? DateTime.now();
     final exercises = routine.exercises.map((e) {
       final planned = e.effectiveSets;
       return WorkoutExerciseLog(

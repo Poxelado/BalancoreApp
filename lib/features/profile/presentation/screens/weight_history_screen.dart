@@ -2,7 +2,6 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/widgets/empty_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 

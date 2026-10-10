@@ -160,34 +160,6 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen>
     }
     bool saveLib = widget.saveToLibrary;
 
-    double qtyValue() =>
-        double.tryParse(qtyCtrl.text.replaceAll(',', '.')) ?? 1;
-
-    double gramsFromUi() {
-      final q = qtyValue().clamp(0.1, 20000).toDouble();
-      switch (unitMode) {
-        case 1:
-          return q;
-        case 2:
-          return (q * unitGrams).toDouble();
-        default:
-          return q;
-      }
-    }
-
-    String labelFromUi() {
-      final q = qtyValue();
-      switch (unitMode) {
-        case 1:
-          return '${q == q.roundToDouble() ? q.toInt() : q} ml';
-        case 2:
-          final u = q == q.roundToDouble() ? '${q.toInt()}' : '$q';
-          return '$u ud (${gramsFromUi().round()} g)';
-        default:
-          return '${gramsFromUi().round()} g';
-      }
-    }
-
     final confirmed = await _quantitySheet(
       title: p.displayName,
       subtitle: p.barcode.isNotEmpty ? 'Código: ${p.barcode}' : null,

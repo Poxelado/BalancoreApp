@@ -47,7 +47,6 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
   final Map<String, TextEditingController> _repsCtrls = {};
   /// exerciseId -> suggestion from history
   final Map<String, ProgressionSuggestion> _suggestions = {};
-  bool _progressionApplied = false;
 
   @override
   void initState() {
@@ -128,36 +127,6 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
       return _suggestions[ex.exerciseId];
     }
     return _suggestions[ex.exerciseName];
-  }
-
-  void _applyAllSuggestions({bool auto = false}) {
-    if (_progressionApplied && auto) return;
-    final exercises = [..._session.exercises];
-    var changed = false;
-    for (var ei = 0; ei < exercises.length; ei++) {
-      final ex = exercises[ei];
-      final sug = _sugFor(ex);
-      if (sug == null) continue;
-      final sets = [...ex.sets];
-      for (var i = 0; i < sets.length; i++) {
-        final w = sug.weightFor(i);
-        final r = sug.repsFor(i);
-        // auto: solo rellena si peso vacío; manual: siempre
-        if (auto && sets[i].weight > 0) continue;
-        sets[i] = sets[i].copyWith(weight: w, reps: r);
-        final key = '${ex.exerciseId}_${sets[i].setNumber}';
-        _weightCtrls[key]?.text = w > 0 ? _fmtWeight(w) : '';
-        _repsCtrls[key]?.text = '$r';
-        changed = true;
-      }
-      exercises[ei] = ex.copyWith(sets: sets);
-    }
-    if (!changed) return;
-    setState(() {
-      _session = _session.copyWith(exercises: exercises);
-      _progressionApplied = true;
-    });
-    _persist(silent: true);
   }
 
   void _applySuggestionForExercise(int exerciseIndex) {

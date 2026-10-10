@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
-import 'daily_history_screen.dart';
 import 'food_search_screen.dart';
 import 'recipe_editor_screen.dart';
 
@@ -1124,7 +1123,7 @@ class _TodayTab extends ConsumerWidget {
                     ),
                     const SizedBox(height: 14),
 
-                    if (servingHint != null && servingHint!.isNotEmpty)
+                    if (servingHint != null && servingHint.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 8),
                         child: Text(
@@ -1902,9 +1901,8 @@ class _QuickFoodsBar extends ConsumerWidget {
 
 class _SavedFoodChips extends ConsumerWidget {
   final void Function(SavedFood food) onPick;
-  final bool showTitle;
 
-  const _SavedFoodChips({required this.onPick, this.showTitle = false});
+  const _SavedFoodChips({required this.onPick});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1922,11 +1920,6 @@ class _SavedFoodChips extends ConsumerWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (showTitle) ...[
-              const Text('Desde Mis alimentos',
-                  style: TextStyle(fontSize: 12, color: Colors.grey)),
-              const SizedBox(height: 6),
-            ],
             Wrap(
               spacing: 6,
               runSpacing: 4,

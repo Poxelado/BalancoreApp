@@ -73,20 +73,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     super.dispose();
   }
 
-  Future<String> _resolvedActivity() async {
-    try {
-      final list = await ref.read(workoutHistoryProvider(14).future);
-      final now = DateTime.now();
-      final weekAgo = now.subtract(const Duration(days: 7));
-      final n = list
-          .where((s) => s.completed && s.startedAt.isAfter(weekAgo))
-          .length;
-      return UserProfile.activityFromWeeklyWorkouts(n);
-    } catch (_) {
-      return _activityLevel;
-    }
-  }
-
   void _recalculate({bool silent = false}) {
     final weight = double.tryParse(_weightController.text) ??
         widget.profile.currentWeight;
