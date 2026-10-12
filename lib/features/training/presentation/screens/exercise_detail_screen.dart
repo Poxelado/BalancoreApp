@@ -7,6 +7,32 @@ import '../providers/strength_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/exercise_provider.dart';
 
+/// Traducción de los músculos de free-exercise-db (inglés) para la Guía.
+const _muscleEs = <String, String>{
+  'abdominals': 'Abdominales',
+  'abductors': 'Abductores',
+  'adductors': 'Aductores',
+  'biceps': 'Bíceps',
+  'calves': 'Gemelos',
+  'chest': 'Pecho',
+  'forearms': 'Antebrazos',
+  'glutes': 'Glúteos',
+  'hamstrings': 'Isquiotibiales',
+  'lats': 'Dorsales',
+  'lower back': 'Espalda baja',
+  'middle back': 'Espalda media',
+  'neck': 'Cuello',
+  'quadriceps': 'Cuádriceps',
+  'shoulders': 'Hombros',
+  'traps': 'Trapecios',
+  'triceps': 'Tríceps',
+};
+
+const _mechanicEs = <String, String>{
+  'compound': 'Compuesto',
+  'isolation': 'Aislado',
+};
+
 /// Detalle de ejercicio: Guía | Estadísticas | Historial (estilo Hevy/similar).
 class ExerciseDetailScreen extends ConsumerStatefulWidget {
   final String exerciseId;
@@ -50,6 +76,19 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
   void initState() {
     super.initState();
     _tabs = TabController(length: 3, vsync: this);
+    _ensureCatalog();
+  }
+
+  /// Garantiza el catálogo cargado para mostrar imagen/nivel aunque se abra
+  /// el detalle sin pasar por la biblioteca.
+  Future<void> _ensureCatalog() async {
+    if (ExerciseCatalog.cache != null) return;
+    try {
+      await ref.read(exerciseRepositoryProvider).loadCatalog();
+      if (mounted) setState(() {});
+    } catch (_) {
+      // Sin catálogo: la Guía cae al icono por defecto.
+    }
   }
 
   @override
@@ -130,16 +169,47 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
   }
 
   Widget _buildGuide(Color primary) {
+    final cat = ExerciseCatalog.byId(widget.exerciseId);
+    final imageUrl = cat?.imageUrl;
+    final levelEs = cat?.levelEs;
+    final mechanic = cat?.mechanic;
+    final primaryMuscles = cat?.primaryMuscles ?? const <String>[];
+    final secondaryMuscles = cat?.secondaryMuscles ?? const <String>[];
+
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        Container(
-          height: 160,
-          decoration: BoxDecoration(
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            height: 200,
+            width: double.infinity,
             color: primary.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(16),
+            child: imageUrl != null
+                ? Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+                      return Center(
+                        child: CircularProgressIndicator(
+                          color: primary,
+                          strokeWidth: 2,
+                        ),
+                      );
+                    },
+                    errorBuilder: (_, __, ___) => Icon(
+                      Icons.fitness_center,
+                      size: 72,
+                      color: primary.withValues(alpha: 0.5),
+                    ),
+                  )
+                : Icon(
+                    Icons.fitness_center,
+                    size: 72,
+                    color: primary.withValues(alpha: 0.5),
+                  ),
           ),
-          child: Icon(Icons.fitness_center, size: 72, color: primary.withValues(alpha: 0.5)),
         ),
         const SizedBox(height: 16),
         Wrap(
@@ -156,9 +226,47 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
                 avatar: const Icon(Icons.sports_gymnastics, size: 18),
                 label: Text(widget.equipment),
               ),
+            if (levelEs != null && levelEs.isNotEmpty)
+              Chip(
+                avatar: const Icon(Icons.signal_cellular_alt, size: 18),
+                label: Text(levelEs),
+              ),
+            if (mechanic != null && mechanic.isNotEmpty)
+              Chip(
+                avatar: const Icon(Icons.settings, size: 18),
+                label: Text(_mechanicEs[mechanic] ?? mechanic),
+              ),
           ],
         ),
-        const SizedBox(height: 16),
+        if (primaryMuscles.isNotEmpty || secondaryMuscles.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          Text(
+            'Músculos trabajados',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: primary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final m in primaryMuscles)
+                Chip(
+                  avatar: const Icon(Icons.bolt, size: 18),
+                  label: Text(_muscleEs[m] ?? m),
+                ),
+              for (final m in secondaryMuscles)
+                Chip(
+                  backgroundColor: primary.withValues(alpha: 0.06),
+                  label: Text(_muscleEs[m] ?? m),
+                ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 20),
         Text(
           'Cómo hacerlo',
           style: TextStyle(
