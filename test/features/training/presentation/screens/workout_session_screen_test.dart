@@ -262,6 +262,39 @@ testWidgets('borrar una serie la elimina de la sesión y renumera',
     await _unmount(tester);
   });
 
+  testWidgets('cambiar el tipo de serie persiste', (WidgetTester tester) async {
+    await _openScreen(tester, container);
+    await _flush(tester);
+
+    await tester.tap(find.byType(PopupMenuButton<SetType>).first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text('Calentamiento'));
+    await _flush(tester);
+
+    final s = await active();
+    expect(s!.exercises.first.sets.first.type, SetType.warmup);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('editar la nota de una serie persiste', (WidgetTester tester) async {
+    await _openScreen(tester, container);
+    await _flush(tester);
+
+    await tester.tap(find.byIcon(Icons.sticky_note_2_outlined).first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.enterText(find.byType(TextField).last, 'buena forma');
+    await tester.tap(find.text('Guardar'));
+    await _flush(tester);
+
+    final s = await active();
+    expect(s!.exercises.first.sets.first.note, 'buena forma');
+
+    await _unmount(tester);
+  });
+
   testWidgets('finalizar guarda la sesión como completada y sale de la pantalla',
       (WidgetTester tester) async {
     await _openScreen(tester, container);

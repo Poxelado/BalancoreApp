@@ -356,12 +356,7 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
     final sets = List<WorkoutSetLog>.from(ex.sets)..removeAt(setIndex);
     // renumber
     for (var i = 0; i < sets.length; i++) {
-      sets[i] = WorkoutSetLog(
-        setNumber: i + 1,
-        weight: sets[i].weight,
-        reps: sets[i].reps,
-        completed: sets[i].completed,
-      );
+      sets[i] = sets[i].copyWith(setNumber: i + 1);
     }
     exercises[exerciseIndex] = ex.copyWith(sets: sets);
     setState(() => _session = _session.copyWith(exercises: exercises));
@@ -373,6 +368,54 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
       );
       _repsCtrls[key] = TextEditingController(text: '${s.reps}');
     }
+    await _persist();
+  }
+
+  Future<void> _changeSetType(
+      int exerciseIndex, int setIndex, SetType type) async {
+    final exercises = List<WorkoutExerciseLog>.from(_session.exercises);
+    final ex = exercises[exerciseIndex];
+    final sets = List<WorkoutSetLog>.from(ex.sets);
+    sets[setIndex] = sets[setIndex].copyWith(type: type);
+    exercises[exerciseIndex] = ex.copyWith(sets: sets);
+    setState(() => _session = _session.copyWith(exercises: exercises));
+    await _persist(silent: true);
+  }
+
+  Future<void> _editSetNote(int exerciseIndex, int setIndex) async {
+    final ex = _session.exercises[exerciseIndex];
+    final s = ex.sets[setIndex];
+    final ctrl = TextEditingController(text: s.note);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Nota · serie ${s.setNumber}'),
+        content: TextField(
+          controller: ctrl,
+          maxLines: 3,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'Sensaciones, técnica, ajustes...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Guardar')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final exercises = List<WorkoutExerciseLog>.from(_session.exercises);
+    final e = exercises[exerciseIndex];
+    final sets = List<WorkoutSetLog>.from(e.sets);
+    sets[setIndex] = sets[setIndex].copyWith(note: ctrl.text.trim());
+    exercises[exerciseIndex] = e.copyWith(sets: sets);
+    setState(() => _session = _session.copyWith(exercises: exercises));
     await _persist();
   }
 

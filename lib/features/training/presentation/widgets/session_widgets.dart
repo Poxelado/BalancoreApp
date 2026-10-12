@@ -369,7 +369,27 @@ class RestBanner extends StatelessWidget {
   }
 }
 
-/// Fila de una serie: número, previa, peso, reps y marcar completada.
+/// Color asociado a cada tipo de serie.
+Color setTypeColor(SetType t) => switch (t) {
+      SetType.normal => const Color(0xFF9E9E9E),
+      SetType.warmup => const Color(0xFF42A5F5),
+      SetType.dropset => const Color(0xFFAB47BC),
+      SetType.failure => const Color(0xFFE53935),
+    };
+
+/// 1RM estimado (fórmula de Epley). Devuelve null si no hay datos válidos.
+double? estimated1RM(double weight, int reps) {
+  if (weight <= 0 || reps <= 0) return null;
+  if (reps <= 1) return weight;
+  return weight * (1 + reps / 30);
+}
+
+String fmt1RM(double? v) {
+  if (v == null) return '—';
+  return '${v.round()} kg';
+}
+
+/// Fila de una serie: tipo, previa + 1RM, peso, reps, nota y completar.
 /// Se puede deslizar para borrar (confirmación delegada al padre).
 class SetLogRow extends StatelessWidget {
   final String dismissKey;
@@ -382,6 +402,8 @@ class SetLogRow extends StatelessWidget {
   final Color cardBg;
   final ValueChanged<String> onWeightChanged;
   final ValueChanged<String> onRepsChanged;
+  final ValueChanged<SetType> onChangeType;
+  final VoidCallback onEditNote;
   final VoidCallback onToggle;
   final VoidCallback onDismissed;
   final Future<bool> Function() confirmDismiss;
@@ -398,6 +420,8 @@ class SetLogRow extends StatelessWidget {
     required this.cardBg,
     required this.onWeightChanged,
     required this.onRepsChanged,
+    required this.onChangeType,
+    required this.onEditNote,
     required this.onToggle,
     required this.onDismissed,
     required this.confirmDismiss,
@@ -405,6 +429,9 @@ class SetLogRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final typeColor = setTypeColor(s.type);
+    final oneRm = estimated1RM(s.weight, s.reps);
+
     return Dismissible(
       key: ValueKey(dismissKey),
       direction: DismissDirection.horizontal,
@@ -423,23 +450,42 @@ class SetLogRow extends StatelessWidget {
       confirmDismiss: (_) async => confirmDismiss(),
       onDismissed: (_) => onDismissed(),
       child: Container(
-        color: s.completed ? Colors.green.withValues(alpha: 0.08) : null,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        decoration: BoxDecoration(
+          color: s.completed ? Colors.green.withValues(alpha: 0.08) : null,
+          border: Border(left: BorderSide(color: typeColor, width: 3)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Row(
           children: [
-            Expanded(
-              flex: 2,
-              child: Text('${s.setNumber}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: s.completed ? Colors.green : null,
-                  )),
-            ),
+            _typeBadge(),
+            const SizedBox(width: 8),
             Expanded(
               flex: 3,
-              child: Text(previa,
-                  style: TextStyle(
-                      color: Colors.grey.shade500, fontSize: 13)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(previa,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: Colors.grey.shade500, fontSize: 13)),
+                  if (s.type != SetType.normal || oneRm != null)
+                    Text(
+                      [
+                        if (s.type != SetType.normal) s.type.label,
+                        if (oneRm != null) '1RM ${fmt1RM(oneRm)}',
+                      ].join(' · '),
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: s.type != SetType.normal
+                            ? typeColor
+                            : Colors.grey.shade600,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                ],
+              ),
             ),
             Expanded(
               flex: 3,
@@ -512,8 +558,26 @@ class SetLogRow extends StatelessWidget {
               ),
             ),
             SizedBox(
-              width: 40,
+              width: 34,
               child: IconButton(
+                tooltip: 'Nota de la serie',
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                onPressed: onEditNote,
+                icon: Icon(
+                  s.note.isEmpty
+                      ? Icons.sticky_note_2_outlined
+                      : Icons.sticky_note_2,
+                  size: 18,
+                  color: s.note.isEmpty ? Colors.grey : typeColor,
+                ),
+              ),
+            ),
+            SizedBox(
+              width: 38,
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
                 onPressed: onToggle,
                 icon: Icon(
                   s.completed ? Icons.check_circle : Icons.check_circle_outline,
@@ -522,6 +586,46 @@ class SetLogRow extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _typeBadge() {
+    return PopupMenuButton<SetType>(
+      tooltip: 'Tipo de serie',
+      padding: EdgeInsets.zero,
+      onSelected: onChangeType,
+      itemBuilder: (ctx) => [
+        for (final t in SetType.values)
+          PopupMenuItem<SetType>(
+            value: t,
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 12,
+                  backgroundColor: setTypeColor(t),
+                  child: Text(t.short,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(width: 10),
+                Text(t.label),
+              ],
+            ),
+          ),
+      ],
+      child: CircleAvatar(
+        radius: 15,
+        backgroundColor: setTypeColor(s.type),
+        child: Text(
+          '${s.setNumber}',
+          style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold),
         ),
       ),
     );

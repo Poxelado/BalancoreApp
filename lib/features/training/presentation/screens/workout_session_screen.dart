@@ -231,14 +231,26 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
                 onSkip: _skipRest,
               ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              padding: const EdgeInsets.fromLTRB(13, 8, 20, 4),
               child: Row(
                 children: [
-                  _h('SERIE', 2),
+                  SizedBox(
+                    width: 38,
+                    child: Text(
+                      'SERIE',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade500,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   _h('PREVIA', 3),
                   _h('KG', 3),
                   _h('REPS', 3),
-                  const SizedBox(width: 40),
+                  const SizedBox(width: 72),
                 ],
               ),
             ),
@@ -289,6 +301,8 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
                         _syncFromField(_exerciseIndex, i, isWeight: true),
                     onRepsChanged: (_) =>
                         _syncFromField(_exerciseIndex, i, isWeight: false),
+                    onChangeType: (t) => _changeSetType(_exerciseIndex, i, t),
+                    onEditNote: () => _editSetNote(_exerciseIndex, i),
                     onToggle: () => _toggleComplete(_exerciseIndex, i),
                     onDismissed: () => _deleteSet(_exerciseIndex, i),
                     confirmDismiss: () async {
