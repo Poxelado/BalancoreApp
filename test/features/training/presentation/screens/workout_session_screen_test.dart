@@ -9,7 +9,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:balancore/features/auth/presentation/providers/auth_provider.dart';
-import 'package:balancore/features/profile/data/profile_repository.dart';
 import 'package:balancore/features/profile/domain/user_profile.dart';
 import 'package:balancore/features/profile/presentation/providers/profile_provider.dart';
 import 'package:balancore/features/training/presentation/screens/workout_session_screen.dart';

@@ -9,6 +9,7 @@ import '../../../profile/domain/user_profile.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import 'exercise_detail_screen.dart';
 import '../widgets/session_rest_time_sheet.dart';
+import '../widgets/session_widgets.dart';
 import '../../../../core/motivation/motivational_messages.dart';
 import '../../domain/progression_rules.dart';
 
@@ -192,12 +193,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
     return '$m:$s';
   }
 
-  String _fmtRest(int sec) {
-    final m = sec ~/ 60;
-    final s = sec % 60;
-    if (m > 0) return '${m}min ${s.toString().padLeft(2, '0')}s';
-    return '${s}s';
-  }
+  String _fmtRest(int sec) => fmtRest(sec);
 
   String _key(WorkoutExerciseLog ex, WorkoutSetLog s) =>
       '${ex.exerciseId}_${s.setNumber}';
@@ -669,10 +665,11 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? const Color(0xFF0E0E12) : Colors.grey.shade100;
+    final bg = isDark ? const Color(0xFF0F0F14) : const Color(0xFFF6F6F9);
     final cardBg = isDark ? const Color(0xFF1A1A22) : Colors.white;
 
     if (_session.exercises.isEmpty) {
@@ -696,6 +693,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
     final progress = _session.totalSets == 0
         ? 0.0
         : _session.completedSets / _session.totalSets;
+    final sug = _sugFor(ex);
 
     return Scaffold(
       backgroundColor: bg,
@@ -777,300 +775,43 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                 ),
               ),
             ),
-            SizedBox(
-              height: 72,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                itemCount: _session.exercises.length,
-                itemBuilder: (context, i) {
-                  final e = _session.exercises[i];
-                  final selected = i == _exerciseIndex;
-                  final allDone =
-                      e.sets.isNotEmpty && e.sets.every((s) => s.completed);
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 10),
-                    child: GestureDetector(
-                      onTap: () => setState(() => _exerciseIndex = i),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: selected
-                              ? primary
-                              : (allDone
-                              ? Colors.green.withValues(alpha: 0.3)
-                              : cardBg),
-                          border: Border.all(
-                            color: selected
-                                ? primary
-                                : Colors.grey.withValues(alpha: 0.3),
-                            width: selected ? 2.5 : 1,
-                          ),
-                        ),
-                        child: Icon(
-                          allDone ? Icons.check : Icons.fitness_center,
-                          color: selected
-                              ? Colors.white
-                              : (allDone ? Colors.green : Colors.grey),
-                          size: 22,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
+            ExerciseSelectorStrip(
+              exercises: _session.exercises,
+              selectedIndex: _exerciseIndex,
+              primary: primary,
+              cardBg: cardBg,
+              onSelect: (i) => setState(() => _exerciseIndex = i),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 8, 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        InkWell(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ExerciseDetailScreen(
-                                  exerciseId: ex.exerciseId,
-                                  exerciseName: ex.exerciseName,
-                                  muscleGroup: ex.muscleGroup,
-                                ),
-                              ),
-                            );
-                          },
-                          child: Text(
-                            ex.exerciseName,
-                            style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        if (ex.muscleGroup.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              ex.muscleGroup,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          ),
-                        const SizedBox(height: 6),
-                        InkWell(
-                          onTap: () => _editExerciseRest(_exerciseIndex),
-                          borderRadius: BorderRadius.circular(8),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.timer_outlined,
-                                  size: 16, color: primary),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Descanso ${_fmtRest(ex.restSeconds > 0 ? ex.restSeconds : 60)}',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: primary,
-                                ),
-                              ),
-                              Icon(Icons.edit, size: 14, color: primary),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        // RPE compacto: una fila 1–10 sin scroll
-                        Container(
-                          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                          decoration: BoxDecoration(
-                            color: primary.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: primary.withValues(alpha: 0.2),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.speed, size: 16, color: primary),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'RPE',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: primary,
-                                      letterSpacing: 0.3,
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  Text(
-                                    ex.rpe != null
-                                        ? '${ex.rpe} · ${_rpeLabel(ex.rpe!)}'
-                                        : 'Esfuerzo percibido',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  for (var r = 1; r <= 10; r++) ...[
-                                    if (r > 1) const SizedBox(width: 3),
-                                    Expanded(
-                                      child: Material(
-                                        color: ex.rpe == r
-                                            ? _rpeColor(r)
-                                            : (Theme.of(context).brightness ==
-                                            Brightness.dark
-                                            ? Colors.white
-                                            .withValues(alpha: 0.08)
-                                            : Colors.black
-                                            .withValues(alpha: 0.06)),
-                                        borderRadius: BorderRadius.circular(8),
-                                        child: InkWell(
-                                          borderRadius:
-                                          BorderRadius.circular(8),
-                                          onTap: () => _setExerciseRpe(
-                                              _exerciseIndex, r),
-                                          child: SizedBox(
-                                            height: 32,
-                                            child: Center(
-                                              child: Text(
-                                                '$r',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: ex.rpe == r
-                                                      ? Colors.white
-                                                      : Colors.grey.shade500,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Fácil',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.grey.shade500,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Máximo',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.grey.shade500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+            ExerciseHeaderCard(
+              ex: ex,
+              primary: primary,
+              onOpenDetail: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ExerciseDetailScreen(
+                      exerciseId: ex.exerciseId,
+                      exerciseName: ex.exerciseName,
+                      muscleGroup: ex.muscleGroup,
                     ),
                   ),
-                  IconButton(
-                    tooltip: 'Notas del ejercicio',
-                    icon: Icon(
-                      ex.notes.isEmpty
-                          ? Icons.note_add_outlined
-                          : Icons.sticky_note_2,
-                      color: primary,
-                    ),
-                    onPressed: _editExerciseNotes,
-                  ),
-                ],
-              ),
+                );
+              },
+              onEditRest: () => _editExerciseRest(_exerciseIndex),
+              onEditNotes: _editExerciseNotes,
+              onSetRpe: (r) => _setExerciseRpe(_exerciseIndex, r),
             ),
-            if (_sugFor(ex) != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                child: Material(
-                  color: (_sugFor(ex)!.isIncrease
-                      ? Colors.green
-                      : Theme.of(context).colorScheme.primary)
-                      .withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                  child: Padding(
-                    padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _sugFor(ex)!.isIncrease
-                              ? Icons.trending_up
-                              : Icons.history,
-                          size: 20,
-                          color: _sugFor(ex)!.isIncrease
-                              ? Colors.green
-                              : Theme.of(context).colorScheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _sugFor(ex)!.message,
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () =>
-                              _applySuggestionForExercise(_exerciseIndex),
-                          child: const Text('Aplicar'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+            if (sug != null)
+              ProgressionBanner(
+                suggestion: sug,
+                primary: primary,
+                onApply: () => _applySuggestionForExercise(_exerciseIndex),
               ),
             if (_restRemaining != null)
-              Material(
-                color: primary.withValues(alpha: 0.15),
-                child: Padding(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  child: Row(
-                    children: [
-                      Icon(Icons.hourglass_bottom, color: primary),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Descanso · ${_fmtRest(_restRemaining!)}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: primary,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                      TextButton(
-                          onPressed: _skipRest, child: const Text('Saltar')),
-                    ],
-                  ),
-                ),
+              RestBanner(
+                remaining: _restRemaining!,
+                primary: primary,
+                onSkip: _skipRest,
               ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
@@ -1101,18 +842,16 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                   final key = _key(ex, s);
                   _weightCtrls.putIfAbsent(
                     key,
-                        () => TextEditingController(
+                    () => TextEditingController(
                       text: s.weight > 0 ? _fmtWeight(s.weight) : '',
                     ),
                   );
                   _repsCtrls.putIfAbsent(
                     key,
-                        () => TextEditingController(text: '${s.reps}'),
+                    () => TextEditingController(text: '${s.reps}'),
                   );
 
-                  final sug = _sugFor(ex);
-                  final String previa =
-                  sug != null ? sug.previaLabel(i) : '—';
+                  final String previa = sug != null ? sug.previaLabel(i) : '—';
                   final hintW = sug != null && sug.weightFor(i) > 0
                       ? _fmtWeight(sug.weightFor(i))
                       : (s.weight > 0 ? _fmtWeight(s.weight) : null);
@@ -1120,153 +859,32 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                       ? '${sug.repsFor(i)}'
                       : (s.reps > 0 ? '${s.reps}' : null);
 
-                  return Dismissible(
-                    key: ValueKey('${ex.exerciseId}_${s.setNumber}_$i'),
-                    direction: DismissDirection.horizontal,
-                    background: Container(
-                      color: Colors.red.shade700,
-                      alignment: Alignment.centerLeft,
-                      padding: const EdgeInsets.only(left: 20),
-                      child: const Icon(Icons.delete, color: Colors.white),
-                    ),
-                    secondaryBackground: Container(
-                      color: Colors.red.shade700,
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.only(right: 20),
-                      child: const Icon(Icons.delete, color: Colors.white),
-                    ),
-                    confirmDismiss: (_) async {
+                  return SetLogRow(
+                    dismissKey: '${ex.exerciseId}_${s.setNumber}_$i',
+                    s: s,
+                    weightCtrl: _weightCtrls[key]!,
+                    repsCtrl: _repsCtrls[key]!,
+                    previa: previa,
+                    hintW: hintW,
+                    hintR: hintR,
+                    cardBg: cardBg,
+                    onWeightChanged: (_) =>
+                        _syncFromField(_exerciseIndex, i, isWeight: true),
+                    onRepsChanged: (_) =>
+                        _syncFromField(_exerciseIndex, i, isWeight: false),
+                    onToggle: () => _toggleComplete(_exerciseIndex, i),
+                    onDismissed: () => _deleteSet(_exerciseIndex, i),
+                    confirmDismiss: () async {
                       if (ex.sets.length <= 1) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                               content:
-                              Text('Debe quedar al menos una serie')),
+                                  Text('Debe quedar al menos una serie')),
                         );
                         return false;
                       }
                       return true;
                     },
-                    onDismissed: (_) => _deleteSet(_exerciseIndex, i),
-                    child: Container(
-                      color: s.completed
-                          ? Colors.green.withValues(alpha: 0.08)
-                          : null,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 6),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: Text('${s.setNumber}',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: s.completed ? Colors.green : null,
-                                )),
-                          ),
-                          Expanded(
-                            flex: 3,
-                            child: Text(previa,
-                                style: TextStyle(
-                                    color: Colors.grey.shade500,
-                                    fontSize: 13)),
-                          ),
-                          Expanded(
-                            flex: 3,
-                            child: SizedBox(
-                              height: 40,
-                              child: TextField(
-                                controller: _weightCtrls[key],
-                                keyboardType:
-                                const TextInputType.numberWithOptions(
-                                    decimal: true),
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: s.completed
-                                      ? null
-                                      : ((_weightCtrls[key]?.text.isEmpty ?? true)
-                                      ? Colors.grey
-                                      : null),
-                                ),
-                                decoration: InputDecoration(
-                                  isDense: true,
-                                  hintText: s.completed ? null : hintW,
-                                  hintStyle: TextStyle(
-                                    color: Colors.grey.withValues(alpha: 0.55),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 10),
-                                  filled: true,
-                                  fillColor: cardBg,
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                ),
-                                onChanged: (_) => _syncFromField(
-                                    _exerciseIndex, i,
-                                    isWeight: true),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            flex: 3,
-                            child: SizedBox(
-                              height: 40,
-                              child: TextField(
-                                controller: _repsCtrls[key],
-                                keyboardType: TextInputType.number,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: s.completed
-                                      ? null
-                                      : ((_repsCtrls[key]?.text.isEmpty ?? true)
-                                      ? Colors.grey
-                                      : null),
-                                ),
-                                decoration: InputDecoration(
-                                  isDense: true,
-                                  hintText: s.completed ? null : hintR,
-                                  hintStyle: TextStyle(
-                                    color: Colors.grey.withValues(alpha: 0.55),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 10),
-                                  filled: true,
-                                  fillColor: cardBg,
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                ),
-                                onChanged: (_) => _syncFromField(
-                                    _exerciseIndex, i,
-                                    isWeight: false),
-                              ),
-                            ),
-                          ),
-                          SizedBox(
-                            width: 40,
-                            child: IconButton(
-                              onPressed: () =>
-                                  _toggleComplete(_exerciseIndex, i),
-                              icon: Icon(
-                                s.completed
-                                    ? Icons.check_circle
-                                    : Icons.check_circle_outline,
-                                color: s.completed
-                                    ? Colors.green
-                                    : Colors.grey,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   );
                 },
               ),
@@ -1287,10 +905,8 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: FilledButton.icon(
-                      style:
-                      FilledButton.styleFrom(backgroundColor: primary),
-                      onPressed:
-                      _exerciseIndex < _session.exercises.length - 1
+                      style: FilledButton.styleFrom(backgroundColor: primary),
+                      onPressed: _exerciseIndex < _session.exercises.length - 1
                           ? () => setState(() => _exerciseIndex++)
                           : null,
                       icon: const Icon(Icons.chevron_right),
@@ -1304,23 +920,6 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
         ),
       ),
     );
-  }
-
-
-  String _rpeLabel(int r) {
-    if (r <= 3) return 'Muy fácil';
-    if (r <= 5) return 'Moderado';
-    if (r <= 7) return 'Exigente';
-    if (r <= 9) return 'Muy duro';
-    return 'Máximo';
-  }
-
-  Color _rpeColor(int r) {
-    if (r <= 3) return const Color(0xFF4CAF50);
-    if (r <= 5) return const Color(0xFF8BC34A);
-    if (r <= 6) return const Color(0xFFFFC107);
-    if (r <= 8) return const Color(0xFFFF9800);
-    return const Color(0xFFE53935);
   }
 
   Future<void> _setExerciseRpe(int exerciseIndex, int rpe) async {

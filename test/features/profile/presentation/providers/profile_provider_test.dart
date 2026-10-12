@@ -3,7 +3,6 @@ import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:balancore/features/auth/presentation/providers/auth_provider.dart';
-import 'package:balancore/features/profile/data/profile_repository.dart';
 import 'package:balancore/features/profile/domain/user_profile.dart';
 import 'package:balancore/features/profile/presentation/providers/profile_provider.dart';
 

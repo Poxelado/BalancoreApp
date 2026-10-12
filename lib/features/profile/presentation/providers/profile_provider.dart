@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/profile_repository.dart';
 import '../../domain/user_profile.dart';
+
+export '../../data/profile_repository.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
