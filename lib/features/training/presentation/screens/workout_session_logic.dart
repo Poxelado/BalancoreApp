@@ -451,6 +451,11 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
               onTap: () => Navigator.pop(ctx, 'copy_prev'),
             ),
             ListTile(
+              leading: const Icon(Icons.calculate_outlined),
+              title: const Text('Calculadora de discos'),
+              onTap: () => Navigator.pop(ctx, 'plates'),
+            ),
+            ListTile(
               enabled: ex.sets.length > 1,
               leading: Icon(Icons.delete_outline, color: Colors.red.shade400),
               title: Text('Eliminar serie',
@@ -475,10 +480,35 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
       case 'copy_prev':
         await _copyFromPrevious(exerciseIndex, setIndex);
         break;
+      case 'plates':
+        await _openPlateCalculator(exerciseIndex, setIndex);
+        break;
       case 'delete':
         await _deleteSet(exerciseIndex, setIndex);
         break;
     }
+  }
+
+  Future<void> _openPlateCalculator(int exerciseIndex, int setIndex) async {
+    final ex = _session.exercises[exerciseIndex];
+    final s = ex.sets[setIndex];
+    final result = await showModalBottomSheet<double>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => PlateCalculatorSheet(initialWeight: s.weight),
+    );
+    if (result == null) return;
+    final exercises = List<WorkoutExerciseLog>.from(_session.exercises);
+    final e = exercises[exerciseIndex];
+    final sets = List<WorkoutSetLog>.from(e.sets);
+    sets[setIndex] = sets[setIndex].copyWith(weight: result);
+    exercises[exerciseIndex] = e.copyWith(sets: sets);
+    setState(() => _session = _session.copyWith(exercises: exercises));
+    _syncControllersForExercise(exercises[exerciseIndex]);
+    await _persist();
   }
 
   /// Reasigna el número de serie (1..n) y sincroniza los controladores.

@@ -9,6 +9,7 @@ import '../../../profile/domain/user_profile.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import 'exercise_detail_screen.dart';
 import '../widgets/session_rest_time_sheet.dart';
+import '../widgets/session_plates_sheet.dart';
 import '../widgets/session_widgets.dart';
 import '../../../../core/motivation/motivational_messages.dart';
 import '../../domain/progression_rules.dart';

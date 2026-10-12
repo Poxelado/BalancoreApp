@@ -12,6 +12,7 @@ import 'package:balancore/features/auth/presentation/providers/auth_provider.dar
 import 'package:balancore/features/profile/domain/user_profile.dart';
 import 'package:balancore/features/profile/presentation/providers/profile_provider.dart';
 import 'package:balancore/features/training/presentation/screens/workout_session_screen.dart';
+import 'package:balancore/features/training/presentation/widgets/session_plates_sheet.dart';
 
 const _uid = 'u2';
 
@@ -363,6 +364,33 @@ testWidgets('borrar una serie la elimina de la sesión y renumera',
     final unpaired = await active();
     expect(unpaired!.exercises[0].supersetId, isNull);
     expect(unpaired.exercises[1].supersetId, isNull);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('la calculadora de discos aplica el peso a la serie',
+      (WidgetTester tester) async {
+    await _openScreen(tester, container);
+    await _flush(tester);
+
+    await openSetSheet(tester);
+    await tester.tap(find.text('Calculadora de discos'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(PlateCalculatorSheet),
+        matching: find.byType(TextField),
+      ),
+      '100',
+    );
+    await tester.pump();
+    await tester.tap(find.text('Usar este peso'));
+    await _flush(tester);
+
+    final sets = (await active())!.exercises.first.sets;
+    expect(sets.first.weight, 100);
 
     await _unmount(tester);
   });
