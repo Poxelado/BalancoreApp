@@ -98,8 +98,10 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
   }
 
   String get _instructions {
-    if (widget.instructions.trim().isNotEmpty) return widget.instructions;
     final cat = ExerciseCatalog.byId(widget.exerciseId);
+    final es = cat?.instructionsEs;
+    if (es != null && es.trim().isNotEmpty) return es;
+    if (widget.instructions.trim().isNotEmpty) return widget.instructions;
     if (cat != null && cat.instructions.isNotEmpty) return cat.instructions;
     return 'Aún no hay descripción detallada para este ejercicio. '
         'Registra series en tus entrenamientos para ver estadísticas aquí.';

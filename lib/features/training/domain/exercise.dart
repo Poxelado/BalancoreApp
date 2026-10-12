@@ -7,6 +7,7 @@ class Exercise {
   final String muscleGroup;
   final String equipment;
   final String instructions;
+  final String instructionsEs;
   final bool isCustom;
 
   final String? nameEn;
@@ -25,6 +26,7 @@ class Exercise {
     required this.muscleGroup,
     this.equipment = 'Gimnasio',
     this.instructions = '',
+    this.instructionsEs = '',
     this.isCustom = false,
     this.nameEn,
     this.primaryMuscles = const [],
@@ -60,6 +62,7 @@ class Exercise {
         'instructions': instructions,
         'isCustom': isCustom,
         if (nameEn != null) 'nameEn': nameEn,
+        if (instructionsEs.isNotEmpty) 'instructionsEs': instructionsEs,
         if (primaryMuscles.isNotEmpty) 'primaryMuscles': primaryMuscles,
         if (secondaryMuscles.isNotEmpty) 'secondaryMuscles': secondaryMuscles,
         if (force != null) 'force': force,
@@ -84,6 +87,7 @@ class Exercise {
       instructions: map['instructions']?.toString() ?? '',
       isCustom: map['isCustom'] == true,
       nameEn: map['nameEn']?.toString(),
+      instructionsEs: map['instructionsEs']?.toString() ?? '',
       primaryMuscles: strList(map['primaryMuscles']),
       secondaryMuscles: strList(map['secondaryMuscles']),
       force: map['force']?.toString(),
@@ -111,6 +115,7 @@ class Exercise {
       instructions: map['instructions']?.toString() ?? '',
       isCustom: false,
       nameEn: (nameEn == null || nameEn.isEmpty) ? name : nameEn,
+      instructionsEs: map['instructionsEs']?.toString() ?? '',
       primaryMuscles: strList(map['primaryMuscles']),
       secondaryMuscles: strList(map['secondaryMuscles']),
       force: map['force']?.toString(),

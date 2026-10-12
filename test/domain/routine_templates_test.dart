@@ -73,4 +73,25 @@ void main() {
       }
     });
   });
+
+  group('Catálogo en español', () {
+    test('todos los ejercicios tienen instrucciones en español', () {
+      final sinEs = ExerciseCatalog.cache!
+          .where((e) => e.instructionsEs.trim().isEmpty)
+          .toList();
+      expect(sinEs.length, lessThanOrEqualTo(5),
+          reason: 'sin instrucciones ES: ${sinEs.map((e) => e.id).toList()}');
+    });
+
+    test('las instrucciones en español no quedan en inglés', () {
+      final conEs = ExerciseCatalog.cache!
+          .where((e) => e.instructionsEs.isNotEmpty)
+          .toList();
+      final sospechosos = conEs
+          .where((e) => e.instructionsEs.toLowerCase().contains(' with '))
+          .toList();
+      expect(sospechosos.length, lessThan(10),
+          reason: 'sospechosos EN: ${sospechosos.map((e) => e.id).toList()}');
+    });
+  });
 }
