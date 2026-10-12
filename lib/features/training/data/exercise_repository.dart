@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart' show rootBundle;
+
 import '../domain/exercise.dart';
 
 class ExerciseRepository {
@@ -13,15 +17,30 @@ class ExerciseRepository {
   CollectionReference _favorites(String uid) =>
       _db.collection('users').doc(uid).collection('favoriteExercises');
 
-  /// Catálogo built-in + ejercicios personalizados del usuario.
+  /// Carga el catálogo free-exercise-db (filtrado) una sola vez.
+  Future<List<Exercise>> loadCatalog() async {
+    if (ExerciseCatalog.cache != null) return ExerciseCatalog.cache!;
+    try {
+      final raw = await rootBundle.loadString('assets/exercises_fedb.json');
+      final list = (jsonDecode(raw) as List)
+          .map((e) => Exercise.fromFedbAsset(Map<String, dynamic>.from(e as Map)))
+          .where((e) => e.id.isNotEmpty)
+          .toList();
+      ExerciseCatalog.cache = list;
+      return list;
+    } catch (_) {
+      ExerciseCatalog.cache = ExerciseCatalog.fallback;
+      return ExerciseCatalog.fallback;
+    }
+  }
+
   Future<List<Exercise>> getAllExercises(String uid) async {
+    final catalog = await loadCatalog();
     final customSnap = await _custom(uid).get();
     final custom = customSnap.docs
-        .map((d) =>
-            Exercise.fromMap(d.id, d.data() as Map<String, dynamic>))
+        .map((d) => Exercise.fromMap(d.id, d.data() as Map<String, dynamic>))
         .toList();
-
-    final all = [...ExerciseCatalog.builtIn, ...custom];
+    final all = [...catalog, ...custom];
     all.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return all;
   }
@@ -29,8 +48,7 @@ class ExerciseRepository {
   Future<List<Exercise>> getCustomExercises(String uid) async {
     final snap = await _custom(uid).orderBy('name').get();
     return snap.docs
-        .map((d) =>
-            Exercise.fromMap(d.id, d.data() as Map<String, dynamic>))
+        .map((d) => Exercise.fromMap(d.id, d.data() as Map<String, dynamic>))
         .toList();
   }
 
@@ -46,7 +64,6 @@ class ExerciseRepository {
 
   Future<void> deleteCustomExercise(String uid, String exerciseId) async {
     await _custom(uid).doc(exerciseId).delete();
-    // Quitar de favoritos si estaba
     final fav = await _favorites(uid).doc(exerciseId).get();
     if (fav.exists) {
       await _favorites(uid).doc(exerciseId).delete();
@@ -60,13 +77,11 @@ class ExerciseRepository {
 
   Future<void> toggleFavorite(String uid, String exerciseId) async {
     final ref = _favorites(uid).doc(exerciseId);
-    final doc = await ref.get();
-    if (doc.exists) {
+    final snap = await ref.get();
+    if (snap.exists) {
       await ref.delete();
     } else {
-      await ref.set({
-        'createdAt': DateTime.now().toIso8601String(),
-      });
+      await ref.set({'createdAt': FieldValue.serverTimestamp()});
     }
   }
 }

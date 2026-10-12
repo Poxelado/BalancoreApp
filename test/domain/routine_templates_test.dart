@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:balancore/features/training/domain/exercise.dart';
 import 'package:balancore/features/training/domain/routine_templates.dart';
@@ -13,6 +16,14 @@ const _days = [
 ];
 
 void main() {
+  setUpAll(() {
+    final raw = File('assets/exercises_fedb.json').readAsStringSync();
+    ExerciseCatalog.cache = (jsonDecode(raw) as List)
+        .map((e) => Exercise.fromFedbAsset(Map<String, dynamic>.from(e as Map)))
+        .where((e) => e.id.isNotEmpty)
+        .toList();
+  });
+
   group('RoutineTemplates.all', () {
     test('contiene 3 plantillas con ids únicos', () {
       final ids = RoutineTemplates.all.map((t) => t.id).toList();

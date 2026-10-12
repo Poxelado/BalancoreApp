@@ -16,7 +16,7 @@ void main() {
     });
 
     test('byId encuentra un ejercicio existente', () {
-      expect(ExerciseCatalog.byId('ex_squat')?.name, 'Sentadilla');
+      expect(ExerciseCatalog.byId('ex_bench_press')?.name, 'Press de banca');
     });
 
     test('byId devuelve null si no existe', () {
