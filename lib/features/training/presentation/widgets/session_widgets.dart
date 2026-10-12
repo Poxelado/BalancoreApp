@@ -404,6 +404,7 @@ class SetLogRow extends StatelessWidget {
   final ValueChanged<String> onRepsChanged;
   final ValueChanged<SetType> onChangeType;
   final VoidCallback onEditNote;
+  final VoidCallback onLongPress;
   final VoidCallback onToggle;
   final VoidCallback onDismissed;
   final Future<bool> Function() confirmDismiss;
@@ -422,6 +423,7 @@ class SetLogRow extends StatelessWidget {
     required this.onRepsChanged,
     required this.onChangeType,
     required this.onEditNote,
+    required this.onLongPress,
     required this.onToggle,
     required this.onDismissed,
     required this.confirmDismiss,
@@ -449,7 +451,10 @@ class SetLogRow extends StatelessWidget {
       ),
       confirmDismiss: (_) async => confirmDismiss(),
       onDismissed: (_) => onDismissed(),
-      child: Container(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onLongPress: onLongPress,
+        child: Container(
         decoration: BoxDecoration(
           color: s.completed ? Colors.green.withValues(alpha: 0.08) : null,
           border: Border(left: BorderSide(color: typeColor, width: 3)),
@@ -586,6 +591,7 @@ class SetLogRow extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

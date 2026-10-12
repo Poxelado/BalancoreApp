@@ -354,20 +354,7 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
       return;
     }
     final sets = List<WorkoutSetLog>.from(ex.sets)..removeAt(setIndex);
-    // renumber
-    for (var i = 0; i < sets.length; i++) {
-      sets[i] = sets[i].copyWith(setNumber: i + 1);
-    }
-    exercises[exerciseIndex] = ex.copyWith(sets: sets);
-    setState(() => _session = _session.copyWith(exercises: exercises));
-    // rebuild controllers for this exercise
-    for (final s in sets) {
-      final key = '${ex.exerciseId}_${s.setNumber}';
-      _weightCtrls[key] = TextEditingController(
-        text: s.weight > 0 ? _fmtWeight(s.weight) : '',
-      );
-      _repsCtrls[key] = TextEditingController(text: '${s.reps}');
-    }
+    _applySets(exerciseIndex, sets);
     await _persist();
   }
 
@@ -416,6 +403,135 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
     sets[setIndex] = sets[setIndex].copyWith(note: ctrl.text.trim());
     exercises[exerciseIndex] = e.copyWith(sets: sets);
     setState(() => _session = _session.copyWith(exercises: exercises));
+    await _persist();
+  }
+
+  Future<void> _showSetActions(int exerciseIndex, int setIndex) async {
+    final ex = _session.exercises[exerciseIndex];
+    final isFirst = setIndex == 0;
+    final isLast = setIndex == ex.sets.length - 1;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              dense: true,
+              title: Text(
+                'Serie ${ex.sets[setIndex].setNumber} · ${ex.exerciseName}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              enabled: !isFirst,
+              leading: const Icon(Icons.arrow_upward),
+              title: const Text('Mover arriba'),
+              onTap: () => Navigator.pop(ctx, 'up'),
+            ),
+            ListTile(
+              enabled: !isLast,
+              leading: const Icon(Icons.arrow_downward),
+              title: const Text('Mover abajo'),
+              onTap: () => Navigator.pop(ctx, 'down'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy_all_outlined),
+              title: const Text('Duplicar serie'),
+              onTap: () => Navigator.pop(ctx, 'duplicate'),
+            ),
+            ListTile(
+              enabled: !isFirst,
+              leading: const Icon(Icons.content_copy_outlined),
+              title: const Text('Copiar valores de la anterior'),
+              onTap: () => Navigator.pop(ctx, 'copy_prev'),
+            ),
+            ListTile(
+              enabled: ex.sets.length > 1,
+              leading: Icon(Icons.delete_outline, color: Colors.red.shade400),
+              title: Text('Eliminar serie',
+                  style: TextStyle(color: Colors.red.shade400)),
+              onTap: () => Navigator.pop(ctx, 'delete'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (action == null) return;
+    switch (action) {
+      case 'up':
+        await _moveSet(exerciseIndex, setIndex, -1);
+        break;
+      case 'down':
+        await _moveSet(exerciseIndex, setIndex, 1);
+        break;
+      case 'duplicate':
+        await _duplicateSet(exerciseIndex, setIndex);
+        break;
+      case 'copy_prev':
+        await _copyFromPrevious(exerciseIndex, setIndex);
+        break;
+      case 'delete':
+        await _deleteSet(exerciseIndex, setIndex);
+        break;
+    }
+  }
+
+  /// Reasigna el número de serie (1..n) y sincroniza los controladores.
+  void _applySets(int exerciseIndex, List<WorkoutSetLog> sets) {
+    final exercises = List<WorkoutExerciseLog>.from(_session.exercises);
+    final ex = exercises[exerciseIndex];
+    for (var i = 0; i < sets.length; i++) {
+      sets[i] = sets[i].copyWith(setNumber: i + 1);
+    }
+    exercises[exerciseIndex] = ex.copyWith(sets: sets);
+    setState(() => _session = _session.copyWith(exercises: exercises));
+    _syncControllersForExercise(exercises[exerciseIndex]);
+  }
+
+  void _syncControllersForExercise(WorkoutExerciseLog ex) {
+    for (final s in ex.sets) {
+      final key = '${ex.exerciseId}_${s.setNumber}';
+      final w = _weightCtrls.putIfAbsent(key, TextEditingController.new);
+      final r = _repsCtrls.putIfAbsent(key, TextEditingController.new);
+      final wText = s.weight > 0 ? _fmtWeight(s.weight) : '';
+      final rText = '${s.reps}';
+      if (w.text != wText) w.text = wText;
+      if (r.text != rText) r.text = rText;
+    }
+  }
+
+  Future<void> _moveSet(int exerciseIndex, int setIndex, int delta) async {
+    final ex = _session.exercises[exerciseIndex];
+    final target = setIndex + delta;
+    if (target < 0 || target >= ex.sets.length) return;
+    final sets = List<WorkoutSetLog>.from(ex.sets);
+    final item = sets.removeAt(setIndex);
+    sets.insert(target, item);
+    _applySets(exerciseIndex, sets);
+    await _persist();
+  }
+
+  Future<void> _duplicateSet(int exerciseIndex, int setIndex) async {
+    final ex = _session.exercises[exerciseIndex];
+    final sets = List<WorkoutSetLog>.from(ex.sets);
+    sets.insert(setIndex + 1, sets[setIndex].copyWith(completed: false));
+    _applySets(exerciseIndex, sets);
+    await _persist();
+  }
+
+  Future<void> _copyFromPrevious(int exerciseIndex, int setIndex) async {
+    if (setIndex <= 0) return;
+    final ex = _session.exercises[exerciseIndex];
+    final sets = List<WorkoutSetLog>.from(ex.sets);
+    final prev = sets[setIndex - 1];
+    sets[setIndex] =
+        sets[setIndex].copyWith(weight: prev.weight, reps: prev.reps);
+    _applySets(exerciseIndex, sets);
     await _persist();
   }
 

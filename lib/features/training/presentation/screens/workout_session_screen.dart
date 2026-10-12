@@ -303,6 +303,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
                         _syncFromField(_exerciseIndex, i, isWeight: false),
                     onChangeType: (t) => _changeSetType(_exerciseIndex, i, t),
                     onEditNote: () => _editSetNote(_exerciseIndex, i),
+                    onLongPress: () => _showSetActions(_exerciseIndex, i),
                     onToggle: () => _toggleComplete(_exerciseIndex, i),
                     onDismissed: () => _deleteSet(_exerciseIndex, i),
                     confirmDismiss: () async {

@@ -295,6 +295,50 @@ testWidgets('borrar una serie la elimina de la sesión y renumera',
     await _unmount(tester);
   });
 
+  Future<void> openSetSheet(WidgetTester tester) async {
+    await tester.longPress(find.text('—').first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+  }
+
+  testWidgets('duplicar una serie la inserta después y renumera',
+      (WidgetTester tester) async {
+    await _openScreen(tester, container);
+    await _flush(tester);
+
+    await openSetSheet(tester);
+    await tester.tap(find.text('Duplicar serie'));
+    await _flush(tester);
+
+    final sets = (await active())!.exercises.first.sets;
+    expect(sets.length, 3);
+    expect(sets.map((e) => e.setNumber), [1, 2, 3]);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('mover una serie reordena y renumera', (WidgetTester tester) async {
+    await _openScreen(tester, container);
+    await _flush(tester);
+
+    await tester.tap(find.byType(PopupMenuButton<SetType>).first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text('Calentamiento'));
+    await _flush(tester);
+
+    await openSetSheet(tester);
+    await tester.tap(find.text('Mover abajo'));
+    await _flush(tester);
+
+    final sets = (await active())!.exercises.first.sets;
+    expect(sets.map((e) => e.setNumber), [1, 2]);
+    expect(sets.first.type, SetType.normal);
+    expect(sets.last.type, SetType.warmup);
+
+    await _unmount(tester);
+  });
+
   testWidgets('finalizar guarda la sesión como completada y sale de la pantalla',
       (WidgetTester tester) async {
     await _openScreen(tester, container);
