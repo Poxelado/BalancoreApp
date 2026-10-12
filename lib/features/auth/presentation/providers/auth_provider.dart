@@ -26,13 +26,42 @@ class AuthService {
     required String password,
   }) async {
     try {
-      return await _auth.createUserWithEmailAndPassword(
+      final cred = await _auth.createUserWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
+      // Enviar correo de verificación (best-effort: no rompe el registro).
+      try {
+        await cred.user?.sendEmailVerification();
+      } catch (_) {}
+      return cred;
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
     }
+  }
+
+  /// Reenvía el correo de verificación al usuario actual.
+  Future<void> sendEmailVerification() async {
+    final user = _auth.currentUser;
+    if (user == null || user.emailVerified) return;
+    try {
+      await user.sendEmailVerification();
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthException(e);
+    }
+  }
+
+  /// Recarga el usuario y devuelve si ya verificó el correo.
+  /// Fuerza el refresco del token para que el claim `email_verified` de las
+  /// reglas de Firestore se actualice.
+  Future<bool> reloadAndCheckVerified() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    await user.reload();
+    final refreshed = _auth.currentUser;
+    if (refreshed == null) return false;
+    await refreshed.getIdToken(true);
+    return refreshed.emailVerified;
   }
 
   /// Login con correo O nombre de usuario.

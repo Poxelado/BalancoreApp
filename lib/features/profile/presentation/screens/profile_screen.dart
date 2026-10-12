@@ -55,22 +55,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final user = ref.read(authServiceProvider).currentUser;
       if (user == null) return;
       final uid = user.uid;
-      final profile =
-      await ref.read(profileRepositoryProvider).getProfile(uid);
-      final username = profile?.username;
 
-      // 1) Auth primero: si falla, no tocamos Firestore
+      // 1) Borrar primero los datos de Firestore MIENTRAS la sesión sigue
+      //    autenticada. Si se eliminara la cuenta de Auth antes, el cliente
+      //    perdería el token y las reglas de Firestore rechazarían el borrado,
+      //    dejando los datos huérfanos. deleteUserData ya libera el username.
+      await ref.read(profileRepositoryProvider).deleteUserData(uid);
+
+      // 2) Sólo si los datos se borraron, eliminar la cuenta de Auth.
       await ref.read(authServiceProvider).deleteAccount();
-
-      // 2) Solo si Auth se eliminó, limpiar datos
-      try {
-        await ref
-            .read(profileRepositoryProvider)
-            .releaseUsername(username);
-      } catch (_) {}
-      try {
-        await ref.read(profileRepositoryProvider).deleteUserData(uid);
-      } catch (_) {}
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

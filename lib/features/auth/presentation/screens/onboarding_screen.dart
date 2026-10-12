@@ -89,6 +89,86 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
+  /// Devuelve un username válido y lo reclama para el usuario actual.
+  /// Prioriza el del registro por email; si no existe (p. ej. cuenta de Google)
+  /// genera uno a partir del nombre/correo y garantiza que sea único.
+  Future<String> _resolveUsername() async {
+    final user = ref.read(authServiceProvider).currentUser!;
+    final repo = ref.read(profileRepositoryProvider);
+
+    var uname = (ref.read(pendingUsernameProvider) ?? '')
+        .trim()
+        .replaceAll('@', '')
+        .toLowerCase();
+    if (uname.isEmpty) {
+      final existing = await repo.getProfile(user.uid);
+      uname = (existing?.username ?? '').trim().replaceAll('@', '').toLowerCase();
+    }
+    if (uname.length < 3) {
+      uname = await _generateUsername(
+        user.displayName ?? user.email?.split('@').first ?? 'usuario',
+      );
+    }
+
+    // Idempotente: si ya es suyo, la transacción lo re-escribe sin problema.
+    await repo.claimUsername(
+      username: uname,
+      uid: user.uid,
+      email: user.email ?? '',
+    );
+    return uname;
+  }
+
+  Future<String> _generateUsername(String raw) async {
+    final repo = ref.read(profileRepositoryProvider);
+    final cleaned = raw
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9._]'), '')
+        .replaceAll(RegExp(r'^[._]+'), '')
+        .replaceAll(RegExp(r'[._]+$'), '');
+    final base = cleaned.length >= 3
+        ? cleaned
+        : 'user${DateTime.now().millisecondsSinceEpoch % 1000000}';
+
+    var candidate = base;
+    var i = 1;
+    while (!await repo.isUsernameAvailable(candidate)) {
+      candidate = '$base$i';
+      i++;
+      if (i > 999) {
+        candidate = 'user${DateTime.now().microsecondsSinceEpoch % 1000000}';
+        break;
+      }
+    }
+    return candidate;
+  }
+
+  Future<void> _confirmLogout() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cerrar sesión'),
+        content: const Text(
+          '¿Seguro que quieres salir? Podrás volver a entrar con tu cuenta.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Salir'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await ref.read(authServiceProvider).signOut();
+    }
+  }
+
   Future<void> _saveAndContinue() async {
     if (!_formKey.currentState!.validate()) return;
     if (_wantNotifs == null) {
@@ -107,20 +187,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       final height = double.parse(_heightController.text);
       final age = int.parse(_ageController.text);
 
-      // Username solo viene del registro (perfil o pending)
-      var uname = (ref.read(pendingUsernameProvider) ?? '')
-          .trim()
-          .replaceAll('@', '')
-          .toLowerCase();
-      if (uname.isEmpty) {
-        final existing =
-        await ref.read(profileRepositoryProvider).getProfile(user.uid);
-        uname =
-            (existing?.username ?? '').trim().replaceAll('@', '').toLowerCase();
-      }
-      if (uname.isEmpty || uname.length < 3) {
-        throw 'No se encontró tu nombre de usuario del registro. Cierra sesión y regístrate de nuevo.';
-      }
+      // Asegura un username: del registro por email (pending/perfil) o
+      // generado para usuarios de Google, que no pasan por esa pantalla.
+      final uname = await _resolveUsername();
 
       final calories = UserProfile.calculateTMB(
         sex: _sex,
@@ -253,7 +322,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 48),
+                    IconButton(
+                      tooltip: 'Cerrar sesión',
+                      onPressed: _isLoading ? null : _confirmLogout,
+                      icon: const Icon(Icons.logout),
+                    ),
                   ],
                 ),
               ),

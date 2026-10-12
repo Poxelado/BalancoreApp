@@ -1,0 +1,65 @@
+rules_version = '2';
+
+// Reglas de seguridad de Cloud Firestore para Balancore.
+// Modelo de datos:
+//   users/{uid}                            -> perfil del usuario (doc id == uid)
+//     users/{uid}/weightHistory/{id}
+//     users/{uid}/routines/{day}
+//     users/{uid}/exerciseDefaults/{id}
+//     users/{uid}/dailyLogs/{yyyy-mm-dd}
+//     users/{uid}/savedFoods/{id}
+//     users/{uid}/savedRecipes/{id}
+//     users/{uid}/workoutSessions/{id}
+//     users/{uid}/customExercises/{id}
+//     users/{uid}/favoriteExercises/{id}
+//   usernames/{usernameLower}              -> { uid, email, username }
+//
+// NOTA: ya no existe la regla abierta temporal de desarrollo. Los datos sólo
+// son accesibles por su dueño autenticado.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function isVerified() {
+      return request.auth.token.email_verified == true;
+    }
+
+    // Cada usuario sólo accede a su propio documento y subcolecciones, y sólo
+    // con el correo verificado. La única excepción es el alta inicial del perfil
+    // (create), que ocurre durante el registro, antes de verificar el correo.
+    match /users/{uid} {
+      allow create: if isOwner(uid);
+      allow read, update, delete: if isOwner(uid) && isVerified();
+
+      match /{sub=**} {
+        allow read, write: if isOwner(uid) && isVerified();
+      }
+    }
+
+    // Mapa usuario -> email para permitir el login por nombre de usuario.
+    // El login ocurre ANTES de autenticar, así que la lectura es pública.
+    // TRADE-OFF CONOCIDO: esto expone los emails (enumerables). Si se quiere
+    // cerrar, hay que quitar el login por usuario o moverlo a una Cloud
+    // Function con rate limiting.
+    match /usernames/{username} {
+      allow read: if true;
+
+      // create: solo si el doc no existe (implícito) y el uid es el propio.
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid;
+
+      // update: SOLO el dueño actual puede modificarlo. Sin esta comprobación
+      // de resource.data.uid, cualquiera podría sobrescribir el username de
+      // otro (set = create-or-update) y secuestrar el login por usuario.
+      allow update: if request.auth != null
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid;
+
+      allow delete: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+    }
+  }
+}

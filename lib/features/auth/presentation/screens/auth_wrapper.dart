@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import 'login_screen.dart';
 import 'onboarding_screen.dart';
+import 'verify_email_screen.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 
@@ -17,6 +18,12 @@ class AuthWrapper extends ConsumerWidget {
       data: (user) {
         if (user == null) {
           return const LoginScreen();
+        }
+
+        // Correo sin verificar (cuentas de email/contraseña). Google ya viene
+        // verificado, así que no entra aquí.
+        if (!user.emailVerified) {
+          return const VerifyEmailScreen();
         }
 
         // Usuario logueado → verificar si completó onboarding

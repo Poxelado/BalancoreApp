@@ -46,3 +46,8 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Firma de release (nunca subir claves al repo)
+key.properties
+*.jks
+*.keystore
