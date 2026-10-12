@@ -143,7 +143,9 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
             }
           }
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('edit_routine_day: no se pudo cargar el último registro: $e');
+      }
     }
 
     setState(() {

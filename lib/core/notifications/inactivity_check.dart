@@ -1,4 +1,5 @@
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../features/profile/presentation/providers/profile_provider.dart';
@@ -79,5 +80,7 @@ Future<void> checkInactivityAndNotify(WidgetRef ref) async {
 
     await NotificationService.instance.showInactivity(body);
     await sp.setString(_kLastInactivityNotif, todayKey);
-  } catch (_) {}
+  } catch (e) {
+    debugPrint('inactivity_check: no se pudo evaluar/enviar el aviso: $e');
+  }
 }

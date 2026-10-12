@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/profile/presentation/providers/profile_provider.dart';
 import 'notification_preferences.dart';
@@ -24,5 +25,7 @@ Future<void> refreshSmartNotifications(WidgetRef ref) async {
     );
     await NotificationService.instance
         .rescheduleFromPrefs(ref.read(notificationPreferencesProvider));
-  } catch (_) {}
+  } catch (e) {
+    debugPrint('smart_schedule: no se reprogramaron los recordatorios: $e');
+  }
 }

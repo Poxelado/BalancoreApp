@@ -1,5 +1,6 @@
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:balancore/core/errors/app_exception.dart';
 import 'package:balancore/features/profile/data/profile_repository.dart';
 import 'package:balancore/features/profile/domain/user_profile.dart';
 
@@ -210,14 +211,14 @@ void main() {
     test('claimUsername rechaza nombres muy cortos', () async {
       expect(
         () => repo.claimUsername(username: 'ab', uid: 'u1', email: 'a@b.com'),
-        throwsA(isA<String>()),
+        throwsA(isA<ValidationException>()),
       );
     });
 
     test('claimUsername rechaza caracteres inválidos', () async {
       expect(
         () => repo.claimUsername(username: 'juan perez', uid: 'u1', email: 'a@b.com'),
-        throwsA(isA<String>()),
+        throwsA(isA<ValidationException>()),
       );
     });
 

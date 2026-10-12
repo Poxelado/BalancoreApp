@@ -8,6 +8,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../profile/domain/user_profile.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import 'exercise_detail_screen.dart';
+import '../widgets/session_rest_time_sheet.dart';
 import '../../../../core/motivation/motivational_messages.dart';
 import '../../domain/progression_rules.dart';
 
@@ -119,7 +120,9 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
         }
         if (mounted) setState(() {});
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('workout_session: no se pudieron limpiar las series: $e');
+    }
   }
 
   ProgressionSuggestion? _sugFor(WorkoutExerciseLog ex) {
@@ -365,7 +368,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (ctx) => _SessionRestTimeSheet(
+      builder: (ctx) => SessionRestTimeSheet(
         initialSeconds: sec,
         exerciseName: ex.exerciseName,
       ),
@@ -388,7 +391,9 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
           restSeconds: chosen,
           notes: ex.notes,
         );
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('workout_session: no se pudo guardar la serie planificada: $e');
+      }
     }
   }
 
@@ -1338,121 +1343,4 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen> {
       ),
     ),
   );
-}
-
-
-class _SessionRestTimeSheet extends StatefulWidget {
-  final int initialSeconds;
-  final String exerciseName;
-
-  const _SessionRestTimeSheet({
-    required this.initialSeconds,
-    required this.exerciseName,
-  });
-
-  @override
-  State<_SessionRestTimeSheet> createState() => _SessionRestTimeSheetState();
-}
-
-class _SessionRestTimeSheetState extends State<_SessionRestTimeSheet> {
-  late int _seconds;
-  late FixedExtentScrollController _controller;
-
-  static final List<int> _options = [
-    for (var s = 15; s <= 600; s += 15) s,
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _seconds = ((widget.initialSeconds / 15).round() * 15).clamp(15, 600);
-    final idx = _options.indexOf(_seconds);
-    _controller = FixedExtentScrollController(
-      initialItem: idx >= 0 ? idx : 3,
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  String _label(int sec) {
-    final m = sec ~/ 60;
-    final s = sec % 60;
-    if (m > 0 && s > 0) return '${m}min ${s.toString().padLeft(2, '0')}s';
-    if (m > 0) return '${m}min 0s';
-    return '${s}s';
-  }
-  @override
-  Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade400,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Temporizador de Descanso',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Temporizador de Descanso – ${widget.exerciseName}',
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 160,
-              child: ListWheelScrollView.useDelegate(
-                controller: _controller,
-                itemExtent: 44,
-                physics: const FixedExtentScrollPhysics(),
-                onSelectedItemChanged: (i) {
-                  setState(() => _seconds = _options[i]);
-                },
-                childDelegate: ListWheelChildBuilderDelegate(
-                  childCount: _options.length,
-                  builder: (context, index) {
-                    final selected = _options[index] == _seconds;
-                    return Center(
-                      child: Text(
-                        _label(_options[index]),
-                        style: TextStyle(
-                          fontSize: selected ? 20 : 16,
-                          fontWeight:
-                          selected ? FontWeight.bold : FontWeight.normal,
-                          color: selected ? primary : Colors.grey,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.pop(context, _seconds),
-                child: const Text('Listo'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

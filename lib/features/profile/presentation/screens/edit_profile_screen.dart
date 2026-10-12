@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/user_profile.dart';
+import '../../../../core/errors/app_exception.dart';
 import '../providers/profile_provider.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
@@ -133,14 +134,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       final newUsername =
       _usernameController.text.trim().replaceAll('@', '').toLowerCase();
       if (newUsername.length < 3) {
-        throw 'El usuario es obligatorio (mín. 3 caracteres).';
+        throw const ValidationException('El usuario es obligatorio (mín. 3 caracteres).');
       }
 
       final oldU = (widget.profile.username ?? '').toLowerCase();
       var changeDates = List<String>.from(widget.profile.usernameChangeDates);
       if (newUsername != oldU) {
         if (!widget.profile.canChangeUsername) {
-          throw 'Ya cambiaste el usuario 3 veces en los últimos 30 días.';
+          throw const ValidationException('Ya cambiaste el usuario 3 veces en los últimos 30 días.');
         }
         await ref.read(profileRepositoryProvider).changeUsername(
           uid: widget.profile.uid,

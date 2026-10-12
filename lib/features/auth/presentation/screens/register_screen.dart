@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
+import '../../../../core/errors/app_exception.dart';
 import '../../../profile/domain/user_profile.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -83,26 +84,28 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       ),
     );
 
-    try {
-      final username = _usernameController.text
-          .trim()
-          .replaceAll('@', '')
-          .toLowerCase();
-      final email = _emailController.text.trim();
-      final repo = ref.read(profileRepositoryProvider);
+    final username = _usernameController.text
+        .trim()
+        .replaceAll('@', '')
+        .toLowerCase();
+    final email = _emailController.text.trim();
+    final repo = ref.read(profileRepositoryProvider);
+    String? createdUid;
 
+    try {
       final available = await repo.isUsernameAvailable(username);
-      if (!available) throw 'Ese nombre de usuario ya está en uso.';
+      if (!available) throw const ValidationException('Ese nombre de usuario ya está en uso.');
 
       final cred = await ref.read(authServiceProvider).registerWithEmail(
         email: email,
         password: _passwordController.text,
       );
-      if (cred?.user == null) throw 'No se pudo crear la cuenta.';
+      if (cred?.user == null) throw const AuthException('No se pudo crear la cuenta.');
+      createdUid = cred!.user!.uid;
 
       await repo.claimUsername(
         username: username,
-        uid: cred!.user!.uid,
+        uid: createdUid,
         email: email,
       );
 
@@ -111,7 +114,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
       await repo.saveProfile(
         UserProfile(
-          uid: cred.user!.uid,
+          uid: createdUid,
           email: email,
           username: username,
           sex: 'Masculino',
@@ -132,6 +135,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
+      // Si ya creamos la cuenta de Auth pero falló el resto (p. ej. el username
+      // se tomó en la carrera), deshacemos todo para no dejar cuentas huérfanas
+      // ni usernames reservados apuntando a un uid inexistente.
+      if (createdUid != null) {
+        try {
+          await repo.releaseUsername(username);
+        } catch (_) {}
+        try {
+          await ref.read(authServiceProvider).currentUser?.delete();
+        } catch (_) {}
+      }
       if (mounted) {
         Navigator.of(context).pop(); // cierra loading
         ScaffoldMessenger.of(context).showSnackBar(

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../../../../core/errors/app_exception.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService();
@@ -17,6 +18,10 @@ class AuthService {
 
   final FirebaseAuth _auth;
   final GoogleSignIn _googleSignIn;
+
+  /// Mensaje genérico para no revelar si un correo/usuario existe.
+  static const _loginError =
+      'Usuario/correo o contraseña incorrectos. Si no tienes cuenta, regístrate.';
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
   User? get currentUser => _auth.currentUser;
@@ -36,7 +41,7 @@ class AuthService {
       } catch (_) {}
       return cred;
     } on FirebaseAuthException catch (e) {
-      throw _handleAuthException(e);
+      throw AuthException(_handleAuthException(e));
     }
   }
 
@@ -47,7 +52,7 @@ class AuthService {
     try {
       await user.sendEmailVerification();
     } on FirebaseAuthException catch (e) {
-      throw _handleAuthException(e);
+      throw AuthException(_handleAuthException(e));
     }
   }
 
@@ -72,7 +77,7 @@ class AuthService {
     required Future<String?> Function(String username) resolveUsername,
   }) async {
     final raw = identifier.trim();
-    if (raw.isEmpty) throw 'Ingresa tu correo o usuario.';
+    if (raw.isEmpty) throw const ValidationException('Ingresa tu correo o usuario.');
 
     String email;
     if (raw.contains('@')) {
@@ -81,7 +86,7 @@ class AuthService {
       final username = raw.replaceAll('@', '').toLowerCase();
       final resolved = await resolveUsername(username);
       if (resolved == null || resolved.isEmpty) {
-        throw 'No existe una cuenta con ese usuario. Debes registrarte.';
+        throw const AuthException(_loginError);
       }
       email = resolved;
     }
@@ -96,9 +101,9 @@ class AuthService {
           e.code == 'invalid-credential' ||
           e.code == 'wrong-password' ||
           e.code == 'INVALID_LOGIN_CREDENTIALS') {
-        throw 'No existe una cuenta con esas credenciales o la contraseña es incorrecta. Si eliminaste la cuenta, regístrate de nuevo.';
+        throw const AuthException(_loginError);
       }
-      throw _handleAuthException(e);
+      throw AuthException(_handleAuthException(e));
     }
   }
 
@@ -124,9 +129,9 @@ class AuthService {
       );
       return await _auth.signInWithCredential(credential);
     } on FirebaseAuthException catch (e) {
-      throw _handleAuthException(e);
+      throw AuthException(_handleAuthException(e));
     } catch (e) {
-      throw 'Error al iniciar con Google: $e';
+      throw AuthException('Error al iniciar con Google: $e');
     }
   }
 
@@ -134,7 +139,7 @@ class AuthService {
     try {
       await _auth.sendPasswordResetEmail(email: email.trim());
     } on FirebaseAuthException catch (e) {
-      throw _handleAuthException(e);
+      throw AuthException(_handleAuthException(e));
     }
   }
 
@@ -149,15 +154,16 @@ class AuthService {
   /// Debe llamarse ANTES de borrar Firestore solo si tiene éxito.
   Future<void> deleteAccount() async {
     final user = _auth.currentUser;
-    if (user == null) throw 'No hay usuario autenticado';
+    if (user == null) throw const AuthException('No hay usuario autenticado');
     try {
       await user.delete();
       await _googleSignIn.signOut();
     } on FirebaseAuthException catch (e) {
       if (e.code == 'requires-recent-login') {
-        throw 'Por seguridad, cierra sesión, vuelve a iniciar sesión e intenta eliminar la cuenta de nuevo.';
+        throw const AuthException(
+            'Por seguridad, cierra sesión, vuelve a iniciar sesión e intenta eliminar la cuenta de nuevo.');
       }
-      throw _handleAuthException(e);
+      throw AuthException(_handleAuthException(e));
     }
   }
 

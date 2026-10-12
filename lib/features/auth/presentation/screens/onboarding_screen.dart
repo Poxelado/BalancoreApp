@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../profile/domain/user_profile.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import '../providers/auth_provider.dart';
+import '../../../../core/errors/app_exception.dart';
 import '../../../../core/notifications/notification_preferences.dart';
 import '../../../../core/notifications/notification_service.dart';
 
@@ -181,7 +182,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     setState(() => _isLoading = true);
     try {
       final user = ref.read(authServiceProvider).currentUser;
-      if (user == null) throw 'No hay usuario autenticado';
+      if (user == null) throw const AuthException('No hay usuario autenticado');
 
       final weight = double.parse(_weightController.text);
       final height = double.parse(_heightController.text);

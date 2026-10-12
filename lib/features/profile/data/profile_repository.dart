@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../core/errors/app_exception.dart';
 import '../domain/user_profile.dart';
 
 class ProfileRepository {
@@ -467,7 +468,7 @@ class ProfileRepository {
   WorkoutSession _sessionFromDoc(DocumentSnapshot doc) {
     final raw = doc.data();
     if (raw is! Map) {
-      throw StateError('Sesión inválida');
+      throw const DataException('Sesión inválida');
     }
     final map = Map<String, dynamic>.from(raw);
     if (_str(map['id']).isEmpty) {
@@ -585,10 +586,10 @@ class ProfileRepository {
   }) async {
     final key = username.trim().toLowerCase().replaceAll('@', '');
     if (key.length < 3) {
-      throw 'El usuario debe tener al menos 3 caracteres.';
+      throw const ValidationException('El usuario debe tener al menos 3 caracteres.');
     }
     if (!RegExp(r'^[a-z0-9._]+$').hasMatch(key)) {
-      throw 'Usuario: solo letras minúsculas, números, punto y guión bajo.';
+      throw const ValidationException('Usuario: solo letras minúsculas, números, punto y guión bajo.');
     }
     final ref = _db.collection('usernames').doc(key);
     await _db.runTransaction((tx) async {
@@ -596,7 +597,7 @@ class ProfileRepository {
       if (snap.exists) {
         final data = snap.data();
         if (data == null || data['uid'] != uid) {
-          throw 'Ese nombre de usuario ya está en uso.';
+          throw const ValidationException('Ese nombre de usuario ya está en uso.');
         }
       }
       tx.set(ref, {
@@ -631,7 +632,7 @@ class ProfileRepository {
     final old = oldUsername?.trim().toLowerCase().replaceAll('@', '');
     if (neu == old) return;
     final ok = await isUsernameAvailable(neu, exceptUid: uid);
-    if (!ok) throw 'Ese nombre de usuario ya está en uso.';
+    if (!ok) throw const ValidationException('Ese nombre de usuario ya está en uso.');
     await claimUsername(username: neu, uid: uid, email: email);
     if (old != null && old.isNotEmpty && old != neu) {
       await releaseUsername(old);
@@ -646,23 +647,33 @@ class ProfileRepository {
     final usernameToRelease = profile?.username;
 
     final userRef = _userDoc(uid).doc(uid);
-    final subs = [
+    // Debe incluir TODAS las subcolecciones del perfil; si falta alguna,
+    // sus datos quedan huérfanos tras borrar la cuenta.
+    const subs = [
       'weightHistory',
       'routines',
+      'exerciseDefaults',
       'dailyLogs',
       'savedFoods',
+      'savedRecipes',
+      'workoutSessions',
       'customExercises',
       'favoriteExercises',
-      'workoutSessions',
     ];
+    // Firestore limita un batch a 500 operaciones: borramos por páginas.
+    const pageSize = 400;
     for (final name in subs) {
-      final snap = await userRef.collection(name).get();
-      if (snap.docs.isEmpty) continue;
-      final batch = _db.batch();
-      for (final doc in snap.docs) {
-        batch.delete(doc.reference);
+      final col = userRef.collection(name);
+      while (true) {
+        final snap = await col.limit(pageSize).get();
+        if (snap.docs.isEmpty) break;
+        final batch = _db.batch();
+        for (final doc in snap.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+        if (snap.docs.length < pageSize) break;
       }
-      await batch.commit();
     }
     final doc = await userRef.get();
     if (doc.exists) {

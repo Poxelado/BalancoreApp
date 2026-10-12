@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../errors/app_exception.dart';
 
 /// Producto normalizado desde Open Food Facts (por 100 g).
 class OffProduct {
@@ -83,7 +84,10 @@ class OpenFoodFactsService {
         }
       }
     }
-    throw lastError ?? 'Open Food Facts: sin respuesta';
+    throw NetworkException(
+      'No se pudo consultar Open Food Facts. Revisa tu conexión e inténtalo de nuevo.',
+      code: '$lastError',
+    );
   }
 
   Future<List<OffProduct>> search(String query, {int pageSize = 20}) async {
@@ -103,8 +107,9 @@ class OpenFoodFactsService {
     );
 
     if (res.statusCode != 200) {
-      throw 'Open Food Facts temporalmente no disponible '
-          '(código ${res.statusCode}). Intenta de nuevo en unos segundos.';
+      throw NetworkException(
+          'Open Food Facts temporalmente no disponible '
+          '(código ${res.statusCode}). Intenta de nuevo en unos segundos.');
     }
     final data = jsonDecode(res.body) as Map<String, dynamic>;
     final products = data['products'] as List? ?? [];
@@ -129,8 +134,9 @@ class OpenFoodFactsService {
     );
 
     if (res.statusCode != 200) {
-      throw 'Open Food Facts temporalmente no disponible '
-          '(código ${res.statusCode}). Intenta de nuevo.';
+      throw NetworkException(
+          'Open Food Facts temporalmente no disponible '
+          '(código ${res.statusCode}). Intenta de nuevo.');
     }
     final data = jsonDecode(res.body) as Map<String, dynamic>;
     if (data['status'] != 1) return null;
