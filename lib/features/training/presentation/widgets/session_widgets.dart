@@ -70,12 +70,32 @@ class ExerciseSelectorStrip extends StatelessWidget {
                     width: selected ? 2.5 : 1,
                   ),
                 ),
-                child: Icon(
-                  allDone ? Icons.check : Icons.fitness_center,
-                  color: selected
-                      ? Colors.white
-                      : (allDone ? Colors.green : Colors.grey),
-                  size: 22,
+                child: Stack(
+                  children: [
+                    Center(
+                      child: Icon(
+                        allDone ? Icons.check : Icons.fitness_center,
+                        color: selected
+                            ? Colors.white
+                            : (allDone ? Colors.green : Colors.grey),
+                        size: 22,
+                      ),
+                    ),
+                    if (e.hasSuperset)
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: const BoxDecoration(
+                            color: Colors.deepPurple,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.link,
+                              size: 11, color: Colors.white),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
@@ -90,18 +110,22 @@ class ExerciseSelectorStrip extends StatelessWidget {
 class ExerciseHeaderCard extends StatelessWidget {
   final WorkoutExerciseLog ex;
   final Color primary;
+  final String? supersetPartner;
   final VoidCallback onOpenDetail;
   final VoidCallback onEditRest;
   final VoidCallback onEditNotes;
+  final VoidCallback onEditSuperset;
   final ValueChanged<int> onSetRpe;
 
   const ExerciseHeaderCard({
     super.key,
     required this.ex,
     required this.primary,
+    this.supersetPartner,
     required this.onOpenDetail,
     required this.onEditRest,
     required this.onEditNotes,
+    required this.onEditSuperset,
     required this.onSetRpe,
   });
 
@@ -136,6 +160,37 @@ class ExerciseHeaderCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ),
+                if (supersetPartner != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.deepPurple.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.link,
+                              size: 13, color: Colors.deepPurple),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              'Superset con $supersetPartner',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.deepPurple,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -263,13 +318,29 @@ class ExerciseHeaderCard extends StatelessWidget {
               ],
             ),
           ),
-          IconButton(
-            tooltip: 'Notas del ejercicio',
-            icon: Icon(
-              ex.notes.isEmpty ? Icons.note_add_outlined : Icons.sticky_note_2,
-              color: primary,
-            ),
-            onPressed: onEditNotes,
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: 'Superset',
+                icon: Icon(
+                  ex.hasSuperset ? Icons.link : Icons.link_off,
+                  color:
+                      ex.hasSuperset ? Colors.deepPurple : primary,
+                ),
+                onPressed: onEditSuperset,
+              ),
+              IconButton(
+                tooltip: 'Notas del ejercicio',
+                icon: Icon(
+                  ex.notes.isEmpty
+                      ? Icons.note_add_outlined
+                      : Icons.sticky_note_2,
+                  color: primary,
+                ),
+                onPressed: onEditNotes,
+              ),
+            ],
           ),
         ],
       ),

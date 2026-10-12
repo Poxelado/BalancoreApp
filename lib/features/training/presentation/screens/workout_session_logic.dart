@@ -535,6 +535,95 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
     await _persist();
   }
 
+  String? _supersetPartnerName(int index) {
+    final ex = _session.exercises[index];
+    if (!ex.hasSuperset) return null;
+    for (var i = 0; i < _session.exercises.length; i++) {
+      if (i == index) continue;
+      final o = _session.exercises[i];
+      if (o.supersetId == ex.supersetId) return o.exerciseName;
+    }
+    return null;
+  }
+
+  Future<void> _editSuperset(int index) async {
+    final ex = _session.exercises[index];
+    final others = <int>[
+      for (var i = 0; i < _session.exercises.length; i++)
+        if (i != index && !_session.exercises[i].hasSuperset) i,
+    ];
+    final choice = await showModalBottomSheet<int>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              dense: true,
+              title: Text(
+                'Superset · ${ex.exerciseName}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            const Divider(height: 1),
+            if (ex.hasSuperset)
+              ListTile(
+                leading: const Icon(Icons.link_off),
+                title: const Text('Quitar del superset'),
+                onTap: () => Navigator.pop(ctx, -1),
+              ),
+            for (final i in others)
+              ListTile(
+                leading: const Icon(Icons.add_link),
+                title: Text(
+                    'Emparejar con ${_session.exercises[i].exerciseName}'),
+                onTap: () => Navigator.pop(ctx, i),
+              ),
+            if (others.isEmpty && !ex.hasSuperset)
+              const Padding(
+                padding: EdgeInsets.all(20),
+                child: Text(
+                  'No hay otros ejercicios libres para emparejar.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (choice == null) return;
+    if (choice == -1) {
+      await _unpairSuperset(index);
+    } else {
+      await _pairSuperset(index, choice);
+    }
+  }
+
+  Future<void> _pairSuperset(int a, int b) async {
+    final exercises = List<WorkoutExerciseLog>.from(_session.exercises);
+    final id = 'ss_${DateTime.now().millisecondsSinceEpoch}';
+    exercises[a] = exercises[a].copyWith(supersetId: id);
+    exercises[b] = exercises[b].copyWith(supersetId: id);
+    setState(() => _session = _session.copyWith(exercises: exercises));
+    await _persist();
+  }
+
+  Future<void> _unpairSuperset(int index) async {
+    final id = _session.exercises[index].supersetId;
+    if (id == null) return;
+    final exercises = List<WorkoutExerciseLog>.from(_session.exercises);
+    for (var i = 0; i < exercises.length; i++) {
+      if (exercises[i].supersetId == id) {
+        exercises[i] = exercises[i].copyWith(clearSuperset: true);
+      }
+    }
+    setState(() => _session = _session.copyWith(exercises: exercises));
+    await _persist();
+  }
+
   Future<void> _addSet(int exerciseIndex) async {
     final exercises = List<WorkoutExerciseLog>.from(_session.exercises);
     final ex = exercises[exerciseIndex];

@@ -91,7 +91,7 @@ Future<void> _openScreen(
     MaterialPageRoute(builder: (_) => WorkoutSessionScreen(routine: _routine())),
   );
   await tester.pump();
-  await tester.pump(const Duration(milliseconds: 50));
+  await tester.pump(const Duration(milliseconds: 400));
 }
 
 /// Drena microtareas/escrituras asíncronas sin disparar pumpAndSettle
@@ -335,6 +335,34 @@ testWidgets('borrar una serie la elimina de la sesión y renumera',
     expect(sets.map((e) => e.setNumber), [1, 2]);
     expect(sets.first.type, SetType.normal);
     expect(sets.last.type, SetType.warmup);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('emparejar y quitar un superset persiste', (WidgetTester tester) async {
+    await _openScreen(tester, container);
+    await _flush(tester);
+
+    await tester.tap(find.byTooltip('Superset'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text('Emparejar con Press Militar'));
+    await _flush(tester);
+
+    final paired = await active();
+    expect(paired!.exercises[0].supersetId, isNotNull);
+    expect(paired.exercises[1].supersetId, paired.exercises[0].supersetId);
+    expect(find.textContaining('Superset con Press Militar'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Superset'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text('Quitar del superset'));
+    await _flush(tester);
+
+    final unpaired = await active();
+    expect(unpaired!.exercises[0].supersetId, isNull);
+    expect(unpaired.exercises[1].supersetId, isNull);
 
     await _unmount(tester);
   });

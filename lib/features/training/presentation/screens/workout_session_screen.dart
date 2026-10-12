@@ -202,6 +202,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
             ExerciseHeaderCard(
               ex: ex,
               primary: primary,
+              supersetPartner: _supersetPartnerName(_exerciseIndex),
               onOpenDetail: () {
                 Navigator.push(
                   context,
@@ -216,6 +217,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
               },
               onEditRest: () => _editExerciseRest(_exerciseIndex),
               onEditNotes: _editExerciseNotes,
+              onEditSuperset: () => _editSuperset(_exerciseIndex),
               onSetRpe: (r) => _setExerciseRpe(_exerciseIndex, r),
             ),
             if (sug != null)
