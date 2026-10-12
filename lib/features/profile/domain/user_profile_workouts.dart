@@ -81,24 +81,54 @@ class DailyLog {
 }
 
 
+/// Tipo de serie. `normal` es el valor por defecto (retrocompatible).
+enum SetType {
+  normal('Normal', 'N'),
+  warmup('Calentamiento', 'C'),
+  dropset('Dropset', 'D'),
+  failure('Al fallo', 'F');
+
+  const SetType(this.label, this.short);
+
+  final String label;
+  final String short;
+
+  static SetType fromName(String? name) => SetType.values.firstWhere(
+        (t) => t.name == name,
+        orElse: () => SetType.normal,
+      );
+}
+
 class WorkoutSetLog {
   final int setNumber;
   final double weight;
   final int reps;
   final bool completed;
+  final SetType type;
+  final String note;
 
   const WorkoutSetLog({
     required this.setNumber,
     this.weight = 0,
     this.reps = 0,
     this.completed = false,
+    this.type = SetType.normal,
+    this.note = '',
   });
+
+  bool get isWarmup => type == SetType.warmup;
+
+  /// Volumen de la serie (peso × reps). No incluye calentamiento por sí solo;
+  /// el filtrado de calentamiento lo hace quien suma el volumen.
+  double get volume => weight * reps;
 
   Map<String, dynamic> toMap() => {
     'setNumber': setNumber,
     'weight': weight,
     'reps': reps,
     'completed': completed,
+    'type': type.name,
+    'note': note,
   };
 
   factory WorkoutSetLog.fromMap(Map<String, dynamic> map) {
@@ -107,19 +137,26 @@ class WorkoutSetLog {
       weight: (map['weight'] as num?)?.toDouble() ?? 0,
       reps: map['reps'] ?? 0,
       completed: map['completed'] ?? false,
+      type: SetType.fromName(map['type'] as String?),
+      note: _str(map['note']),
     );
   }
 
   WorkoutSetLog copyWith({
+    int? setNumber,
     double? weight,
     int? reps,
     bool? completed,
+    SetType? type,
+    String? note,
   }) {
     return WorkoutSetLog(
-      setNumber: setNumber,
+      setNumber: setNumber ?? this.setNumber,
       weight: weight ?? this.weight,
       reps: reps ?? this.reps,
       completed: completed ?? this.completed,
+      type: type ?? this.type,
+      note: note ?? this.note,
     );
   }
 }
@@ -133,6 +170,8 @@ class WorkoutExerciseLog {
   /// Descanso entre series de este ejercicio (segundos).
   final int restSeconds;
   final int? rpe;
+  /// Identificador de superset: ejercicios con el mismo valor van juntos.
+  final String? supersetId;
 
   const WorkoutExerciseLog({
     required this.exerciseId,
@@ -142,6 +181,7 @@ class WorkoutExerciseLog {
     this.sets = const [],
     this.restSeconds = 60,
     this.rpe,
+    this.supersetId,
   });
 
   Map<String, dynamic> toMap() => {
@@ -152,6 +192,7 @@ class WorkoutExerciseLog {
     'sets': sets.map((s) => s.toMap()).toList(),
     'restSeconds': restSeconds,
     'rpe': rpe,
+    'supersetId': supersetId,
   };
 
   factory WorkoutExerciseLog.fromMap(Map<String, dynamic> map) {
@@ -164,6 +205,7 @@ class WorkoutExerciseLog {
         }
       }
     }
+    final superset = _str(map['supersetId']).trim();
     return WorkoutExerciseLog(
       exerciseId: _str(map['exerciseId']),
       exerciseName: _str(map['exerciseName']),
@@ -172,6 +214,7 @@ class WorkoutExerciseLog {
       sets: sets,
       restSeconds: map['restSeconds'] ?? 60,
       rpe: map['rpe'] as int?,
+      supersetId: superset.isEmpty ? null : superset,
     );
   }
 
@@ -180,6 +223,8 @@ class WorkoutExerciseLog {
     String? notes,
     int? restSeconds,
     int? rpe,
+    String? supersetId,
+    bool clearSuperset = false,
   }) {
     return WorkoutExerciseLog(
       exerciseId: exerciseId,
@@ -189,10 +234,21 @@ class WorkoutExerciseLog {
       sets: sets ?? this.sets,
       restSeconds: restSeconds ?? this.restSeconds,
       rpe: rpe ?? this.rpe,
+      supersetId: clearSuperset ? null : (supersetId ?? this.supersetId),
     );
   }
 
   int get completedSets => sets.where((s) => s.completed).length;
+
+  bool get hasSuperset => supersetId != null && supersetId!.isNotEmpty;
+
+  /// Series de trabajo (excluye calentamiento).
+  List<WorkoutSetLog> get workingSets =>
+      sets.where((s) => !s.isWarmup).toList();
+
+  /// Volumen total (peso × reps), excluyendo calentamiento.
+  double get volume =>
+      workingSets.fold(0.0, (sum, s) => sum + s.volume);
 }
 
 class WorkoutSession {

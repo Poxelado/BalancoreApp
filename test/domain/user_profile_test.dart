@@ -221,6 +221,87 @@ void main() {
     });
   });
 
+  group('WorkoutSetLog', () {
+    test('toMap/fromMap conserva tipo y nota', () {
+      const s = WorkoutSetLog(
+        setNumber: 2,
+        weight: 80,
+        reps: 8,
+        completed: true,
+        type: SetType.warmup,
+        note: 'sin dolor',
+      );
+      final r = WorkoutSetLog.fromMap(s.toMap());
+      expect(r.setNumber, 2);
+      expect(r.weight, 80);
+      expect(r.reps, 8);
+      expect(r.completed, isTrue);
+      expect(r.type, SetType.warmup);
+      expect(r.note, 'sin dolor');
+    });
+
+    test('fromMap sin type cae a normal (retrocompatible)', () {
+      final r = WorkoutSetLog.fromMap({
+        'setNumber': 1,
+        'weight': 60,
+        'reps': 10,
+        'completed': false,
+      });
+      expect(r.type, SetType.normal);
+      expect(r.note, '');
+    });
+
+    test('SetType.fromName tolera valores desconocidos', () {
+      expect(SetType.fromName('dropset'), SetType.dropset);
+      expect(SetType.fromName('xxx'), SetType.normal);
+      expect(SetType.fromName(null), SetType.normal);
+    });
+
+    test('copyWith permite cambiar setNumber', () {
+      const s = WorkoutSetLog(setNumber: 1, weight: 50, reps: 5);
+      expect(s.copyWith(setNumber: 3).setNumber, 3);
+    });
+  });
+
+  group('WorkoutExerciseLog', () {
+    WorkoutExerciseLog ex({List<WorkoutSetLog>? sets, String? superset}) =>
+        WorkoutExerciseLog(
+          exerciseId: 'ex1',
+          exerciseName: 'Press Banca',
+          sets: sets ?? const [],
+          supersetId: superset,
+        );
+
+    test('supersetId hace round-trip y vacío es null', () {
+      final a = ex(superset: 'ss1');
+      expect(WorkoutExerciseLog.fromMap(a.toMap()).supersetId, 'ss1');
+      expect(a.hasSuperset, isTrue);
+
+      final b = WorkoutExerciseLog.fromMap({
+        'exerciseId': 'ex1',
+        'exerciseName': 'Press Banca',
+        'supersetId': '',
+      });
+      expect(b.supersetId, isNull);
+      expect(b.hasSuperset, isFalse);
+    });
+
+    test('volume excluye calentamiento', () {
+      final e = ex(sets: const [
+        WorkoutSetLog(setNumber: 1, weight: 40, reps: 12, type: SetType.warmup),
+        WorkoutSetLog(setNumber: 2, weight: 80, reps: 8),
+        WorkoutSetLog(setNumber: 3, weight: 80, reps: 8),
+      ]);
+      expect(e.workingSets.length, 2);
+      expect(e.volume, 1280);
+    });
+
+    test('copyWith clearSuperset quita el superset', () {
+      final e = ex(superset: 'ss1');
+      expect(e.copyWith(clearSuperset: true).supersetId, isNull);
+    });
+  });
+
   group('WorkoutSession helpers', () {
     test('dateKey formatea yyyy-MM-dd', () {
       expect(WorkoutSession.dateKey(DateTime(2026, 10, 5)), '2026-10-05');
