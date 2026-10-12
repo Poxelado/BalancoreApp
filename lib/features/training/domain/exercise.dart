@@ -102,6 +102,7 @@ class Exercise {
     }
 
     final name = map['name']?.toString() ?? '';
+    final nameEn = map['nameEn']?.toString();
     return Exercise(
       id: map['id']?.toString() ?? '',
       name: name,
@@ -109,7 +110,7 @@ class Exercise {
       equipment: map['equipment']?.toString() ?? 'Gimnasio',
       instructions: map['instructions']?.toString() ?? '',
       isCustom: false,
-      nameEn: name,
+      nameEn: (nameEn == null || nameEn.isEmpty) ? name : nameEn,
       primaryMuscles: strList(map['primaryMuscles']),
       secondaryMuscles: strList(map['secondaryMuscles']),
       force: map['force']?.toString(),

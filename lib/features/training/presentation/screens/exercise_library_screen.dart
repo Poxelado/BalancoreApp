@@ -49,9 +49,11 @@ class _ExerciseLibraryScreenState extends ConsumerState<ExerciseLibraryScreen> {
             if (_onlyFavorites && !favs.contains(e.id)) return false;
             if (_group != null && e.muscleGroup != _group) return false;
             if (_level != null && e.level != _level) return false;
-            if (_query.isNotEmpty &&
-                !e.name.toLowerCase().contains(_query.toLowerCase())) {
-              return false;
+            if (_query.isNotEmpty) {
+              final q = _query.toLowerCase();
+              final matches = e.name.toLowerCase().contains(q) ||
+                  (e.nameEn?.toLowerCase().contains(q) ?? false);
+              if (!matches) return false;
             }
             return true;
           }).toList();
