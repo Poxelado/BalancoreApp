@@ -6,6 +6,7 @@ import '../../../profile/presentation/providers/profile_provider.dart';
 import '../../domain/exercise.dart';
 import 'exercise_detail_screen.dart';
 import 'pick_exercise_screen.dart';
+import '../widgets/exercise_list_widgets.dart';
 import '../widgets/routine_day_widgets.dart';
 
 class EditRoutineDayScreen extends ConsumerStatefulWidget {
@@ -360,6 +361,11 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
                                 ),
                               ),
                               const SizedBox(width: 4),
+                              ExerciseThumb(
+                                exerciseId: ex.exerciseId,
+                                size: 40,
+                              ),
+                              const SizedBox(width: 8),
                               Expanded(
                                 child: InkWell(
                                   onTap: () {

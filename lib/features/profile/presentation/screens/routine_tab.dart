@@ -8,6 +8,7 @@ import '../../../training/presentation/screens/exercise_library_screen.dart';
 import '../../../training/presentation/screens/edit_routine_day_screen.dart';
 import '../../../training/presentation/screens/workout_session_screen.dart';
 import '../../../training/presentation/providers/exercise_provider.dart';
+import '../../../training/presentation/widgets/exercise_list_widgets.dart';
 import '../widgets/home_widgets.dart';
 import '../widgets/routine_tab_widgets.dart';
 
@@ -349,15 +350,33 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
                             Colors.grey.withValues(alpha: 0.25),
                           ),
                         ),
-                        leading: CircleAvatar(
-                          backgroundColor:
-                          primary.withValues(alpha: 0.15),
-                          child: Text(
-                            '${i + 1}',
-                            style: TextStyle(
-                              color: primary,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        leading: SizedBox(
+                          width: 46,
+                          height: 46,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              ExerciseThumb(
+                                exerciseId: e.exerciseId,
+                                size: 46,
+                              ),
+                              Positioned(
+                                left: -4,
+                                top: -4,
+                                child: CircleAvatar(
+                                  radius: 10,
+                                  backgroundColor: primary,
+                                  child: Text(
+                                    '${i + 1}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         title: Text(

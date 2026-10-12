@@ -153,4 +153,28 @@ void main() {
       expect(groups, ['Pecho', 'Espalda', 'Pierna']);
     });
   });
+
+  group('ExerciseThumb', () {
+    testWidgets('resuelve por id y cae al ícono si no existe', (tester) async {
+      ExerciseCatalog.cache = null; // sin catálogo: fallback
+      addTearDown(() => ExerciseCatalog.cache = null);
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                ExerciseThumb(exerciseId: 'ex_bench_press'),
+                ExerciseThumb(exerciseId: 'no_existe_xyz'),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(ExerciseThumb), findsNWidgets(2));
+      expect(find.byIcon(Icons.fitness_center), findsNWidgets(2));
+    });
+  });
 }

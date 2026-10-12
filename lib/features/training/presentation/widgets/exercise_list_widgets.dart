@@ -3,16 +3,25 @@ import 'package:flutter/material.dart';
 import '../../domain/exercise.dart';
 
 /// Miniatura de un ejercicio (imagen remota con fallback al ícono).
+/// Acepta un [Exercise] o resuelve por [exerciseId] desde el catálogo.
 class ExerciseThumb extends StatelessWidget {
-  final Exercise exercise;
+  final Exercise? exercise;
+  final String? exerciseId;
   final double size;
 
-  const ExerciseThumb({super.key, required this.exercise, this.size = 48});
+  const ExerciseThumb({
+    super.key,
+    this.exercise,
+    this.exerciseId,
+    this.size = 48,
+  }) : assert(exercise != null || exerciseId != null,
+            'Indica exercise o exerciseId');
 
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
-    final url = exercise.imageUrl;
+    final e = exercise ?? ExerciseCatalog.byId(exerciseId!);
+    final url = e?.imageUrl;
     if (url == null) return _fallback(primary);
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),

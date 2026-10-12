@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../profile/domain/user_profile.dart';
 import '../../domain/progression_rules.dart';
+import 'exercise_list_widgets.dart';
 
 String rpeLabel(int r) {
   if (r <= 3) return 'Muy fácil';
@@ -111,6 +112,10 @@ class ExerciseHeaderCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2, right: 10),
+            child: ExerciseThumb(exerciseId: ex.exerciseId, size: 44),
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

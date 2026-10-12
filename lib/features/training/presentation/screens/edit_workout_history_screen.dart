@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../profile/domain/user_profile.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
+import '../widgets/exercise_list_widgets.dart';
 
 /// Editar una sesión ya guardada (historial).
 class EditWorkoutHistoryScreen extends ConsumerStatefulWidget {
@@ -229,6 +230,7 @@ class _EditWorkoutHistoryScreenState
             return Card(
               margin: const EdgeInsets.only(bottom: 10),
               child: ExpansionTile(
+                leading: ExerciseThumb(exerciseId: e.exerciseId, size: 40),
                 title: Text(
                   e.exerciseName,
                   style: const TextStyle(fontWeight: FontWeight.w600),
