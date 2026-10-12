@@ -167,6 +167,19 @@ class ExerciseCatalog {
     ),
   ];
 
+  /// Cardio/extra públicos (para el selector de ejercicios).
+  static List<Exercise> get extras => _extras;
+
+  /// Catálogo para el selector: base + cardio extra, sin duplicar ids.
+  static List<Exercise> forPicker([List<Exercise> base = const []]) {
+    final seen = <String>{};
+    final out = <Exercise>[];
+    for (final e in [...base, ..._extras]) {
+      if (seen.add(e.id)) out.add(e);
+    }
+    return out;
+  }
+
   static Exercise? byId(String id) {
     for (final e in builtIn) {
       if (e.id == id) return e;

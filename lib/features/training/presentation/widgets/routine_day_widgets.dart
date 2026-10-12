@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../profile/domain/user_profile.dart';
-import '../../domain/exercise.dart';
 
 class RestTimeSheet extends StatefulWidget {
   final int initialSeconds;
@@ -437,63 +436,6 @@ class ExerciseEditorPanelState extends State<ExerciseEditorPanel> {
   }
 }
 
-class PickExerciseScreen extends StatefulWidget {
-  const PickExerciseScreen({super.key});
-
-  @override
-  State<PickExerciseScreen> createState() => PickExerciseScreenState();
-}
-
-class PickExerciseScreenState extends State<PickExerciseScreen> {
-  String _query = '';
-
-  @override
-  Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-    final filtered = ExerciseCatalog.builtIn.where((e) {
-      if (_query.isEmpty) return true;
-      return e.name.toLowerCase().contains(_query.toLowerCase()) ||
-          e.muscleGroup.toLowerCase().contains(_query.toLowerCase());
-    }).toList();
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Elegir ejercicio'),
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: TextField(
-              onChanged: (v) => setState(() => _query = v),
-              decoration: const InputDecoration(
-                hintText: 'Buscar...',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: filtered.length,
-              itemBuilder: (context, i) {
-                final e = filtered[i];
-                return ListTile(
-                  title: Text(e.name),
-                  subtitle: Text('${e.muscleGroup} · ${e.equipment}'),
-                  onTap: () => Navigator.pop(context, e),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 // ─── Selector de descanso estilo bottom sheet ─────────────
 
 Future<int?> showRestTimePicker(

@@ -5,6 +5,7 @@ import '../../../profile/domain/user_profile.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import '../../domain/exercise.dart';
 import 'exercise_detail_screen.dart';
+import 'pick_exercise_screen.dart';
 import '../widgets/routine_day_widgets.dart';
 
 class EditRoutineDayScreen extends ConsumerStatefulWidget {
@@ -105,12 +106,25 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
   }
 
   Future<void> _addExercise() async {
-    final Exercise? picked = await Navigator.push<Exercise>(
+    final picked = await Navigator.push<List<Exercise>>(
       context,
       MaterialPageRoute(builder: (_) => const PickExerciseScreen()),
     );
-    if (picked == null) return;
+    if (picked == null || picked.isEmpty) return;
 
+    final added = <RoutineExercise>[];
+    for (final exercise in picked) {
+      added.add(await _buildRoutineExercise(exercise));
+    }
+
+    setState(() {
+      _exercises.addAll(added);
+      _isRestDay = false;
+      _expandedIndex = _exercises.length - 1;
+    });
+  }
+
+  Future<RoutineExercise> _buildRoutineExercise(Exercise exercise) async {
     final user = ref.read(authServiceProvider).currentUser;
     List<PlannedSet> planned = [
       const PlannedSet(weight: 0, reps: 10),
@@ -124,7 +138,7 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
       try {
         final data = await ref
             .read(profileRepositoryProvider)
-            .getExerciseDefault(user.uid, picked.id);
+            .getExerciseDefault(user.uid, exercise.id);
         if (data != null) {
           rest = data['restSeconds'] as int? ?? 60;
           notes = (data['notes'] as String?) ?? '';
@@ -149,22 +163,16 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
       }
     }
 
-    setState(() {
-      _exercises.add(
-        RoutineExercise(
-          exerciseId: picked.id,
-          exerciseName: picked.name,
-          muscleGroup: picked.muscleGroup,
-          sets: planned.length,
-          reps: planned.first.reps,
-          plannedSets: planned,
-          restSeconds: rest,
-          notes: notes,
-        ),
-      );
-      _isRestDay = false;
-      _expandedIndex = _exercises.length - 1;
-    });
+    return RoutineExercise(
+      exerciseId: exercise.id,
+      exerciseName: exercise.name,
+      muscleGroup: exercise.muscleGroup,
+      sets: planned.length,
+      reps: planned.first.reps,
+      plannedSets: planned,
+      restSeconds: rest,
+      notes: notes,
+    );
   }
 
   void _updateExercise(int index, RoutineExercise updated) {

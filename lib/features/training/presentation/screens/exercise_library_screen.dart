@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/widgets/empty_state.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../domain/exercise.dart';
 import '../providers/exercise_provider.dart';
+import '../widgets/exercise_list_widgets.dart';
 import 'exercise_detail_screen.dart';
 
 class ExerciseLibraryScreen extends ConsumerStatefulWidget {
@@ -45,7 +44,8 @@ class _ExerciseLibraryScreenState extends ConsumerState<ExerciseLibraryScreen> {
         loading: () => Center(child: CircularProgressIndicator(color: primary)),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (list) {
-          var filtered = list.where((e) {
+          final groups = availableGroups(list);
+          final filtered = list.where((e) {
             if (_onlyFavorites && !favs.contains(e.id)) return false;
             if (_group != null && e.muscleGroup != _group) return false;
             if (_level != null && e.level != _level) return false;
@@ -58,90 +58,16 @@ class _ExerciseLibraryScreenState extends ConsumerState<ExerciseLibraryScreen> {
             return true;
           }).toList();
 
-          // Favoritos primero, luego A–Z
-          filtered.sort((a, b) {
-            final af = favs.contains(a.id);
-            final bf = favs.contains(b.id);
-            if (af != bf) return af ? -1 : 1;
-            return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-          });
-
           return Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: TextField(
-                  decoration: const InputDecoration(
-                    hintText: 'Buscar ejercicio…',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  onChanged: (v) => setState(() => _query = v.trim()),
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 40,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: FilterChip(
-                        label: const Text('Todos'),
-                        selected: _group == null,
-                        onSelected: (_) => setState(() => _group = null),
-                      ),
-                    ),
-                    ...Exercise.muscleGroups.map(
-                      (g) => Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: FilterChip(
-                          label: Text(g),
-                          selected: _group == g,
-                          onSelected: (_) => setState(
-                            () => _group = _group == g ? null : g,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(
-                height: 40,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: FilterChip(
-                        label: const Text('Cualquier nivel'),
-                        selected: _level == null,
-                        onSelected: (_) => setState(() => _level = null),
-                      ),
-                    ),
-                    for (final entry in [
-                      ('beginner', 'Principiante'),
-                      ('intermediate', 'Intermedio'),
-                      ('expert', 'Avanzado'),
-                    ])
-                      Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: FilterChip(
-                          label: Text(entry.$2),
-                          selected: _level == entry.$1,
-                          onSelected: (_) => setState(
-                            () => _level =
-                                _level == entry.$1 ? null : entry.$1,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+              ExerciseFilterBar(
+                query: _query,
+                group: _group,
+                level: _level,
+                groups: groups,
+                onQueryChanged: (v) => setState(() => _query = v.trim()),
+                onGroupChanged: (g) => setState(() => _group = g),
+                onLevelChanged: (l) => setState(() => _level = l),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
@@ -155,88 +81,27 @@ class _ExerciseLibraryScreenState extends ConsumerState<ExerciseLibraryScreen> {
                 ),
               ),
               Expanded(
-                child: filtered.isEmpty
-                    ? const EmptyState(
-                        icon: Icons.search_off,
-                        title: 'Sin ejercicios',
-                        subtitle:
-                            'Prueba otro filtro o busca por nombre.',
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
-                        itemCount: filtered.length,
-                        itemBuilder: (context, i) {
-                          final e = filtered[i];
-                          final isFav = favs.contains(e.id);
-                          final subtitle = [
-                            e.muscleGroup,
-                            e.equipment,
-                            if (e.levelEs != null) e.levelEs!,
-                            if (e.mechanic != null) e.mechanic!,
-                          ].join(' · ');
-
-                          return Card(
-                            child: ListTile(
-                              leading: e.imageUrl != null
-                                  ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Image.network(
-                                        e.imageUrl!,
-                                        width: 48,
-                                        height: 48,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) =>
-                                            Icon(Icons.fitness_center,
-                                                color: primary),
-                                      ),
-                                    )
-                                  : CircleAvatar(
-                                      backgroundColor:
-                                          primary.withValues(alpha: 0.12),
-                                      child: Icon(Icons.fitness_center,
-                                          color: primary, size: 20),
-                                    ),
-                              title: Text(
-                                e.name,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600),
-                              ),
-                              subtitle: Text(
-                                subtitle,
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                              trailing: IconButton(
-                                icon: Icon(
-                                  isFav ? Icons.star : Icons.star_border,
-                                  color:
-                                      isFav ? Colors.amber : Colors.grey,
-                                ),
-                                onPressed: () async {
-                                  final user = ref
-                                      .read(authServiceProvider)
-                                      .currentUser;
-                                  if (user == null) return;
-                                  await ref
-                                      .read(exerciseRepositoryProvider)
-                                      .toggleFavorite(user.uid, e.id);
-                                  ref.invalidate(
-                                      favoriteExerciseIdsProvider);
-                                },
-                              ),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        ExerciseDetailScreen.fromExercise(
-                                            e),
-                                  ),
-                                );
-                              },
-                            ),
-                          );
-                        },
+                child: ExerciseListBody(
+                  exercises: filtered,
+                  favoriteIds: favs,
+                  onTap: (e) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ExerciseDetailScreen.fromExercise(e),
                       ),
+                    );
+                  },
+                  onToggleFavorite: (e) async {
+                    final user =
+                        ref.read(authServiceProvider).currentUser;
+                    if (user == null) return;
+                    await ref
+                        .read(exerciseRepositoryProvider)
+                        .toggleFavorite(user.uid, e.id);
+                    ref.invalidate(favoriteExerciseIdsProvider);
+                  },
+                ),
               ),
             ],
           );
