@@ -96,7 +96,8 @@ class RecipesTab extends ConsumerWidget {
                                   '${ing.grams != null ? ' · ${ing.grams} g' : ''}',
                             ),
                           ),
-                        ButtonBar(
+                        OverflowBar(
+                          alignment: MainAxisAlignment.end,
                           children: [
                             TextButton(
                               onPressed: () async {

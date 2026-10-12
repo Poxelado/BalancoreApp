@@ -226,7 +226,7 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
           SwitchListTile(
             title: const Text('Día de descanso'),
             value: _isRestDay,
-            activeColor: primary,
+            activeThumbColor: primary,
             onChanged: (v) => setState(() {
               _isRestDay = v;
               if (v) _titleCtrl.text = 'Descanso';
@@ -292,9 +292,8 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 buildDefaultDragHandles: false,
                 itemCount: _exercises.length,
-                onReorder: (oldIndex, newIndex) {
+                onReorderItem: (oldIndex, newIndex) {
                   setState(() {
-                    if (newIndex > oldIndex) newIndex--;
                     final item = _exercises.removeAt(oldIndex);
                     _exercises.insert(newIndex, item);
                     // Ajustar índice expandido

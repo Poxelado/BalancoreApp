@@ -204,7 +204,7 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
           children: [
             Expanded(
               child: DropdownButtonFormField<bool>(
-                value: _showVolume,
+                initialValue: _showVolume,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   isDense: true,
@@ -222,7 +222,7 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
             const SizedBox(width: 12),
             Expanded(
               child: DropdownButtonFormField<int>(
-                value: _periodDays,
+                initialValue: _periodDays,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   isDense: true,

@@ -91,7 +91,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
                     : 'Desactivadas — no se enviará ningún aviso',
               ),
               value: on,
-              activeColor: primary,
+              activeThumbColor: primary,
               onChanged: (v) async {
                 if (v) {
                   final ok =

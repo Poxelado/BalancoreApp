@@ -157,7 +157,8 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
                   LineChartData(
                     minY: minW - 2,
                     maxY: maxW + 2,
-                    gridData: FlGridData(show: true, drawVerticalLine: false),
+                    gridData:
+                        const FlGridData(show: true, drawVerticalLine: false),
                     titlesData: FlTitlesData(
                       leftTitles: AxisTitles(
                         sideTitles: SideTitles(

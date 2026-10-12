@@ -269,7 +269,7 @@ class _RecipeEditorScreenState extends ConsumerState<RecipeEditorScreen> {
         actions: [
           TextButton(
             onPressed: _saving ? null : _save,
-            child: Text(
+            child: const Text(
               'Guardar',
               style: TextStyle(
                 color: Colors.white,

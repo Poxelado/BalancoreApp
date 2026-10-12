@@ -232,7 +232,7 @@ class WorkoutSession {
     final m = n.minute.toString().padLeft(2, '0');
     final s = n.second.toString().padLeft(2, '0');
     final ms = n.millisecond.toString().padLeft(3, '0');
-    return '${date}_${h}${m}${s}_$ms';
+    return '${date}_$h$m${s}_$ms';
   }
 
   static String weekdayName([DateTime? d]) {

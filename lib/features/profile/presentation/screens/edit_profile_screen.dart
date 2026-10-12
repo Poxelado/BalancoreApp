@@ -290,7 +290,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _sex,
+                  initialValue: _sex,
                   decoration: const InputDecoration(
                     labelText: 'Sexo',
                     border: OutlineInputBorder(),
@@ -360,7 +360,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            value: UserProfile.activityLevels.contains(_activityLevel)
+            initialValue: UserProfile.activityLevels.contains(_activityLevel)
                 ? _activityLevel
                 : 'Sedentario',
             decoration: const InputDecoration(
@@ -400,7 +400,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            value: _goal,
+            initialValue: _goal,
             decoration: const InputDecoration(
               labelText: 'Objetivo',
               border: OutlineInputBorder(),
