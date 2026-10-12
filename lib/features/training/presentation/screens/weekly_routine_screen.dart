@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import '../../domain/routine_templates.dart';
+import '../providers/exercise_provider.dart';
 import 'edit_routine_day_screen.dart';
 
 class WeeklyRoutineScreen extends ConsumerWidget {
@@ -92,6 +93,10 @@ class WeeklyRoutineScreen extends ConsumerWidget {
 
   Future<void> _showTemplates(BuildContext context, WidgetRef ref) async {
     final primary = Theme.of(context).colorScheme.primary;
+    // Garantiza que el catálogo esté cargado para resolver nombres/grupos
+    // de los ejercicios de las plantillas.
+    await ref.read(exerciseRepositoryProvider).loadCatalog();
+    if (!context.mounted) return;
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,

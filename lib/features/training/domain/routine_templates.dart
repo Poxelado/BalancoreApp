@@ -44,7 +44,11 @@ RoutineDay _day(
 }
 
 class RoutineTemplates {
-  static final List<RoutineTemplate> all = [
+  /// Se reconstruye en cada acceso para resolver nombres/grupos desde el
+  /// catálogo ya cargado (evita quedar vacío si se pide antes de cargarlo).
+  static List<RoutineTemplate> get all => _build();
+
+  static List<RoutineTemplate> _build() => [
     RoutineTemplate(
       id: 'full_body_3',
       name: 'Full Body (3 días)',

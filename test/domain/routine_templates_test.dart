@@ -93,5 +93,18 @@ void main() {
       expect(sospechosos.length, lessThan(10),
           reason: 'sospechosos EN: ${sospechosos.map((e) => e.id).toList()}');
     });
+
+    test('all se reconstruye desde el catálogo actual (no queda congelado)',
+        () {
+      final saved = ExerciseCatalog.cache;
+      ExerciseCatalog.cache = null; // sin catálogo: cae al id crudo
+      final before = RoutineTemplates.all.first.week.first.exercises.first;
+      ExerciseCatalog.cache = saved; // con catálogo: nombre/grupo reales
+      final after = RoutineTemplates.all.first.week.first.exercises.first;
+
+      expect(before.exerciseName, before.exerciseId);
+      expect(after.exerciseName, isNot(after.exerciseId));
+      expect(after.muscleGroup, isNotEmpty);
+    });
   });
 }

@@ -7,6 +7,7 @@ import '../../../training/presentation/screens/weekly_routine_screen.dart';
 import '../../../training/presentation/screens/exercise_library_screen.dart';
 import '../../../training/presentation/screens/edit_routine_day_screen.dart';
 import '../../../training/presentation/screens/workout_session_screen.dart';
+import '../../../training/presentation/providers/exercise_provider.dart';
 import '../widgets/home_widgets.dart';
 import '../widgets/routine_tab_widgets.dart';
 
@@ -18,6 +19,14 @@ class RoutineTab extends ConsumerStatefulWidget {
 }
 
 class _RoutineTabState extends ConsumerState<RoutineTab> {
+  @override
+  void initState() {
+    super.initState();
+    // Prefetch del catálogo para que byId/plantillas resuelvan aunque el
+    // usuario no pase primero por la Biblioteca.
+    ref.read(exerciseRepositoryProvider).loadCatalog();
+  }
+
   Future<void> _startWorkout(RoutineDay day) async {
     if (day.isRestDay) {
       ScaffoldMessenger.of(context).showSnackBar(
