@@ -1,12 +1,11 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/widgets/empty_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
+import '../widgets/history_components.dart';
 
-enum _Metric { calories, water, sleep, macros }
 
 bool _logHasData(DailyLog log) {
   return log.waterGlasses > 0 ||
@@ -34,7 +33,7 @@ class DailyHistoryScreen extends ConsumerStatefulWidget {
 
 class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
   late int _days;
-  _Metric? _selected;
+  HistoryMetric? _selected;
   String? _expandedSection; // mes yyyy-MM o semana yyyy-MM-dd (lunes)
 
   static const _ranges = <(int, String, String)>[
@@ -154,12 +153,6 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
     );
   }
 
-  static const _calColor = Color(0xFFFF9800);
-  static const _waterColor = Color(0xFF2196F3);
-  static const _sleepColor = Color(0xFF9E9E9E);
-  static const _proteinColor = Color(0xFF4CAF50);
-  static const _carbsColor = Color(0xFFFFC107);
-  static const _fatColor = Color(0xFFE91E63);
 
   @override
   Widget build(BuildContext context) {
@@ -170,7 +163,7 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         setState(() {
-          _selected = _Metric.values[forcedMetric.clamp(0, _Metric.values.length - 1)];
+          _selected = HistoryMetric.values[forcedMetric.clamp(0, HistoryMetric.values.length - 1)];
         });
         ref.read(habitsMetricProvider.notifier).state = null;
       });
@@ -229,7 +222,7 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
               ? const EdgeInsets.fromLTRB(8, 0, 8, 8)
               : const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
-            _MetricSelector(
+            MetricSelector(
               selected: _selected,
               onSelect: (m) {
                 setState(() {
@@ -248,7 +241,7 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
             const SizedBox(height: 8),
             SizedBox(
               height: 220,
-              child: _HistoryChart(
+              child: HistoryChart(
                 logs: logsAsc,
                 selected: _selected,
               ),
@@ -274,7 +267,7 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
               ..._buildWeekSections(logs)
             else
               ...logs.map(
-                    (log) => _HistoryRow(
+                    (log) => HistoryRow(
                   log: log,
                   filter: _selected,
                   onEdit: () => _editLog(log),
@@ -315,10 +308,10 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
   String _chartTitle() {
     if (_selected == null) return 'Resumen del periodo';
     return switch (_selected!) {
-      _Metric.calories => 'Calorías',
-      _Metric.water => 'Agua',
-      _Metric.sleep => 'Sueño',
-      _Metric.macros => 'Macros (P / C / G)',
+      HistoryMetric.calories => 'Calorías',
+      HistoryMetric.water => 'Agua',
+      HistoryMetric.sleep => 'Sueño',
+      HistoryMetric.macros => 'Macros (P / C / G)',
     };
   }
 
@@ -327,25 +320,25 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
       return const Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _LegendDot(color: _calColor, label: 'Kcal'),
+          LegendDot(color: historyCalColor, label: 'Kcal'),
           SizedBox(width: 10),
-          _LegendDot(color: _waterColor, label: 'Agua'),
+          LegendDot(color: historyWaterColor, label: 'Agua'),
           SizedBox(width: 10),
-          _LegendDot(color: _sleepColor, label: 'Sueño'),
+          LegendDot(color: historySleepColor, label: 'Sueño'),
           SizedBox(width: 10),
-          _LegendDot(color: _proteinColor, label: 'Macros*'),
+          LegendDot(color: historyProteinColor, label: 'Macros*'),
         ],
       );
     }
-    if (_selected == _Metric.macros) {
+    if (_selected == HistoryMetric.macros) {
       return const Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _LegendDot(color: _proteinColor, label: 'Proteína'),
+          LegendDot(color: historyProteinColor, label: 'Proteína'),
           SizedBox(width: 12),
-          _LegendDot(color: _carbsColor, label: 'Carbos'),
+          LegendDot(color: historyCarbsColor, label: 'Carbos'),
           SizedBox(width: 12),
-          _LegendDot(color: _fatColor, label: 'Grasas'),
+          LegendDot(color: historyFatColor, label: 'Grasas'),
         ],
       );
     }
@@ -450,7 +443,7 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
                 child: Column(
                   children: days
                       .map(
-                        (log) => _HistoryRow(
+                        (log) => HistoryRow(
                       log: log,
                       filter: _selected,
                       onEdit: () => _editLog(log),
@@ -518,7 +511,7 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
                 child: Column(
                   children: days
                       .map(
-                        (log) => _HistoryRow(
+                        (log) => HistoryRow(
                       log: log,
                       filter: _selected,
                       onEdit: () => _editLog(log),
@@ -672,493 +665,3 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen> {
 
 // ═══════════════════════════════════════════════════════════
 
-class _MetricSelector extends StatelessWidget {
-  final _Metric? selected;
-  final void Function(_Metric m) onSelect;
-
-  const _MetricSelector({required this.selected, required this.onSelect});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1A1A2E) : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          _MetricIcon(
-            icon: Icons.local_fire_department,
-            label: 'Calorías',
-            color: _DailyHistoryScreenState._calColor,
-            selected: selected == _Metric.calories,
-            dimmed: selected != null && selected != _Metric.calories,
-            onTap: () => onSelect(_Metric.calories),
-          ),
-          _MetricIcon(
-            icon: Icons.water_drop,
-            label: 'Agua',
-            color: _DailyHistoryScreenState._waterColor,
-            selected: selected == _Metric.water,
-            dimmed: selected != null && selected != _Metric.water,
-            onTap: () => onSelect(_Metric.water),
-          ),
-          _MetricIcon(
-            icon: Icons.bedtime,
-            label: 'Sueño',
-            color: _DailyHistoryScreenState._sleepColor,
-            selected: selected == _Metric.sleep,
-            dimmed: selected != null && selected != _Metric.sleep,
-            onTap: () => onSelect(_Metric.sleep),
-          ),
-          _MetricIcon(
-            icon: Icons.pie_chart_outline,
-            label: 'Macros',
-            color: _DailyHistoryScreenState._proteinColor,
-            selected: selected == _Metric.macros,
-            dimmed: selected != null && selected != _Metric.macros,
-            onTap: () => onSelect(_Metric.macros),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetricIcon extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final bool selected;
-  final bool dimmed;
-  final VoidCallback onTap;
-
-  const _MetricIcon({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.selected,
-    required this.dimmed,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Opacity(
-          opacity: dimmed ? 0.35 : 1,
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: selected ? 0.25 : 0.12),
-                  shape: BoxShape.circle,
-                  border:
-                  selected ? Border.all(color: color, width: 2) : null,
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: selected ? FontWeight.bold : FontWeight.w500,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LegendDot extends StatelessWidget {
-  final Color color;
-  final String label;
-
-  const _LegendDot({required this.color, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-      ],
-    );
-  }
-}
-
-// ─── Chart ─────────────────────────────────────────────────
-
-class _HistoryChart extends StatelessWidget {
-  final List<DailyLog> logs;
-  final _Metric? selected;
-
-  const _HistoryChart({required this.logs, required this.selected});
-
-  double _scalar(DailyLog log, _Metric m) {
-    return switch (m) {
-      _Metric.calories => log.consumedCalories.toDouble(),
-      _Metric.water => log.waterGlasses.toDouble(),
-      _Metric.sleep => log.sleepHours,
-      _Metric.macros => (log.proteinGrams + log.carbsGrams + log.fatGrams)
-          .toDouble(), // solo para normalizar vista conjunta
-    };
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (logs.isEmpty) {
-      return const Center(child: Text('Sin datos'));
-    }
-
-    // Vista macros: 3 series P/C/G
-    if (selected == _Metric.macros) {
-      return _buildMulti(
-        series: [
-          _Series(
-            'P',
-            _DailyHistoryScreenState._proteinColor,
-            [for (var i = 0; i < logs.length; i++) FlSpot(i.toDouble(), logs[i].proteinGrams.toDouble())],
-          ),
-          _Series(
-            'C',
-            _DailyHistoryScreenState._carbsColor,
-            [for (var i = 0; i < logs.length; i++) FlSpot(i.toDouble(), logs[i].carbsGrams.toDouble())],
-          ),
-          _Series(
-            'G',
-            _DailyHistoryScreenState._fatColor,
-            [for (var i = 0; i < logs.length; i++) FlSpot(i.toDouble(), logs[i].fatGrams.toDouble())],
-          ),
-        ],
-        normalize: false,
-        logs: logs,
-      );
-    }
-
-    // Una métrica
-    if (selected != null) {
-      final m = selected!;
-      final color = switch (m) {
-        _Metric.calories => _DailyHistoryScreenState._calColor,
-        _Metric.water => _DailyHistoryScreenState._waterColor,
-        _Metric.sleep => _DailyHistoryScreenState._sleepColor,
-        _Metric.macros => _DailyHistoryScreenState._proteinColor,
-      };
-      return _buildMulti(
-        series: [
-          _Series(
-            '',
-            color,
-            [
-              for (var i = 0; i < logs.length; i++)
-                FlSpot(i.toDouble(), _scalar(logs[i], m)),
-            ],
-          ),
-        ],
-        normalize: false,
-        logs: logs,
-      );
-    }
-
-    // Conjunto: kcal, agua, sueño + macros totales (normalizado)
-    return _buildMulti(
-      series: [
-        for (final m in [_Metric.calories, _Metric.water, _Metric.sleep, _Metric.macros])
-          _Series(
-            '',
-            switch (m) {
-              _Metric.calories => _DailyHistoryScreenState._calColor,
-              _Metric.water => _DailyHistoryScreenState._waterColor,
-              _Metric.sleep => _DailyHistoryScreenState._sleepColor,
-              _Metric.macros => _DailyHistoryScreenState._proteinColor,
-            },
-            _normalizedSpots(m),
-          ),
-      ],
-      normalize: true,
-      logs: logs,
-    );
-  }
-
-  List<FlSpot> _normalizedSpots(_Metric m) {
-    final values = logs.map((l) => _scalar(l, m)).toList();
-    final maxV = values.fold<double>(1, (a, b) => b > a ? b : a);
-    return [
-      for (var i = 0; i < values.length; i++)
-        FlSpot(i.toDouble(), maxV == 0 ? 0 : values[i] / maxV),
-    ];
-  }
-
-  Widget _buildMulti({
-    required List<_Series> series,
-    required bool normalize,
-    required List<DailyLog> logs,
-  }) {
-    double maxY = 1.05;
-    if (!normalize) {
-      maxY = 1;
-      for (final s in series) {
-        for (final spot in s.spots) {
-          if (spot.y > maxY) maxY = spot.y;
-        }
-      }
-      maxY *= 1.15;
-      if (maxY < 1) maxY = 1;
-    }
-
-    return LineChart(
-      LineChartData(
-        minX: 0,
-        maxX: (logs.length - 1).clamp(0, 9999).toDouble(),
-        minY: 0,
-        maxY: maxY,
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          getDrawingHorizontalLine: (v) => FlLine(
-            color: Colors.grey.withValues(alpha: 0.15),
-            strokeWidth: 1,
-          ),
-        ),
-        borderData: FlBorderData(show: false),
-        titlesData: FlTitlesData(
-          topTitles:
-          const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles:
-          const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: !normalize,
-              reservedSize: 36,
-              getTitlesWidget: (v, meta) {
-                if (v == 0 || (v - meta.max).abs() < 0.01) {
-                  return Text(
-                    v >= 10 ? v.toStringAsFixed(0) : v.toStringAsFixed(1),
-                    style: const TextStyle(fontSize: 10, color: Colors.grey),
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
-          ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              interval: logs.length <= 7
-                  ? 1
-                  : (logs.length / 4).ceilToDouble().clamp(1, 999),
-              getTitlesWidget: (v, meta) {
-                final i = v.round();
-                if (i < 0 || i >= logs.length) return const SizedBox.shrink();
-                final parts = logs[i].date.split('-');
-                final label = parts.length == 3
-                    ? '${parts[2]}/${parts[1]}'
-                    : logs[i].date;
-                return Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(label,
-                      style:
-                      const TextStyle(fontSize: 9, color: Colors.grey)),
-                );
-              },
-            ),
-          ),
-        ),
-        lineTouchData: LineTouchData(
-          touchTooltipData: LineTouchTooltipData(
-            getTooltipItems: (touched) {
-              return touched.map((s) {
-                final i = s.x.round().clamp(0, logs.length - 1);
-                final log = logs[i];
-                String text;
-                if (selected == _Metric.macros) {
-                  final names = ['P', 'C', 'G'];
-                  final vals = [
-                    log.proteinGrams,
-                    log.carbsGrams,
-                    log.fatGrams
-                  ];
-                  final idx = s.barIndex.clamp(0, 2);
-                  text = '${names[idx]} ${vals[idx]} g';
-                } else if (selected == _Metric.calories) {
-                  text = '${log.consumedCalories} kcal';
-                } else if (selected == _Metric.water) {
-                  text = '${log.waterGlasses} vasos';
-                } else if (selected == _Metric.sleep) {
-                  text = '${log.sleepHours.toStringAsFixed(1)} h';
-                } else {
-                  text = log.date;
-                }
-                return LineTooltipItem(
-                  text,
-                  TextStyle(
-                    color: series[s.barIndex.clamp(0, series.length - 1)].color,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                );
-              }).toList();
-            },
-          ),
-        ),
-        lineBarsData: [
-          for (final s in series)
-            LineChartBarData(
-              spots: s.spots,
-              isCurved: true,
-              color: s.color,
-              barWidth: selected == null ? 2.2 : 3,
-              isStrokeCapRound: true,
-              dotData: FlDotData(show: logs.length <= 14),
-              belowBarData: BarAreaData(
-                show: selected != null && selected != _Metric.macros,
-                color: s.color.withValues(alpha: 0.12),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Series {
-  final String name;
-  final Color color;
-  final List<FlSpot> spots;
-  _Series(this.name, this.color, this.spots);
-}
-
-// ─── Row ───────────────────────────────────────────────────
-
-class _HistoryRow extends StatelessWidget {
-  final DailyLog log;
-  final _Metric? filter;
-  final VoidCallback onEdit;
-
-  const _HistoryRow({
-    required this.log,
-    required this.filter,
-    required this.onEdit,
-  });
-
-  String get _dateLabel {
-    final parts = log.date.split('-');
-    if (parts.length != 3) return log.date;
-    return '${parts[2]}/${parts[1]}/${parts[0]}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    Widget chip(IconData icon, Color color, String value) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: color),
-          const SizedBox(width: 3),
-          Text(value, style: const TextStyle(fontSize: 12)),
-        ],
-      );
-    }
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      color: isDark ? const Color(0xFF1A1A2E) : null,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: onEdit,
-        onLongPress: onEdit,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    _dateLabel,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 13),
-                  ),
-                  const Spacer(),
-                  Icon(Icons.edit_outlined,
-                      size: 16, color: Colors.grey.shade500),
-                ],
-              ),
-              const SizedBox(height: 8),
-              if (filter == null || filter == _Metric.calories)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: chip(
-                    Icons.local_fire_department,
-                    _DailyHistoryScreenState._calColor,
-                    '${log.consumedCalories} kcal',
-                  ),
-                ),
-              if (filter == null || filter == _Metric.water)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: chip(
-                    Icons.water_drop,
-                    _DailyHistoryScreenState._waterColor,
-                    '${log.waterGlasses} vasos',
-                  ),
-                ),
-              if (filter == null || filter == _Metric.sleep)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: chip(
-                    Icons.bedtime,
-                    _DailyHistoryScreenState._sleepColor,
-                    '${log.sleepHours.toStringAsFixed(1)} h',
-                  ),
-                ),
-              if (filter == null || filter == _Metric.macros)
-                Row(
-                  children: [
-                    chip(
-                      Icons.egg_alt,
-                      _DailyHistoryScreenState._proteinColor,
-                      'Prote ${log.proteinGrams}g',
-                    ),
-                    const SizedBox(width: 10),
-                    chip(
-                      Icons.grain,
-                      _DailyHistoryScreenState._carbsColor,
-                      'Carbos ${log.carbsGrams}g',
-                    ),
-                    const SizedBox(width: 10),
-                    chip(
-                      Icons.water,
-                      _DailyHistoryScreenState._fatColor,
-                      'Grasas ${log.fatGrams}g',
-                    ),
-                  ],
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

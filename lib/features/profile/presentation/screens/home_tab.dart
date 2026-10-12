@@ -3,14 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
+import '../widgets/home_widgets.dart';
 import '../../../../core/notifications/smart_schedule.dart';
 import '../../../../core/notifications/inactivity_check.dart';
 import '../../../../core/first_run/first_run_prefs.dart';
 import '../../../../core/motivation/motivational_messages.dart';
 
 const int kMlPerGlass = 200;
-const int kWaterGoalMl = 2000;
-
 class HomeTab extends ConsumerStatefulWidget {
   const HomeTab({super.key});
 
@@ -38,7 +37,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const _FirstRunTutorialDialog(),
+      builder: (ctx) => const FirstRunTutorialDialog(),
     );
   }
 
@@ -162,7 +161,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             const SizedBox(height: 6),
             if (_motivationMsg != null) ...[
               const SizedBox(height: 6),
-              _MotivationBanner(message: _motivationMsg!),
+              MotivationBanner(message: _motivationMsg!),
             ],
             const SizedBox(height: 8),
             Container(
@@ -203,25 +202,25 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                           ),
                         ),
                         const Spacer(),
-                        _StreakIcon(
+                        StreakIcon(
                           icon: Icons.fitness_center,
                           active: trainedToday,
                           activeColor: const Color(0xFFE91E63),
                         ),
                         const SizedBox(width: 8),
-                        _StreakIcon(
+                        StreakIcon(
                           icon: Icons.water_drop,
                           active: hasWater,
                           activeColor: const Color(0xFF2196F3),
                         ),
                         const SizedBox(width: 8),
-                        _StreakIcon(
+                        StreakIcon(
                           icon: Icons.bedtime,
                           active: hasSleep,
                           activeColor: const Color(0xFF7E57C2),
                         ),
                         const SizedBox(width: 8),
-                        _StreakIcon(
+                        StreakIcon(
                           icon: Icons.restaurant,
                           active: hasFood,
                           activeColor: const Color(0xFFFF9800),
@@ -238,7 +237,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                     child: Row(
                       children: [
                         Expanded(
-                          child: _CompactHabit(
+                          child: CompactHabit(
                             icon: Icons.water_drop,
                             iconColor: const Color(0xFF2196F3),
                             label: ml > 0
@@ -258,7 +257,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                           color: Colors.grey.withValues(alpha: 0.25),
                         ),
                         Expanded(
-                          child: _CompactHabit(
+                          child: CompactHabit(
                             icon: Icons.bedtime,
                             iconColor: const Color(0xFF7E57C2),
                             label: sleepLabel,
@@ -301,7 +300,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             Row(
               children: [
                 Expanded(
-                  child: _MacroProgressCard(
+                  child: MacroProgressCard(
                     title: 'Calorías',
                     value: consumedKcal,
                     goal: targetKcal,
@@ -313,7 +312,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: _MacroProgressCard(
+                  child: MacroProgressCard(
                     title: 'Proteína',
                     value: consumedProtein,
                     goal: targetProtein,
@@ -327,7 +326,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             ),
 
             const SizedBox(height: 8),
-            _TodayTrainingCard(
+            TodayTrainingCard(
               primary: primary,
               cardBg: cardBg,
               trainedToday: trainedToday,
@@ -351,7 +350,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             Row(
               children: [
                 Expanded(
-                  child: _QuickAccess(
+                  child: QuickAccess(
                     icon: Icons.fitness_center,
                     label: 'Rutina',
                     color: const Color(0xFFE91E63),
@@ -361,7 +360,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: _QuickAccess(
+                  child: QuickAccess(
                     icon: Icons.restaurant_menu,
                     label: 'Nutrición',
                     color: const Color(0xFFFF9800),
@@ -375,7 +374,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             Row(
               children: [
                 Expanded(
-                  child: _QuickAccess(
+                  child: QuickAccess(
                     icon: Icons.insights,
                     label: 'Progreso',
                     color: const Color(0xFF5C6BC0),
@@ -385,7 +384,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: _QuickAccess(
+                  child: QuickAccess(
                     icon: Icons.person_outline,
                     label: 'Perfil',
                     color: primary,
@@ -430,376 +429,6 @@ class _HomeTabState extends ConsumerState<HomeTab> {
         .read(profileRepositoryProvider)
         .updateTodayLog(uid, sleepHours: hours);
     invalidateProgressData(ref);
-  }
-}
-
-class _FirstRunTutorialDialog extends StatefulWidget {
-  const _FirstRunTutorialDialog();
-
-  @override
-  State<_FirstRunTutorialDialog> createState() =>
-      _FirstRunTutorialDialogState();
-}
-
-class _FirstRunTutorialDialogState extends State<_FirstRunTutorialDialog> {
-  final _page = PageController();
-  int _index = 0;
-
-  static const _pages = <({
-  IconData icon,
-  String title,
-  String body,
-  Color color
-  })>[
-    (
-    icon: Icons.home_outlined,
-    title: 'Tu día en un vistazo',
-    body:
-    'En Inicio ves calorías, proteína, si toca entrenar, tu racha y accesos rápidos.',
-    color: Color(0xFF6B1228),
-    ),
-    (
-    icon: Icons.fitness_center,
-    title: 'Rutina',
-    body:
-    'Arma o elige tu rutina, registra series, pesos y descansos. La progresión te sugiere cuándo subir.',
-    color: Color(0xFFE91E63),
-    ),
-    (
-    icon: Icons.restaurant_menu,
-    title: 'Nutrición',
-    body:
-    'Registra comidas, agua y sueño. Tus macros del día se comparan con tu objetivo.',
-    color: Color(0xFFFF9800),
-    ),
-    (
-    icon: Icons.insights,
-    title: 'Progreso',
-    body:
-    'Revisa constancia, entrenos, hábitos y tendencias de macros por semana o mes.',
-    color: Color(0xFF5C6BC0),
-    ),
-    (
-    icon: Icons.local_fire_department,
-    title: 'Racha diaria',
-    body:
-    'Cumple 3 de 4 hábitos (entreno, agua, sueño, comida) para mantener la racha activa.',
-    color: Color(0xFFFF6D00),
-    ),
-  ];
-
-  @override
-  void dispose() {
-    _page.dispose();
-    super.dispose();
-  }
-
-  Future<void> _finish() async {
-    await FirstRunPrefs.markTutorialDone();
-    if (mounted) Navigator.of(context).pop();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final last = _index == _pages.length - 1;
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 16, 8, 12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              height: 260,
-              child: PageView.builder(
-                controller: _page,
-                itemCount: _pages.length,
-                onPageChanged: (i) => setState(() => _index = i),
-                itemBuilder: (_, i) {
-                  final p = _pages[i];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircleAvatar(
-                          radius: 36,
-                          backgroundColor: p.color.withValues(alpha: 0.15),
-                          child: Icon(p.icon, size: 36, color: p.color),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          p.title,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          p.body,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 14,
-                            height: 1.35,
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                _pages.length,
-                    (i) => Container(
-                  width: 8,
-                  height: 8,
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: i == _index
-                        ? _pages[i].color
-                        : Colors.grey.shade300,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                children: [
-                  if (!last)
-                    TextButton(
-                      onPressed: _finish,
-                      child: const Text('Saltar'),
-                    )
-                  else
-                    const SizedBox(width: 64),
-                  const Spacer(),
-                  FilledButton(
-                    onPressed: () {
-                      if (last) {
-                        _finish();
-                      } else {
-                        _page.nextPage(
-                          duration: const Duration(milliseconds: 280),
-                          curve: Curves.easeOut,
-                        );
-                      }
-                    },
-                    child: Text(last ? 'Empezar' : 'Siguiente'),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MacroProgressCard extends StatelessWidget {
-  final String title;
-  final int value;
-  final int goal;
-  final String unit;
-  final Color color;
-  final IconData icon;
-  final Color cardBg;
-
-  const _MacroProgressCard({
-    required this.title,
-    required this.value,
-    required this.goal,
-    required this.unit,
-    required this.color,
-    required this.icon,
-    required this.cardBg,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final pct = goal > 0 ? (value / goal).clamp(0.0, 1.0) : 0.0;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 18, color: color),
-              const SizedBox(width: 6),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade700,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '$value',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          Text(
-            '/ $goal $unit',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: pct,
-              minHeight: 6,
-              backgroundColor: color.withValues(alpha: 0.15),
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TodayTrainingCard extends StatelessWidget {
-  final Color primary;
-  final Color cardBg;
-  final bool trainedToday;
-  final bool pendingSession;
-  final String? sessionTitle;
-  final VoidCallback onGoRoutine;
-
-  const _TodayTrainingCard({
-    required this.primary,
-    required this.cardBg,
-    required this.trainedToday,
-    required this.pendingSession,
-    required this.sessionTitle,
-    required this.onGoRoutine,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    late final IconData icon;
-    late final String title;
-    late final String subtitle;
-    late final Color accent;
-
-    if (trainedToday) {
-      icon = Icons.check_circle;
-      title = 'Entreno completado';
-      subtitle = (sessionTitle != null && sessionTitle!.isNotEmpty)
-          ? sessionTitle!
-          : 'Buen trabajo hoy';
-      accent = const Color(0xFF4CAF50);
-    } else if (pendingSession) {
-      icon = Icons.play_circle_outline;
-      title = 'Entreno en curso';
-      subtitle = (sessionTitle != null && sessionTitle!.isNotEmpty)
-          ? 'Continúa: $sessionTitle'
-          : 'Sigue en la pestaña Rutina';
-      accent = const Color(0xFFE91E63);
-    } else {
-      icon = Icons.fitness_center;
-      title = 'Entreno de hoy';
-      subtitle = 'Abre Rutina para empezar tu sesión';
-      accent = primary;
-    }
-
-    return Material(
-      color: cardBg,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onGoRoutine,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              CircleAvatar(
-                backgroundColor: accent.withValues(alpha: 0.15),
-                child: Icon(icon, color: accent),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right, color: Colors.grey.shade500),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _QuickAccess extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _QuickAccess({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: color.withValues(alpha: 0.1),
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-          child: Row(
-            children: [
-              Icon(icon, color: color, size: 22),
-              const SizedBox(width: 10),
-              Text(
-                label,
-                style: TextStyle(fontWeight: FontWeight.w600, color: color),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 
@@ -852,188 +481,3 @@ int _computeStreak(
   return streak;
 }
 
-class _StreakIcon extends StatelessWidget {
-  final IconData icon;
-  final bool active;
-  final Color activeColor;
-
-  const _StreakIcon({
-    required this.icon,
-    required this.active,
-    required this.activeColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Icon(
-      icon,
-      size: 20,
-      color: active ? activeColor : Colors.grey.shade500,
-    );
-  }
-}
-
-class _CompactHabit extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String label;
-  final VoidCallback? onMinus;
-  final VoidCallback? onPlus;
-
-  const _CompactHabit({
-    required this.icon,
-    required this.iconColor,
-    required this.label,
-    this.onMinus,
-    this.onPlus,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-      child: Row(
-        children: [
-          Icon(icon, color: iconColor, size: 22),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          _MiniBtn(icon: Icons.remove, onTap: onMinus),
-          const SizedBox(width: 4),
-          _MiniBtn(icon: Icons.add, onTap: onPlus),
-        ],
-      ),
-    );
-  }
-}
-
-class _MiniBtn extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  const _MiniBtn({required this.icon, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 28,
-      height: 28,
-      child: IconButton(
-        padding: EdgeInsets.zero,
-        iconSize: 18,
-        onPressed: onTap,
-        icon: Icon(icon),
-      ),
-    );
-  }
-}
-
-
-/// Usado por [RoutineTab] (import home_tab.dart) para sincronizar agua con Inicio.
-class CompactWaterControl extends ConsumerWidget {
-  const CompactWaterControl({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final logAsync = ref.watch(todayLogProvider);
-    return logAsync.when(
-      loading: () => const SizedBox(
-        height: 52,
-        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-      ),
-      error: (e, _) => Text('$e'),
-      data: (log) {
-        final profile = ref.watch(userProfileProvider).value;
-        final maxGlasses = profile?.targetWaterGlasses ?? 10;
-        final goalMl = profile != null && profile.targetWaterMl > 0
-            ? profile.targetWaterMl
-            : (profile != null
-            ? UserProfile.calculateWaterMl(weightKg: profile.currentWeight)
-            : kWaterGoalMl);
-
-        final ml = log.waterGlasses * kMlPerGlass;
-        return Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context)
-                .colorScheme
-                .surfaceContainerHighest
-                .withValues(alpha: 0.65),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: _CompactHabit(
-            icon: Icons.water_drop,
-            iconColor: const Color(0xFF2196F3),
-            label: ml > 0
-                ? '${ml}ml / ${(goalMl / 1000).toStringAsFixed(1)}L'
-                : '0ml / ${(goalMl / 1000).toStringAsFixed(1)}L',
-            onMinus: log.waterGlasses > 0
-                ? () async {
-              final uid =
-                  ref.read(authServiceProvider).currentUser?.uid;
-              if (uid == null) return;
-              await ref.read(profileRepositoryProvider).updateTodayLog(
-                uid,
-                waterGlasses: log.waterGlasses - 1,
-              );
-              invalidateProgressData(ref);
-            }
-                : null,
-            onPlus: log.waterGlasses < maxGlasses
-                ? () async {
-              final uid =
-                  ref.read(authServiceProvider).currentUser?.uid;
-              if (uid == null) return;
-              await ref.read(profileRepositoryProvider).updateTodayLog(
-                uid,
-                waterGlasses: log.waterGlasses + 1,
-              );
-              invalidateProgressData(ref);
-            }
-                : null,
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _MotivationBanner extends StatelessWidget {
-  final String message;
-  const _MotivationBanner({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: primary.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: primary.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.auto_awesome, size: 18, color: primary),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.3,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
