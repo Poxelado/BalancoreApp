@@ -17,7 +17,7 @@ class WaterRow extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           children: [
-            Icon(Icons.water_drop, color: Colors.blue.shade400),
+            const Icon(Icons.water_drop, color: AppDataColors.water),
             const SizedBox(width: 8),
             Text('Agua: $glasses vasos',
                 style: const TextStyle(fontWeight: FontWeight.w600)),
