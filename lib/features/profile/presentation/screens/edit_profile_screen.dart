@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/preferences/units_provider.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../domain/user_profile.dart';
 import '../../../../core/errors/app_exception.dart';
 import '../providers/profile_provider.dart';
@@ -471,15 +472,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           Row(
             children: [
               Expanded(
-                child: _macroBox('Proteína', '$_targetProtein g', Colors.orange),
+                child: _macroBox('Proteína', '$_targetProtein g', AppDataColors.protein),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _macroBox('Carbos', '$_targetCarbs g', Colors.blue),
+                child: _macroBox('Carbos', '$_targetCarbs g', AppDataColors.carbs),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _macroBox('Grasas', '$_targetFat g', Colors.redAccent),
+                child: _macroBox('Grasas', '$_targetFat g', AppDataColors.fat),
               ),
             ],
           ),

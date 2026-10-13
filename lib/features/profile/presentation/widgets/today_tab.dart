@@ -80,7 +80,9 @@ class TodayTab extends ConsumerWidget {
                           value: progress > 1 ? 1 : progress,
                           strokeWidth: 10,
                           backgroundColor: Colors.grey.withValues(alpha: 0.2),
-                          color: remaining < 0 ? Colors.orange : primary,
+                          color: remaining < 0
+                              ? AppSemanticColors.of(context).warning
+                              : primary,
                         ),
                       ),
                       Column(
@@ -115,8 +117,9 @@ class TodayTab extends ConsumerWidget {
                             ? 'Restan $remaining kcal'
                             : 'Te pasaste ${-remaining} kcal',
                         style: TextStyle(
-                          color:
-                          remaining < 0 ? Colors.orange : Colors.green,
+                          color: remaining < 0
+                              ? AppSemanticColors.of(context).warning
+                              : AppSemanticColors.of(context).success,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -149,17 +152,17 @@ class TodayTab extends ConsumerWidget {
             label: 'Proteína',
             current: log.proteinGrams,
             target: targetP,
-            color: Colors.orange),
+            color: AppDataColors.protein),
         MacroBar(
             label: 'Carbohidratos',
             current: log.carbsGrams,
             target: targetC,
-            color: Colors.blue),
+            color: AppDataColors.carbs),
         MacroBar(
             label: 'Grasas',
             current: log.fatGrams,
             target: targetF,
-            color: Colors.redAccent),
+            color: AppDataColors.fat),
         const SizedBox(height: 16),
 
         Row(

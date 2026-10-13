@@ -189,6 +189,22 @@ class AppAccentColors extends ThemeExtension<AppAccentColors> {
 /// Primer plano legible con el color de la paleta elegida.
 Color accentOf(BuildContext context) => AppAccentColors.of(context).accent;
 
+/// Paleta ÚNICA de colores de dato (macros, calorías, agua, sueño, entreno,
+/// racha). A diferencia de [AppSemanticColors], estos colores no cambian con
+/// el tema ni la paleta: identifican una magnitud concreta y deben ser siempre
+/// los mismos en toda la app. Antes de esto existían dos paletas de macros
+/// distintas (verde/ámbar/rosa y naranja/azul/rojo); aquí queda una sola.
+class AppDataColors {
+  static const Color calories = Color(0xFFFF9800);
+  static const Color protein = Color(0xFF4CAF50);
+  static const Color carbs = Color(0xFFFFC107);
+  static const Color fat = Color(0xFFE91E63);
+  static const Color water = Color(0xFF2196F3);
+  static const Color sleep = Color(0xFF7E57C2);
+  static const Color training = Color(0xFFE91E63);
+  static const Color streak = Color(0xFFFF6D00);
+}
+
 class AppTheme {
   /// Radio base usado por tarjetas, botones e inputs.
   static const double radius = 16;

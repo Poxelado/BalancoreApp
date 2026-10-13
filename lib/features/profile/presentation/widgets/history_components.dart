@@ -1,15 +1,16 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../domain/user_profile.dart';
 
 enum HistoryMetric { calories, water, sleep, macros }
 
-const historyCalColor = Color(0xFFFF9800);
-const historyWaterColor = Color(0xFF2196F3);
-const historySleepColor = Color(0xFF9E9E9E);
-const historyProteinColor = Color(0xFF4CAF50);
-const historyCarbsColor = Color(0xFFFFC107);
-const historyFatColor = Color(0xFFE91E63);
+const historyCalColor = AppDataColors.calories;
+const historyWaterColor = AppDataColors.water;
+const historySleepColor = AppDataColors.sleep;
+const historyProteinColor = AppDataColors.protein;
+const historyCarbsColor = AppDataColors.carbs;
+const historyFatColor = AppDataColors.fat;
 
 class MetricSelector extends StatelessWidget {
   final HistoryMetric? selected;

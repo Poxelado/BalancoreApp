@@ -93,7 +93,7 @@ class _WeeklyMacroCardState extends ConsumerState<WeeklyMacroCard> {
                               label: 'Proteína OK',
                               value:
                               '${report.daysHitProtein}/${report.daysWithData}',
-                              color: const Color(0xFF4CAF50),
+                              color: AppDataColors.protein,
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -102,7 +102,7 @@ class _WeeklyMacroCardState extends ConsumerState<WeeklyMacroCard> {
                               label: 'Kcal en rango',
                               value:
                               '${report.daysHitCalories}/${report.daysWithData}',
-                              color: const Color(0xFFFF9800),
+                              color: AppDataColors.calories,
                             ),
                           ),
                         ],
@@ -113,7 +113,7 @@ class _WeeklyMacroCardState extends ConsumerState<WeeklyMacroCard> {
                         avg: report.avgCalories,
                         target: report.targetCalories.toDouble(),
                         delta: report.deltaCalories,
-                        color: const Color(0xFFFF9800),
+                        color: AppDataColors.calories,
                         unit: '',
                       ),
                       _MacroBar(
@@ -121,7 +121,7 @@ class _WeeklyMacroCardState extends ConsumerState<WeeklyMacroCard> {
                         avg: report.avgProtein,
                         target: report.targetProtein.toDouble(),
                         delta: report.deltaProtein,
-                        color: const Color(0xFF4CAF50),
+                        color: AppDataColors.protein,
                         unit: 'g',
                       ),
                       _MacroBar(
@@ -129,7 +129,7 @@ class _WeeklyMacroCardState extends ConsumerState<WeeklyMacroCard> {
                         avg: report.avgCarbs,
                         target: report.targetCarbs.toDouble(),
                         delta: report.deltaCarbs,
-                        color: const Color(0xFFFFC107),
+                        color: AppDataColors.carbs,
                         unit: 'g',
                       ),
                       _MacroBar(
@@ -137,7 +137,7 @@ class _WeeklyMacroCardState extends ConsumerState<WeeklyMacroCard> {
                         avg: report.avgFat,
                         target: report.targetFat.toDouble(),
                         delta: report.deltaFat,
-                        color: const Color(0xFFE91E63),
+                        color: AppDataColors.fat,
                         unit: 'g',
                       ),
                       const SizedBox(height: 8),
@@ -161,20 +161,20 @@ class _WeeklyMacroCardState extends ConsumerState<WeeklyMacroCard> {
                                   flex:
                                   report.proteinCalPct.round().clamp(1, 100),
                                   child: Container(
-                                      color: const Color(0xFF4CAF50)),
+                                      color: AppDataColors.protein),
                                 ),
                               if (report.carbsCalPct > 0)
                                 Expanded(
                                   flex:
                                   report.carbsCalPct.round().clamp(1, 100),
                                   child: Container(
-                                      color: const Color(0xFFFFC107)),
+                                      color: AppDataColors.carbs),
                                 ),
                               if (report.fatCalPct > 0)
                                 Expanded(
                                   flex: report.fatCalPct.round().clamp(1, 100),
                                   child: Container(
-                                      color: const Color(0xFFE91E63)),
+                                      color: AppDataColors.fat),
                                 ),
                             ],
                           ),

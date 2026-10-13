@@ -192,7 +192,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                           Icons.local_fire_department,
                           size: 34,
                           color: streakReady
-                              ? const Color(0xFFFF6D00)
+                              ? AppDataColors.streak
                               : Colors.grey.shade600,
                         ),
                         const SizedBox(width: 6),
@@ -202,7 +202,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                             fontSize: 26,
                             fontWeight: FontWeight.bold,
                             color: streakReady
-                                ? const Color(0xFFFF6D00)
+                                ? AppDataColors.streak
                                 : Colors.grey.shade500,
                           ),
                         ),
@@ -218,25 +218,25 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                         StreakIcon(
                           icon: Icons.fitness_center,
                           active: trainedToday,
-                          activeColor: const Color(0xFFE91E63),
+                          activeColor: AppDataColors.training,
                         ),
                         const SizedBox(width: 8),
                         StreakIcon(
                           icon: Icons.water_drop,
                           active: hasWater,
-                          activeColor: const Color(0xFF2196F3),
+                          activeColor: AppDataColors.water,
                         ),
                         const SizedBox(width: 8),
                         StreakIcon(
                           icon: Icons.bedtime,
                           active: hasSleep,
-                          activeColor: const Color(0xFF7E57C2),
+                          activeColor: AppDataColors.sleep,
                         ),
                         const SizedBox(width: 8),
                         StreakIcon(
                           icon: Icons.restaurant,
                           active: hasFood,
-                          activeColor: const Color(0xFFFF9800),
+                          activeColor: AppDataColors.calories,
                         ),
                       ],
                     ),
@@ -252,7 +252,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                         Expanded(
                           child: CompactHabit(
                             icon: Icons.water_drop,
-                            iconColor: const Color(0xFF2196F3),
+                            iconColor: AppDataColors.water,
                             label: ml > 0
                                 ? '${ml}ml / ${(goalMl / 1000).toStringAsFixed(1)}L'
                                 : '0ml / ${(goalMl / 1000).toStringAsFixed(1)}L',
@@ -272,7 +272,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                         Expanded(
                           child: CompactHabit(
                             icon: Icons.bedtime,
-                            iconColor: const Color(0xFF7E57C2),
+                            iconColor: AppDataColors.sleep,
                             label: sleepLabel,
                             onMinus: log.sleepHours > 0
                                 ? () => _setSleep(
@@ -318,7 +318,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                     value: consumedKcal,
                     goal: targetKcal,
                     unit: 'kcal',
-                    color: const Color(0xFFFF9800),
+                    color: AppDataColors.calories,
                     icon: Icons.local_fire_department_outlined,
                     cardBg: cardBg,
                   ),
@@ -330,7 +330,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                     value: consumedProtein,
                     goal: targetProtein,
                     unit: 'g',
-                    color: const Color(0xFF4CAF50),
+                    color: AppDataColors.protein,
                     icon: Icons.egg_outlined,
                     cardBg: cardBg,
                   ),

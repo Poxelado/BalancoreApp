@@ -112,10 +112,10 @@ class GoalPage extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       _macroPreview(
-                          'Prot', '${macros.protein} g', Colors.orange),
-                      _macroPreview('Carb', '${macros.carbs} g', Colors.blue),
+                          'Prot', '${macros.protein} g', AppDataColors.protein),
+                      _macroPreview('Carb', '${macros.carbs} g', AppDataColors.carbs),
                       _macroPreview(
-                          'Grasa', '${macros.fat} g', Colors.redAccent),
+                          'Grasa', '${macros.fat} g', AppDataColors.fat),
                     ],
                   ),
                   const SizedBox(height: 8),
