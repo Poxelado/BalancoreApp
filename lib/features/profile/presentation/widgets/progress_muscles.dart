@@ -363,8 +363,10 @@ class MuscleSeriesChart extends StatelessWidget {
         ? 1
         : (buckets.length <= 14 ? 2 : (buckets.length / 5).ceil());
 
-    return LineChart(
-      LineChartData(
+    return Semantics(
+      label: 'Series por grupo muscular en el tiempo',
+      child: LineChart(
+        LineChartData(
         minX: 0,
         maxX: (buckets.length - 1).toDouble().clamp(0, double.infinity),
         minY: 0,
@@ -442,6 +444,7 @@ class MuscleSeriesChart extends StatelessWidget {
           ),
         ),
         lineBarsData: bars,
+      ),
       ),
     );
   }

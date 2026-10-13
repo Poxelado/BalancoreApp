@@ -30,6 +30,7 @@ class ExerciseThumb extends StatelessWidget {
         width: size,
         height: size,
         fit: BoxFit.cover,
+        semanticLabel: e?.name ?? 'Imagen del ejercicio',
         errorBuilder: (_, __, ___) => _fallback(primary),
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;
@@ -330,6 +331,9 @@ class ExerciseListBody extends StatelessWidget {
               )
             : (onToggleFavorite != null
                 ? IconButton(
+                    tooltip: isFav
+                        ? 'Quitar de favoritos'
+                        : 'Añadir a favoritos',
                     icon: Icon(
                       isFav ? Icons.star : Icons.star_border,
                       color: isFav ? Colors.amber : Colors.grey,

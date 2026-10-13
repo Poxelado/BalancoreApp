@@ -731,6 +731,7 @@ class SetLogRow extends StatelessWidget {
             SizedBox(
               width: 38,
               child: IconButton(
+                tooltip: 'Marcar serie',
                 padding: EdgeInsets.zero,
                 visualDensity: VisualDensity.compact,
                 onPressed: onToggle,

@@ -263,19 +263,22 @@ class WorkoutSummaryScreen extends StatelessWidget {
           SizedBox(
             width: 130,
             height: 130,
-            child: PieChart(
-              PieChartData(
-                sectionsSpace: 2,
-                centerSpaceRadius: 34,
-                sections: [
-                  for (final s in slices)
-                    PieChartSectionData(
-                      value: s.value,
-                      color: s.color,
-                      radius: 34,
-                      showTitle: false,
-                    ),
-                ],
+            child: Semantics(
+              label: 'Distribución de series por grupo muscular',
+              child: PieChart(
+                PieChartData(
+                  sectionsSpace: 2,
+                  centerSpaceRadius: 34,
+                  sections: [
+                    for (final s in slices)
+                      PieChartSectionData(
+                        value: s.value,
+                        color: s.color,
+                        radius: 34,
+                        showTitle: false,
+                      ),
+                  ],
+                ),
               ),
             ),
           ),

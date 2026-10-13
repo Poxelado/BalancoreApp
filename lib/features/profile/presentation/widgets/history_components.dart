@@ -263,8 +263,10 @@ class HistoryChart extends StatelessWidget {
       if (maxY < 1) maxY = 1;
     }
 
-    return LineChart(
-      LineChartData(
+    return Semantics(
+      label: 'Evolución del progreso en el tiempo',
+      child: LineChart(
+        LineChartData(
         minX: 0,
         maxX: (logs.length - 1).clamp(0, 9999).toDouble(),
         minY: 0,
@@ -373,6 +375,7 @@ class HistoryChart extends StatelessWidget {
               ),
             ),
         ],
+      ),
       ),
     );
   }

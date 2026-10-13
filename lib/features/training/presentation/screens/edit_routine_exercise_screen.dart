@@ -310,6 +310,7 @@ class _EditRoutineExerciseScreenState extends State<EditRoutineExerciseScreen> {
                     ),
                   ),
                   IconButton(
+                    tooltip: 'Eliminar serie',
                     icon: const Icon(Icons.close, size: 20),
                     onPressed: () => _removeSet(i),
                   ),

@@ -429,9 +429,9 @@ class CompactHabit extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          MiniBtn(icon: Icons.remove, onTap: onMinus),
+          MiniBtn(icon: Icons.remove, label: 'Quitar', onTap: onMinus),
           const SizedBox(width: 4),
-          MiniBtn(icon: Icons.add, onTap: onPlus),
+          MiniBtn(icon: Icons.add, label: 'Añadir', onTap: onPlus),
         ],
       ),
     );
@@ -440,9 +440,10 @@ class CompactHabit extends StatelessWidget {
 
 class MiniBtn extends StatelessWidget {
   final IconData icon;
+  final String? label;
   final VoidCallback? onTap;
 
-  const MiniBtn({super.key, required this.icon, this.onTap});
+  const MiniBtn({super.key, required this.icon, this.label, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -452,6 +453,7 @@ class MiniBtn extends StatelessWidget {
       child: IconButton(
         padding: EdgeInsets.zero,
         iconSize: 18,
+        tooltip: label,
         onPressed: onTap,
         icon: Icon(icon),
       ),

@@ -153,8 +153,10 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
               Container(
                 height: 200,
                 padding: const EdgeInsets.fromLTRB(16, 24, 24, 8),
-                child: LineChart(
-                  LineChartData(
+                child: Semantics(
+                  label: 'Evolución del peso corporal',
+                  child: LineChart(
+                    LineChartData(
                     minY: minW - 2,
                     maxY: maxW + 2,
                     gridData:
@@ -194,6 +196,7 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
                     ],
                   ),
                 ),
+              ),
               ),
 
               // ─── Min / Max ───────────────────────────────

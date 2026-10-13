@@ -341,6 +341,7 @@ class _RecipeEditorScreenState extends ConsumerState<RecipeEditorScreen> {
                     style: const TextStyle(fontSize: 12),
                   ),
                   trailing: IconButton(
+                    tooltip: 'Eliminar ingrediente',
                     icon: const Icon(Icons.delete_outline, color: Colors.red),
                     onPressed: () => setState(() => _items.removeAt(i)),
                   ),

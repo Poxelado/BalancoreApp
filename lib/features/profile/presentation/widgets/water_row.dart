@@ -23,6 +23,7 @@ class WaterRow extends ConsumerWidget {
                 style: const TextStyle(fontWeight: FontWeight.w600)),
             const Spacer(),
             IconButton(
+              tooltip: 'Quitar vaso',
               onPressed: glasses <= 0
                   ? null
                   : () async {
@@ -38,6 +39,7 @@ class WaterRow extends ConsumerWidget {
               icon: const Icon(Icons.remove_circle_outline),
             ),
             IconButton(
+              tooltip: 'Añadir vaso',
               onPressed: () async {
                 final user = ref.read(authServiceProvider).currentUser;
                 if (user == null) return;

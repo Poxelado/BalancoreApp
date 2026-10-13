@@ -418,6 +418,7 @@ class ExerciseEditorPanelState extends State<ExerciseEditorPanel> {
                     ),
                   ),
                   IconButton(
+                    tooltip: 'Eliminar serie',
                     icon: const Icon(Icons.close, size: 18),
                     onPressed: () => _removeSet(i),
                   ),

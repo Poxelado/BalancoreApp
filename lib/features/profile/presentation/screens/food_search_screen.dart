@@ -330,6 +330,7 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen>
                   suffixIcon: _extrasCtrl.text.isEmpty
                       ? null
                       : IconButton(
+                          tooltip: 'Limpiar búsqueda',
                           icon: const Icon(Icons.clear),
                           onPressed: () {
                             _extrasCtrl.clear();
@@ -412,6 +413,7 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen>
                                     width: 48,
                                     height: 48,
                                     fit: BoxFit.cover,
+                                    semanticLabel: p.displayName,
                                     errorBuilder: (_, __, ___) => Icon(
                                       Icons.fastfood,
                                       color: primary,

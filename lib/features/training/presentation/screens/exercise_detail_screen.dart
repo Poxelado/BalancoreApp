@@ -191,6 +191,7 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
                 ? Image.network(
                     imageUrl,
                     fit: BoxFit.cover,
+                    semanticLabel: cat?.name ?? 'Imagen del ejercicio',
                     loadingBuilder: (context, child, progress) {
                       if (progress == null) return child;
                       return Center(
@@ -373,8 +374,12 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
           const SizedBox(height: 8),
           SizedBox(
             height: 220,
-            child: LineChart(
-              LineChartData(
+            child: Semantics(
+              label: _showVolume
+                  ? 'Evolución del volumen por sesión'
+                  : 'Evolución del peso máximo por sesión',
+              child: LineChart(
+                LineChartData(
                 minY: 0,
                 gridData: const FlGridData(show: true, drawVerticalLine: false),
                 borderData: FlBorderData(show: false),
@@ -452,6 +457,7 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
                 ),
               ),
             ),
+          ),
           ),
           const SizedBox(height: 24),
           Text(

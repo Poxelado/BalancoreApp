@@ -234,6 +234,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       prefixIcon: const Icon(Icons.lock_outlined),
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
+                        tooltip: _obscurePassword
+                            ? 'Mostrar contraseña'
+                            : 'Ocultar contraseña',
                         icon: Icon(
                           _obscurePassword
                               ? Icons.visibility
@@ -263,6 +266,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       prefixIcon: const Icon(Icons.lock_outlined),
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
+                        tooltip: _obscureConfirm
+                            ? 'Mostrar confirmación'
+                            : 'Ocultar confirmación',
                         icon: Icon(
                           _obscureConfirm
                               ? Icons.visibility

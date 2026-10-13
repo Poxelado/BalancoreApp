@@ -308,6 +308,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   children: [
                     if (_page > 0)
                       IconButton(
+                        tooltip: 'Atrás',
                         onPressed: () => _pageController.previousPage(
                           duration: const Duration(milliseconds: 300),
                           curve: Curves.easeOut,

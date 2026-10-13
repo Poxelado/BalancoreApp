@@ -140,13 +140,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: AppColorTheme.values.map((colorTheme) {
                           final selected = prefs.colorTheme == colorTheme;
-                          return GestureDetector(
-                            onTap: () {
-                              ref
-                                  .read(themePreferencesProvider.notifier)
-                                  .setColorTheme(colorTheme);
-                            },
-                            child: Column(
+                          return Semantics(
+                            button: true,
+                            selected: selected,
+                            label: colorTheme.label,
+                            child: GestureDetector(
+                              onTap: () {
+                                ref
+                                    .read(themePreferencesProvider.notifier)
+                                    .setColorTheme(colorTheme);
+                              },
+                              child: Column(
                               children: [
                                 AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
@@ -192,6 +196,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   ),
                                 ),
                               ],
+                            ),
                             ),
                           );
                         }).toList(),

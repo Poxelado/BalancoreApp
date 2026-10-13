@@ -243,6 +243,7 @@ class _EditWorkoutHistoryScreenState
                   overflow: TextOverflow.ellipsis,
                 ),
                 trailing: IconButton(
+                  tooltip: 'Notas del ejercicio',
                   icon: const Icon(Icons.notes),
                   onPressed: () => _editExerciseNotes(i),
                 ),
