@@ -41,6 +41,28 @@ RoutineDay _routine() => RoutineDay(
       ],
     );
 
+/// Sesión anterior completada: mismo Press Banca con 70/75 kg, sin Press
+/// Militar (para comprobar que lo que no coincide no se toca).
+WorkoutSession _previousSession() => WorkoutSession(
+      id: 'prev_1',
+      dayName: 'Lunes',
+      title: 'Pecho y Hombro',
+      startedAt: DateTime.now().subtract(const Duration(days: 3)),
+      finishedAt: DateTime.now().subtract(const Duration(days: 3, minutes: -5)),
+      completed: true,
+      exercises: const [
+        WorkoutExerciseLog(
+          exerciseId: 'ex1',
+          exerciseName: 'Press Banca',
+          muscleGroup: 'Pecho',
+          sets: [
+            WorkoutSetLog(setNumber: 1, weight: 70, reps: 12, completed: true),
+            WorkoutSetLog(setNumber: 2, weight: 75, reps: 10, completed: true),
+          ],
+        ),
+      ],
+    );
+
 /// La fuente por defecto de los widget tests es "Ahem" (glifos de ancho fijo),
 /// que falsifica el layout de filas con texto. Cargar un TTF real hace que
 /// las medidas se parezcan a las de un dispositivo.
@@ -391,6 +413,29 @@ testWidgets('borrar una serie la elimina de la sesión y renumera',
 
     final sets = (await active())!.exercises.first.sets;
     expect(sets.first.weight, 100);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('copiar de la última sesión rellena pesos y reps', (WidgetTester tester) async {
+    await repo.saveWorkoutSession(_uid, _previousSession());
+
+    await _openScreen(tester, container);
+    await _flush(tester);
+
+    await tester.tap(find.byTooltip('Ajustes'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text('Copiar de la última sesión'));
+    await _flush(tester);
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final s = await active();
+    final pecho = s!.exercises.first;
+    expect(pecho.sets.map((e) => e.weight), [70, 75]);
+    expect(pecho.sets.map((e) => e.reps), [12, 10]);
+    expect(s.exercises[1].sets.every((e) => e.weight == 0), isTrue,
+        reason: 'Un ejercicio ausente en la sesión anterior queda intacto');
 
     await _unmount(tester);
   });

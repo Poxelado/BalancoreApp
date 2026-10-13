@@ -654,6 +654,72 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
     await _persist();
   }
 
+  Future<void> _copyFromLastSession() async {
+    final history = await ref.read(workoutHistoryProvider(120).future);
+    final candidates = history
+        .where((s) => s.completed && s.id != _session.id)
+        .toList()
+      ..sort((a, b) => b.startedAt.compareTo(a.startedAt));
+    if (candidates.isEmpty) {
+      _toast('No hay sesiones anteriores para copiar');
+      return;
+    }
+
+    String keyOf(WorkoutExerciseLog e) =>
+        e.exerciseId.isNotEmpty ? e.exerciseId : e.exerciseName;
+
+    // Más reciente que comparta al menos un ejercicio.
+    final currentKeys = _session.exercises.map(keyOf).toSet();
+    final last = candidates.firstWhere(
+      (s) => s.exercises.any((e) => currentKeys.contains(keyOf(e))),
+      orElse: () => candidates.first,
+    );
+
+    final byKey = <String, WorkoutExerciseLog>{};
+    for (final e in last.exercises) {
+      byKey[keyOf(e)] = e;
+    }
+
+    var copied = 0;
+    final exercises = List<WorkoutExerciseLog>.from(_session.exercises);
+    for (var i = 0; i < exercises.length; i++) {
+      final ex = exercises[i];
+      final prevEx = byKey[keyOf(ex)];
+      if (prevEx == null) continue;
+      final sets = List<WorkoutSetLog>.from(ex.sets);
+      for (var j = 0; j < sets.length; j++) {
+        if (sets[j].completed) continue;
+        if (j < prevEx.sets.length) {
+          sets[j] = sets[j].copyWith(
+            weight: prevEx.sets[j].weight,
+            reps: prevEx.sets[j].reps,
+          );
+        }
+      }
+      exercises[i] = ex.copyWith(sets: sets);
+      copied++;
+    }
+
+    if (copied == 0) {
+      _toast('Ningún ejercicio coincide con la sesión anterior');
+      return;
+    }
+    setState(() => _session = _session.copyWith(exercises: exercises));
+    for (final ex in exercises) {
+      _syncControllersForExercise(ex);
+    }
+    await _persist();
+    setState(() {});
+    _toast('Valores copiados de la sesión anterior');
+  }
+
+  void _toast(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
+    );
+  }
+
   Future<void> _addSet(int exerciseIndex) async {
     final exercises = List<WorkoutExerciseLog>.from(_session.exercises);
     final ex = exercises[exerciseIndex];
@@ -818,6 +884,15 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _copyFromLastSession();
+                  },
+                  icon: const Icon(Icons.download_outlined),
+                  label: const Text('Copiar de la última sesión'),
+                ),
+                const SizedBox(height: 16),
                 const Text('Descanso entre series'),
                 const SizedBox(height: 8),
                 Wrap(

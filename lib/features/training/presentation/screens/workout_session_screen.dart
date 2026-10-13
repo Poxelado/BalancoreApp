@@ -168,6 +168,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
                   ),
                   IconButton(
                     icon: const Icon(Icons.settings_outlined),
+                    tooltip: 'Ajustes',
                     onPressed: _openSettings,
                   ),
                   TextButton(
