@@ -199,13 +199,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Editar perfil'),
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
         actions: [
           TextButton(
             onPressed: _isLoading ? null : _save,

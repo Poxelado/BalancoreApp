@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/macro_week_analysis.dart';
 import '../providers/profile_provider.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// Card desplegable de análisis semanal de macros (Progreso → Hábitos).
 class WeeklyMacroCard extends ConsumerStatefulWidget {
@@ -298,8 +299,8 @@ class _MacroBar extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     color: delta! >= 0
-                        ? const Color(0xFF4CAF50)
-                        : Colors.redAccent,
+                        ? AppSemanticColors.of(context).success
+                        : Theme.of(context).colorScheme.error,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

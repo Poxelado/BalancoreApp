@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// Vista semanal: 7 círculos L–D (como el diseño original).
 class WeekCircles extends StatelessWidget {
@@ -47,7 +48,7 @@ class WeekCircles extends StatelessWidget {
         } else if (trained) {
           fill = primary;
         } else if (registered) {
-          fill = const Color(0xFF4CAF50).withValues(alpha: 0.75);
+          fill = AppSemanticColors.of(context).success.withValues(alpha: 0.75);
         } else {
           fill = primary.withValues(alpha: 0.08);
         }
@@ -280,7 +281,8 @@ class ConsistencyGrid extends StatelessWidget {
                         } else if (trained) {
                           bg = primary;
                         } else if (registered) {
-                          bg = const Color(0xFF4CAF50)
+                          bg = AppSemanticColors.of(context)
+                              .success
                               .withValues(alpha: 0.65);
                         } else {
                           bg = Colors.grey

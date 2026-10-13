@@ -140,18 +140,16 @@ class _EditRoutineExerciseScreenState extends State<EditRoutineExerciseScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.exercise.exerciseName),
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
         leading: TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar', style: TextStyle(color: Colors.white)),
+          child: const Text('Cancelar'),
         ),
         actions: [
           TextButton(
             onPressed: _save,
             child: const Text(
               'Actualizar',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
         ],

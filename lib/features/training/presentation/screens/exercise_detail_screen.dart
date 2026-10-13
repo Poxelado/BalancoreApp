@@ -123,8 +123,6 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.exerciseName),
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
         actions: [
           IconButton(
             tooltip: isFav ? 'Quitar favorito' : 'Favorito',
@@ -141,9 +139,6 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
         ],
         bottom: TabBar(
           controller: _tabs,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
           tabs: const [
             Tab(text: 'Guía'),
             Tab(text: 'Estadísticas'),

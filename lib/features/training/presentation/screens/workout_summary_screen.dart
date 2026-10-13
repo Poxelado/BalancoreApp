@@ -3,6 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 
 import '../../domain/personal_records.dart';
 import '../../domain/session_stats.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// Resumen de una sesión recién terminada: qué se hizo, cómo se comparó con
 /// la sesión anterior y qué récords se batieron.
@@ -18,18 +19,21 @@ class WorkoutSummaryScreen extends StatelessWidget {
     this.title = 'Entrenamiento completado',
   });
 
-  static const _palette = [
-    Color(0xFF7C4DFF),
-    Color(0xFF00ACC1),
-    Color(0xFFFF7043),
-    Color(0xFF66BB6A),
-    Color(0xFFFFCA28),
-    Color(0xFFEC407A),
-    Color(0xFF42A5F5),
-    Color(0xFF8D6E63),
-  ];
-
-  Color _colorFor(int i) => _palette[i % _palette.length];
+  Color _colorFor(BuildContext context, int i) {
+    final s = Theme.of(context).colorScheme;
+    final sem = AppSemanticColors.of(context);
+    final palette = [
+      s.primary,
+      sem.info,
+      sem.success,
+      sem.warning,
+      s.secondary,
+      sem.rest,
+      s.tertiary,
+      s.primaryContainer,
+    ];
+    return palette[i % palette.length];
+  }
 
   static String _fmtDuration(int sec) {
     final h = sec ~/ 3600;
@@ -142,7 +146,7 @@ class WorkoutSummaryScreen extends StatelessWidget {
               _sectionTitle(
                   'Distribución por músculo', Icons.donut_large, primary),
               const SizedBox(height: 8),
-              _muscleDonut(),
+              _muscleDonut(context),
             ],
           ],
         ),
@@ -238,7 +242,7 @@ class WorkoutSummaryScreen extends StatelessWidget {
     );
   }
 
-  Widget _muscleDonut() {
+  Widget _muscleDonut(BuildContext context) {
     final entries = stats.volumeByMuscle.entries.toList();
     // Con muchos grupos, el donut se vuelve ilegible: se agrupa la cola.
     final shown = entries.take(5).toList();
@@ -247,9 +251,9 @@ class WorkoutSummaryScreen extends StatelessWidget {
         : 0.0;
     final slices = <({String label, double value, Color color})>[
       for (var i = 0; i < shown.length; i++)
-        (label: shown[i].key, value: shown[i].value, color: _colorFor(i)),
+        (label: shown[i].key, value: shown[i].value, color: _colorFor(context, i)),
       if (restTotal > 0)
-        (label: 'Otros', value: restTotal, color: _colorFor(shown.length)),
+        (label: 'Otros', value: restTotal, color: _colorFor(context, shown.length)),
     ];
 
     return Container(

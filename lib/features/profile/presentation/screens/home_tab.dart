@@ -365,7 +365,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                   child: QuickAccess(
                     icon: Icons.fitness_center,
                     label: 'Rutina',
-                    color: const Color(0xFFE91E63),
+                    color: primary,
                     onTap: () =>
                     ref.read(shellTabProvider.notifier).state = 3,
                   ),
@@ -375,7 +375,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                   child: QuickAccess(
                     icon: Icons.restaurant_menu,
                     label: 'Nutrición',
-                    color: const Color(0xFFFF9800),
+                    color: primary,
                     onTap: () =>
                     ref.read(shellTabProvider.notifier).state = 1,
                   ),
@@ -389,7 +389,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                   child: QuickAccess(
                     icon: Icons.insights,
                     label: 'Progreso',
-                    color: const Color(0xFF5C6BC0),
+                    color: primary,
                     onTap: () =>
                     ref.read(shellTabProvider.notifier).state = 0,
                   ),

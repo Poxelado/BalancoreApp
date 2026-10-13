@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../profile/domain/user_profile.dart';
 import '../../domain/progression_rules.dart';
 import 'exercise_list_widgets.dart';
+import '../../../../core/theme/app_theme.dart';
 
 String rpeLabel(int r) {
   if (r <= 3) return 'Muy fácil';
@@ -137,8 +138,8 @@ class ExerciseSelectorStrip extends StatelessWidget {
                               right: 2,
                               child: Container(
                                 padding: const EdgeInsets.all(2),
-                                decoration: const BoxDecoration(
-                                  color: Colors.green,
+                                decoration: BoxDecoration(
+                                  color: AppSemanticColors.of(context).success,
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(Icons.check,
@@ -151,12 +152,17 @@ class ExerciseSelectorStrip extends StatelessWidget {
                               right: 0,
                               child: Container(
                                 padding: const EdgeInsets.all(2),
-                                decoration: const BoxDecoration(
-                                  color: Colors.deepPurple,
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .secondary,
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.link,
-                                    size: 11, color: Colors.white),
+                                child: Icon(Icons.link,
+                                    size: 11,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSecondary),
                               ),
                             ),
                         ],
@@ -251,23 +257,28 @@ class ExerciseHeaderCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: Colors.deepPurple.withValues(alpha: 0.15),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .secondary
+                            .withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.link,
-                              size: 13, color: Colors.deepPurple),
+                          Icon(Icons.link,
+                              size: 13,
+                              color: Theme.of(context).colorScheme.secondary),
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
                               'Superset con $supersetPartner',
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.deepPurple,
+                                color:
+                                    Theme.of(context).colorScheme.secondary,
                               ),
                             ),
                           ),
@@ -407,7 +418,9 @@ class ExerciseHeaderCard extends StatelessWidget {
                 icon: Icon(
                   ex.hasSuperset ? Icons.link : Icons.link_off,
                   color:
-                      ex.hasSuperset ? Colors.deepPurple : primary,
+                      ex.hasSuperset
+                          ? Theme.of(context).colorScheme.secondary
+                          : primary,
                 ),
                 onPressed: onEditSuperset,
               ),

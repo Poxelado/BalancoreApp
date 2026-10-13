@@ -4,6 +4,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import '../../../../core/first_run/first_run_prefs.dart';
+import '../../../../core/theme/app_theme.dart';
 
 const int kMlPerGlass = 200;
 const int kWaterGoalMl = 2000;
@@ -23,45 +24,52 @@ class FirstRunTutorialDialogState extends State<FirstRunTutorialDialog> {
   static const _pages = <({
   IconData icon,
   String title,
-  String body,
-  Color color
+  String body
   })>[
     (
     icon: Icons.home_outlined,
     title: 'Tu día en un vistazo',
     body:
     'En Inicio ves calorías, proteína, si toca entrenar, tu racha y accesos rápidos.',
-    color: Color(0xFF6B1228),
     ),
     (
     icon: Icons.fitness_center,
     title: 'Rutina',
     body:
     'Arma o elige tu rutina, registra series, pesos y descansos. La progresión te sugiere cuándo subir.',
-    color: Color(0xFFE91E63),
     ),
     (
     icon: Icons.restaurant_menu,
     title: 'Nutrición',
     body:
     'Registra comidas, agua y sueño. Tus macros del día se comparan con tu objetivo.',
-    color: Color(0xFFFF9800),
     ),
     (
     icon: Icons.insights,
     title: 'Progreso',
     body:
     'Revisa constancia, entrenos, hábitos y tendencias de macros por semana o mes.',
-    color: Color(0xFF5C6BC0),
     ),
     (
     icon: Icons.local_fire_department,
     title: 'Racha diaria',
     body:
     'Cumple 3 de 4 hábitos (entreno, agua, sueño, comida) para mantener la racha activa.',
-    color: Color(0xFFFF6D00),
     ),
   ];
+
+  Color _tutorialColor(BuildContext context, int i) {
+    final s = Theme.of(context).colorScheme;
+    final sem = AppSemanticColors.of(context);
+    final palette = [
+      s.primary,
+      sem.info,
+      sem.warning,
+      s.secondary,
+      s.tertiary,
+    ];
+    return palette[i % palette.length];
+  }
 
   @override
   void dispose() {
@@ -92,6 +100,7 @@ class FirstRunTutorialDialogState extends State<FirstRunTutorialDialog> {
                 onPageChanged: (i) => setState(() => _index = i),
                 itemBuilder: (_, i) {
                   final p = _pages[i];
+                  final color = _tutorialColor(context, i);
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
@@ -99,8 +108,8 @@ class FirstRunTutorialDialogState extends State<FirstRunTutorialDialog> {
                       children: [
                         CircleAvatar(
                           radius: 36,
-                          backgroundColor: p.color.withValues(alpha: 0.15),
-                          child: Icon(p.icon, size: 36, color: p.color),
+                          backgroundColor: color.withValues(alpha: 0.15),
+                          child: Icon(p.icon, size: 36, color: color),
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -118,7 +127,7 @@ class FirstRunTutorialDialogState extends State<FirstRunTutorialDialog> {
                           style: TextStyle(
                             fontSize: 14,
                             height: 1.35,
-                            color: Colors.grey.shade700,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -138,8 +147,8 @@ class FirstRunTutorialDialogState extends State<FirstRunTutorialDialog> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: i == _index
-                        ? _pages[i].color
-                        : Colors.grey.shade300,
+                        ? _tutorialColor(context, i)
+                        : Theme.of(context).colorScheme.outlineVariant,
                   ),
                 ),
               ),
@@ -284,14 +293,14 @@ class TodayTrainingCard extends StatelessWidget {
       subtitle = (sessionTitle != null && sessionTitle!.isNotEmpty)
           ? sessionTitle!
           : 'Buen trabajo hoy';
-      accent = const Color(0xFF4CAF50);
+      accent = AppSemanticColors.of(context).success;
     } else if (pendingSession) {
       icon = Icons.play_circle_outline;
       title = 'Entreno en curso';
       subtitle = (sessionTitle != null && sessionTitle!.isNotEmpty)
           ? 'Continúa: $sessionTitle'
           : 'Sigue en la pestaña Rutina';
-      accent = const Color(0xFFE91E63);
+      accent = primary;
     } else {
       icon = Icons.fitness_center;
       title = 'Entreno de hoy';

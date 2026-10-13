@@ -6,6 +6,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../training/presentation/screens/workout_session_screen.dart';
 import '../../../training/presentation/widgets/exercise_list_widgets.dart';
 import '../../../training/domain/rest_day_suggestion.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class RestDayBanner extends ConsumerWidget {
   const RestDayBanner({super.key});
@@ -20,11 +21,11 @@ class RestDayBanner extends ConsumerWidget {
         final advice = RestDayRules.evaluate(history);
         if (!advice.suggestRest) return const SizedBox.shrink();
 
+        final sem = AppSemanticColors.of(context);
         final strong = advice.level == 'strong';
-        final bg = strong
-            ? Colors.orange.withValues(alpha: 0.15)
-            : Colors.blueGrey.withValues(alpha: 0.12);
-        final fg = strong ? Colors.deepOrange : Colors.blueGrey;
+        final tone = strong ? sem.warning : sem.rest;
+        final bg = tone.withValues(alpha: 0.15);
+        final fg = tone;
 
         return Card(
           color: bg,
@@ -536,7 +537,8 @@ class ActiveSessionBanner extends ConsumerWidget {
                 ),
                 IconButton(
                   tooltip: 'Cancelar',
-                  icon: const Icon(Icons.close, color: Colors.redAccent),
+                  icon: Icon(Icons.close,
+                      color: Theme.of(context).colorScheme.error),
                   onPressed: () => _cancel(context, ref, session),
                 ),
               ],

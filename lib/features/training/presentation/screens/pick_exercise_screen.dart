@@ -44,16 +44,11 @@ class _PickExerciseScreenState extends ConsumerState<PickExerciseScreen> {
               ? 'Elegir ejercicios'
               : 'Elegir ejercicios (${_selected.length})',
         ),
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
         actions: [
           if (_selected.isNotEmpty)
             TextButton(
               onPressed: () => setState(_selected.clear),
-              child: const Text(
-                'Limpiar',
-                style: TextStyle(color: Colors.white),
-              ),
+              child: const Text('Limpiar'),
             ),
         ],
       ),

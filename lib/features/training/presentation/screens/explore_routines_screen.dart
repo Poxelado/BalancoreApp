@@ -98,8 +98,6 @@ class _ExploreRoutinesScreenState
     return Scaffold(
       appBar: AppBar(
         title: const Text('Explorar rutinas'),
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
       ),
       body: ref.watch(exercisesProvider).when(
             loading: () =>

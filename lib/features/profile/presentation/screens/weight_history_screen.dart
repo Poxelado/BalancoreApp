@@ -119,8 +119,6 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Historial de peso'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddWeightSheet,

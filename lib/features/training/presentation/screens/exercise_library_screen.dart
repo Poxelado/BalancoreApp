@@ -30,8 +30,6 @@ class _ExerciseLibraryScreenState extends ConsumerState<ExerciseLibraryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Biblioteca de ejercicios'),
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
         actions: [
           IconButton(
             tooltip: _onlyFavorites ? 'Ver todos' : 'Solo favoritos',

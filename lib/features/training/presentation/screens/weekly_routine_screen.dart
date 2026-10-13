@@ -36,8 +36,6 @@ class _WeeklyRoutineScreenState extends ConsumerState<WeeklyRoutineScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Rutina semanal'),
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
         actions: [
           IconButton(
             tooltip: _gridView ? 'Ver como cascada' : 'Ver en bloques',

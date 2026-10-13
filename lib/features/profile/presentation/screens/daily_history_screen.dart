@@ -293,8 +293,6 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Historial de hábitos'),
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
       ),
       body: Column(
         children: [

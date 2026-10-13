@@ -211,8 +211,6 @@ class _EditCustomRoutineScreenState
     return Scaffold(
       appBar: AppBar(
         title: Text(_isNew ? 'Nueva rutina' : 'Editar rutina'),
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
         actions: [
           TextButton(
             onPressed: _saving ? null : _save,

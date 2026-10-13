@@ -287,7 +287,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     final profile = ref.watch(userProfileProvider).value;
     final themePrefs = ref.watch(themePreferencesProvider);
-    final primary = Theme.of(context).colorScheme.primary;
     final isProfileTab = ref.watch(shellTabProvider) == 4;
     final username = (profile?.username?.isNotEmpty == true)
         ? '@${profile!.username}'
@@ -299,14 +298,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
         centerTitle: !isProfileTab,
         title: isProfileTab
             ? Text(
           username,
           style: const TextStyle(
-            color: Colors.white,
             fontWeight: FontWeight.bold,
             fontSize: 18,
           ),
@@ -314,7 +310,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             : const Text(
           'Balancore',
           style: TextStyle(
-            color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -326,7 +321,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               isDark
                   ? Icons.light_mode_outlined
                   : Icons.dark_mode_outlined,
-              color: Colors.white,
             ),
             tooltip: isDark ? 'Tema claro' : 'Tema oscuro',
             onPressed: () {
@@ -336,7 +330,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.edit_outlined, color: Colors.white),
+            icon: const Icon(Icons.edit_outlined),
             tooltip: 'Editar perfil',
             onPressed: () {
               if (profile == null) return;
@@ -350,7 +344,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           IconButton(
             icon:
-            const Icon(Icons.settings_outlined, color: Colors.white),
+            const Icon(Icons.settings_outlined),
             tooltip: 'Ajustes',
             onPressed: _openSettings,
           ),

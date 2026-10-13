@@ -126,17 +126,14 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? const Color(0xFF0F0F14) : const Color(0xFFF6F6F9);
-    final cardBg = isDark ? const Color(0xFF1A1A22) : Colors.white;
+    final bg = Theme.of(context).scaffoldBackgroundColor;
+    final cardBg = Theme.of(context).colorScheme.surface;
 
     if (_session.exercises.isEmpty) {
       return Scaffold(
         backgroundColor: bg,
         appBar: AppBar(
           title: const Text('Entrenamiento'),
-          backgroundColor: primary,
-          foregroundColor: Colors.white,
         ),
         body: Center(
           child: Padding(

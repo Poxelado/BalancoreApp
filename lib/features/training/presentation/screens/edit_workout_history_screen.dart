@@ -174,8 +174,6 @@ class _EditWorkoutHistoryScreenState
     return Scaffold(
       appBar: AppBar(
         title: const Text('Editar entrenamiento'),
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
         actions: [
           TextButton(
             onPressed: _saving ? null : _save,

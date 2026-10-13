@@ -205,8 +205,6 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Editar · ${widget.day.day}'),
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
         actions: [
           TextButton(
             onPressed: _saving ? null : _save,

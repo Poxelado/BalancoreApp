@@ -264,8 +264,6 @@ class _RecipeEditorScreenState extends ConsumerState<RecipeEditorScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(isEdit ? 'Editar plato' : 'Nuevo plato'),
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
         actions: [
           TextButton(
             onPressed: _saving ? null : _save,

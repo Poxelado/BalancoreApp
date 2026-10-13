@@ -85,7 +85,7 @@ class WorkoutCard extends StatelessWidget {
 
     return Material(
       color: isDark
-          ? const Color(0xFF1A1A2E)
+          ? Theme.of(context).colorScheme.surfaceContainerHighest
           : primary.withValues(alpha: 0.12),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(

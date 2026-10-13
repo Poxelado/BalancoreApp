@@ -264,13 +264,8 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Buscar alimento'),
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
         bottom: TabBar(
           controller: _tabs,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
           tabs: const [
             Tab(text: 'Supermercado', icon: Icon(Icons.storefront, size: 18)),
             Tab(text: 'Extras', icon: Icon(Icons.eco, size: 18)),
