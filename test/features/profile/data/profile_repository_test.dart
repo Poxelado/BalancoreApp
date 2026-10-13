@@ -8,6 +8,7 @@ UserProfile _profile({
   String uid = 'u1',
   String? username,
   double weight = 70,
+  String activity = 'Moderado',
   bool onboarding = false,
 }) {
   return UserProfile(
@@ -17,7 +18,7 @@ UserProfile _profile({
     currentWeight: weight,
     height: 175,
     age: 25,
-    activityLevel: 'Moderado',
+    activityLevel: activity,
     goal: 'Mantenimiento',
     targetCalories: 2000,
     onboardingCompleted: onboarding,
@@ -232,6 +233,45 @@ void main() {
       );
       expect(await repo.resolveUsernameToEmail('nuevo'), 'a@b.com');
       expect(await repo.resolveUsernameToEmail('viejo'), isNull);
+    });
+  });
+
+  group('refineActivityFromWorkouts', () {
+    test('sube el nivel y recalcula metas según los entrenos', () async {
+      await repo.saveProfile(
+        _profile(activity: 'Sedentario', onboarding: true),
+      );
+      for (var i = 0; i < 5; i++) {
+        await repo.saveWorkoutSession(
+          'u1',
+          WorkoutSession(
+            id: 's$i',
+            dayName: 'Lunes',
+            title: 'Pecho',
+            startedAt: DateTime.now().subtract(Duration(days: i)),
+            completed: true,
+          ),
+        );
+      }
+
+      final updated = await repo.refineActivityFromWorkouts('u1');
+
+      expect(updated, isNotNull);
+      expect(updated!.activityLevel, 'Activo');
+      final stored = await repo.getProfile('u1');
+      expect(stored!.activityLevel, 'Activo');
+      expect(stored.targetCalories, updated.targetCalories);
+      expect(stored.targetProtein, greaterThan(0));
+    });
+
+    test('devuelve null si no hay cambios', () async {
+      await repo.saveProfile(_profile(activity: 'Moderado', onboarding: true));
+      expect(await repo.refineActivityFromWorkouts('u1'), isNull);
+    });
+
+    test('no toca perfiles sin onboarding', () async {
+      await repo.saveProfile(_profile(onboarding: false));
+      expect(await repo.refineActivityFromWorkouts('u1'), isNull);
     });
   });
 

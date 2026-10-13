@@ -20,10 +20,11 @@ class TodayTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final primary = Theme.of(context).colorScheme.primary;
-    final targetCal = profile?.targetCalories ?? 2000;
-    final targetP = profile?.targetProtein ?? 0;
-    final targetC = profile?.targetCarbs ?? 0;
-    final targetF = profile?.targetFat ?? 0;
+    final targets = profile?.effectiveTargets;
+    final targetCal = targets?.calories ?? 2000;
+    final targetP = targets?.protein ?? 0;
+    final targetC = targets?.carbs ?? 0;
+    final targetF = targets?.fat ?? 0;
 
     final consumed = log.consumedCalories;
     final progress =

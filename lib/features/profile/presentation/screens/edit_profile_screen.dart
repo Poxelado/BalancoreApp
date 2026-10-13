@@ -91,6 +91,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     );
     final macros = UserProfile.calculateMacros(
       weight: weight,
+      height: height,
       calories: cal,
       goal: _goal,
     );
@@ -446,8 +447,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   _manualCalories = true;
                   final weight = double.tryParse(_weightController.text) ??
                       widget.profile.currentWeight;
+                  final height = double.tryParse(_heightController.text) ??
+                      widget.profile.height;
                   final macros = UserProfile.calculateMacros(
                     weight: weight,
+                    height: height,
                     calories: n,
                     goal: _goal,
                   );

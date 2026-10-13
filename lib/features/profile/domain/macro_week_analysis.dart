@@ -148,16 +148,12 @@ class MacroWeekAnalysis {
     var tC = profile?.targetCarbs ?? 0;
     var tF = profile?.targetFat ?? 0;
 
-    if (profile != null && (tP <= 0 || tC <= 0 || tF <= 0)) {
-      final m = UserProfile.calculateMacros(
-        weight: profile.currentWeight,
-        calories: tCal > 0 ? tCal : 2000,
-        goal: profile.goal,
-      );
-      if (tP <= 0) tP = m.protein;
-      if (tC <= 0) tC = m.carbs;
-      if (tF <= 0) tF = m.fat;
-      if (tCal <= 0) tCal = 2000;
+    if (profile != null) {
+      final eff = profile.effectiveTargets;
+      tCal = eff.calories;
+      tP = eff.protein;
+      tC = eff.carbs;
+      tF = eff.fat;
     }
 
     var hitP = 0;

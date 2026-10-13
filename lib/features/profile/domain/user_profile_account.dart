@@ -201,6 +201,7 @@ class UserProfile {
 
   static ({int protein, int carbs, int fat}) calculateMacros({
     required double weight,
+    double height = 0,
     required int calories,
     required String goal,
   }) {
@@ -209,14 +210,46 @@ class UserProfile {
       'Ganar músculo' => 2.0,
       _ => 1.8,
     };
-    final protein = (weight * proteinPerKg).round();
+    final cal = calories < 0 ? 0 : calories;
+
+    // Peso de referencia: con IMC alto se usa peso ajustado en vez del total,
+    // para no pedir una proteína desproporcionada por la grasa corporal.
+    final ref = _proteinReferenceWeight(weightKg: weight, heightCm: height);
+
+    var protein = (ref * proteinPerKg).round();
     final fatPct = goal == 'Perder grasa' ? 0.25 : 0.28;
-    final fat = ((calories * fatPct) / 9).round();
-    final proteinKcal = protein * 4;
-    final fatKcal = fat * 9;
+    var fat = ((cal * fatPct) / 9).round();
+
+    // La proteína y la grasa nunca deben superar el presupuesto calórico:
+    // si lo hacen (p. ej. con una meta manual muy baja), se recorta primero
+    // la proteína y, si aún no cabe, la grasa. Los carbos son el resto.
+    if (protein * 4 + fat * 9 > cal) {
+      final room = cal - fat * 9;
+      protein = room > 0 ? (room / 4).floor() : 0;
+    }
+    if (protein * 4 + fat * 9 > cal) {
+      final room = cal - protein * 4;
+      fat = room > 0 ? (room / 9).floor() : 0;
+    }
+
     final carbs =
-    ((calories - proteinKcal - fatKcal) / 4).round().clamp(0, 1000);
+    ((cal - protein * 4 - fat * 9) / 4).round().clamp(0, 1000);
     return (protein: protein, carbs: carbs, fat: fat);
+  }
+
+  /// Peso de referencia para el cálculo de proteína.
+  /// Con IMC > 30 usa el peso ajustado (peso ideal + 25 % del exceso);
+  /// con IMC normal usa el peso total.
+  static double _proteinReferenceWeight({
+    required double weightKg,
+    double heightCm = 0,
+  }) {
+    if (heightCm <= 0 || weightKg <= 0) return weightKg;
+    final m = heightCm / 100;
+    final bmi = weightKg / (m * m);
+    if (bmi <= 30) return weightKg;
+    final ideal = 25 * m * m;
+    return ideal + 0.25 * (weightKg - ideal);
   }
 
   /// ~35 ml por kg de peso corporal (guía habitual de hidratación).
@@ -239,6 +272,24 @@ class UserProfile {
     return 'Muy activo';
   }
 
+  /// Nivel de actividad sugerido por los entrenos de la semana, sin bajar el
+  /// que eligió el usuario: solo sube si entrena más de lo que declaró, para no
+  /// recortarle calorías por no registrar sesiones.
+  String refinedActivityLevel(int sessionsLast7Days) {
+    final suggested = activityFromWeeklyWorkouts(sessionsLast7Days);
+    return _activityRank(suggested) > _activityRank(activityLevel)
+        ? suggested
+        : activityLevel;
+  }
+
+  static int _activityRank(String level) => switch (level) {
+    'Ligero' => 1,
+    'Moderado' => 2,
+    'Activo' => 3,
+    'Muy activo' || 'Experto' => 4,
+    _ => 0,
+  };
+
   /// Cambios de username en los últimos 30 días.
   int usernameChangesLast30Days({DateTime? now}) {
     final n = now ?? DateTime.now();
@@ -252,6 +303,33 @@ class UserProfile {
   }
 
   bool get canChangeUsername => usernameChangesLast30Days() < 3;
+
+  /// Metas efectivas de calorías y macros: usa lo guardado y recalcula lo que
+  /// falte (p. ej. cuentas sin macros), para que todas las pantallas muestren
+  /// los mismos objetivos.
+  ({int calories, int protein, int carbs, int fat}) get effectiveTargets {
+    final cal = targetCalories > 0 ? targetCalories : 2000;
+    if (targetProtein > 0 && targetCarbs > 0 && targetFat > 0) {
+      return (
+        calories: cal,
+        protein: targetProtein,
+        carbs: targetCarbs,
+        fat: targetFat,
+      );
+    }
+    final m = calculateMacros(
+      weight: currentWeight,
+      height: height,
+      calories: cal,
+      goal: goal,
+    );
+    return (
+      calories: cal,
+      protein: targetProtein > 0 ? targetProtein : m.protein,
+      carbs: targetCarbs > 0 ? targetCarbs : m.carbs,
+      fat: targetFat > 0 ? targetFat : m.fat,
+    );
+  }
 
   int get targetWaterGlasses {
     final ml = targetWaterMl > 0

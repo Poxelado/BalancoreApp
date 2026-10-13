@@ -84,8 +84,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   ({int protein, int carbs, int fat}) get _previewMacros {
     final w = double.tryParse(_weightController.text) ?? 70;
+    final h = double.tryParse(_heightController.text) ?? 170;
     return UserProfile.calculateMacros(
       weight: w,
+      height: h,
       calories: _previewCalories,
       goal: _goal,
     );
@@ -203,6 +205,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       );
       final macros = UserProfile.calculateMacros(
         weight: weight,
+        height: height,
         calories: calories,
         goal: _goal,
       );

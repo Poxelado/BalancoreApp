@@ -19,6 +19,7 @@ class HomeTab extends ConsumerStatefulWidget {
 
 class _HomeTabState extends ConsumerState<HomeTab> {
   bool _tutorialChecked = false;
+  bool _activityRefined = false;
   String? _motivationMsg;
   String? _motivationKey;
 
@@ -27,6 +28,23 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowTutorial());
+  }
+
+  Future<void> _maybeRefineActivity() async {
+    if (_activityRefined) return;
+    final profile = ref.read(userProfileProvider).value;
+    if (profile == null || !profile.onboardingCompleted) return;
+    _activityRefined = true;
+    try {
+      final updated = await ref
+          .read(profileRepositoryProvider)
+          .refineActivityFromWorkouts(profile.uid);
+      if (updated != null && mounted) {
+        ref.invalidate(userProfileProvider);
+      }
+    } catch (e) {
+      debugPrint('No se pudo ajustar la actividad: $e');
+    }
   }
 
   Future<void> _maybeShowTutorial() async {
@@ -47,6 +65,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       refreshSmartNotifications(ref);
       checkInactivityAndNotify(ref);
+      _maybeRefineActivity();
     });
 
     final logAsync = ref.watch(todayLogProvider);
@@ -127,16 +146,9 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             ? '${log.sleepHours.toInt()} h'
             : '${log.sleepHours.toStringAsFixed(1)} h');
 
-        final targetKcal = profile?.targetCalories ?? 2000;
-        final targetProtein = (profile?.targetProtein ?? 0) > 0
-            ? profile!.targetProtein
-            : (profile != null
-            ? UserProfile.calculateMacros(
-          weight: profile.currentWeight,
-          calories: targetKcal,
-          goal: profile.goal,
-        ).protein
-            : 150);
+        final targets = profile?.effectiveTargets;
+        final targetKcal = targets?.calories ?? 2000;
+        final targetProtein = targets?.protein ?? 150;
         final consumedKcal = log.consumedCalories;
         final consumedProtein = log.proteinGrams;
         final pendingSession = session != null && !session.completed;

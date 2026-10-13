@@ -77,6 +77,70 @@ void main() {
       );
       expect(m.carbs, greaterThanOrEqualTo(0));
     });
+
+    test('los macros nunca superan el presupuesto calórico', () {
+      final m = UserProfile.calculateMacros(
+        weight: 120,
+        height: 175,
+        calories: 1200,
+        goal: 'Perder grasa',
+      );
+      expect(m.protein * 4 + m.fat * 9 + m.carbs * 4,
+          lessThanOrEqualTo(1205));
+    });
+
+    test('con IMC alto usa peso ajustado para la proteína', () {
+      final obese = UserProfile.calculateMacros(
+        weight: 120,
+        height: 170,
+        calories: 2400,
+        goal: 'Perder grasa',
+      );
+      final withoutHeight = UserProfile.calculateMacros(
+        weight: 120,
+        calories: 2400,
+        goal: 'Perder grasa',
+      );
+      expect(obese.protein, lessThan(withoutHeight.protein));
+      expect(obese.protein, 185);
+    });
+  });
+
+  group('effectiveTargets', () {
+    test('recalcula los macros que falten', () {
+      final p = _profile(weight: 70, goal: 'Perder grasa');
+      final t = p.effectiveTargets;
+      expect(t.calories, 2000);
+      expect(t.protein, 154);
+      expect(t.carbs, 220);
+      expect(t.fat, 56);
+    });
+
+    test('respeta los macros guardados', () {
+      final p = _profile().copyWith(
+        targetProtein: 150,
+        targetCarbs: 200,
+        targetFat: 70,
+      );
+      final t = p.effectiveTargets;
+      expect(t.protein, 150);
+      expect(t.carbs, 200);
+      expect(t.fat, 70);
+    });
+  });
+
+  group('refinedActivityLevel', () {
+    test('sube el nivel si entrena más de lo declarado', () {
+      final p = _profile(activity: 'Ligero');
+      expect(p.refinedActivityLevel(0), 'Ligero');
+      expect(p.refinedActivityLevel(5), 'Activo');
+    });
+
+    test('nunca baja el nivel declarado', () {
+      final p = _profile(activity: 'Moderado');
+      expect(p.refinedActivityLevel(0), 'Moderado');
+      expect(p.refinedActivityLevel(1), 'Moderado');
+    });
   });
 
   group('calculateTMB', () {

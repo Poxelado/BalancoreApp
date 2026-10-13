@@ -97,4 +97,53 @@ extension ProfileWorkouts on ProfileRepository {
         .get();
     return snap.docs.map(_sessionFromDoc).toList();
   }
+
+  /// Ajusta el nivel de actividad según los entrenos completados en los últimos
+  /// 7 días. Solo sube el nivel (nunca baja el que eligió el usuario). Si
+  /// cambia, recalcula calorías y macros y devuelve el perfil actualizado; si
+  /// no hay cambios devuelve null.
+  Future<UserProfile?> refineActivityFromWorkouts(String uid) async {
+    final profile = await getProfile(uid);
+    if (profile == null || !profile.onboardingCompleted) return null;
+
+    final history = await getWorkoutHistory(uid, limit: 60);
+    final cutoff = DateTime.now().subtract(const Duration(days: 7));
+    final sessions = history
+        .where((s) => s.completed && !s.startedAt.isBefore(cutoff))
+        .length;
+
+    final refined = profile.refinedActivityLevel(sessions);
+    if (refined == profile.activityLevel) return null;
+
+    final kcal = UserProfile.calculateTMB(
+      sex: profile.sex,
+      weight: profile.currentWeight,
+      height: profile.height,
+      age: profile.age,
+      activityLevel: refined,
+      goal: profile.goal,
+    );
+    final macros = UserProfile.calculateMacros(
+      weight: profile.currentWeight,
+      height: profile.height,
+      calories: kcal,
+      goal: profile.goal,
+    );
+
+    await updateProfileFields(uid, {
+      'activityLevel': refined,
+      'targetCalories': kcal,
+      'targetProtein': macros.protein,
+      'targetCarbs': macros.carbs,
+      'targetFat': macros.fat,
+    });
+
+    return profile.copyWith(
+      activityLevel: refined,
+      targetCalories: kcal,
+      targetProtein: macros.protein,
+      targetCarbs: macros.carbs,
+      targetFat: macros.fat,
+    );
+  }
 }
