@@ -452,7 +452,7 @@ class ActiveSessionBanner extends ConsumerWidget {
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text('Sí, cancelar',
-                style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                style: TextStyle(color: Theme.of(ctx).colorScheme.error)),
           ),
         ],
       ),
