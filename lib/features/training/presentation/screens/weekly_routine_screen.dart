@@ -5,6 +5,7 @@ import '../../../profile/presentation/providers/profile_provider.dart';
 import '../../domain/routine_templates.dart';
 import '../providers/exercise_provider.dart';
 import 'edit_routine_day_screen.dart';
+import 'routine_generator_screen.dart';
 
 class WeeklyRoutineScreen extends ConsumerWidget {
   const WeeklyRoutineScreen({super.key});
@@ -125,6 +126,29 @@ class WeeklyRoutineScreen extends ConsumerWidget {
                   style: TextStyle(color: Colors.grey, fontSize: 13),
                 ),
                 const SizedBox(height: 12),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.auto_awesome),
+                    title: const Text(
+                      'Crear con el asistente',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: const Text(
+                      'Genera una rutina según tu objetivo, nivel y días',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const RoutineGeneratorScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
                 ...RoutineTemplates.all.map((t) {
                   return Card(
                     child: ListTile(
