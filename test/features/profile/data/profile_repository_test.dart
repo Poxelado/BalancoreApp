@@ -120,17 +120,32 @@ void main() {
         CustomRoutine(
           name: 'Full body',
           createdAt: DateTime(2026, 10, 1),
-          exercises: const [
-            RoutineExercise(
-              exerciseId: 'ex1',
-              exerciseName: 'Press Banca',
-              muscleGroup: 'Pecho',
-              plannedSets: [
-                PlannedSet(weight: 60, reps: 8),
-                PlannedSet(weight: 60, reps: 8),
+          workouts: const [
+            CustomWorkout(
+              name: 'Día 1',
+              exercises: [
+                RoutineExercise(
+                  exerciseId: 'ex1',
+                  exerciseName: 'Press Banca',
+                  muscleGroup: 'Pecho',
+                  plannedSets: [
+                    PlannedSet(weight: 60, reps: 8),
+                    PlannedSet(weight: 60, reps: 8),
+                  ],
+                  restSeconds: 90,
+                  notes: 'codo alto',
+                ),
               ],
-              restSeconds: 90,
-              notes: 'codo alto',
+            ),
+            CustomWorkout(
+              name: 'Día 2',
+              exercises: [
+                RoutineExercise(
+                  exerciseId: 'ex2',
+                  exerciseName: 'Sentadilla',
+                  muscleGroup: 'Pierna',
+                ),
+              ],
             ),
           ],
         ),
@@ -141,10 +156,39 @@ void main() {
       final r = list.first;
       expect(r.id, isNotEmpty);
       expect(r.name, 'Full body');
-      expect(r.totalSets, 2);
-      expect(r.exercises.first.exerciseName, 'Press Banca');
-      expect(r.exercises.first.restSeconds, 90);
-      expect(r.exercises.first.notes, 'codo alto');
+      expect(r.workoutCount, 2);
+      expect(r.exerciseCount, 2);
+      expect(r.totalSets, 5);
+      final first = r.workouts.first.exercises.first;
+      expect(first.exerciseName, 'Press Banca');
+      expect(first.restSeconds, 90);
+      expect(first.notes, 'codo alto');
+      expect(r.workouts[1].name, 'Día 2');
+      expect(r.workouts[1].exercises.first.exerciseName, 'Sentadilla');
+    });
+
+    test('fromMap migra el formato antiguo (lista plana) a un entrenamiento',
+        () async {
+      await repo.saveProfile(_profile());
+      final legacy = CustomRoutine.fromMap({
+        'id': 'cr_legacy',
+        'name': 'Antigua',
+        'exercises': [
+          {
+            'exerciseId': 'ex1',
+            'exerciseName': 'Press Banca',
+            'sets': 2,
+            'reps': 10,
+            'plannedSets': [
+              {'weight': 40, 'reps': 10},
+              {'weight': 40, 'reps': 10},
+            ],
+          },
+        ],
+      });
+      expect(legacy.workoutCount, 1);
+      expect(legacy.workouts.first.exercises.single.exerciseName,
+          'Press Banca');
     });
 
     test('saveCustomRoutine respeta el id existente y actualiza', () async {

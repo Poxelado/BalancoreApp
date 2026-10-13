@@ -4,6 +4,7 @@ import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../training/presentation/screens/workout_session_screen.dart';
+import '../../../training/presentation/widgets/exercise_list_widgets.dart';
 import '../../../training/domain/rest_day_suggestion.dart';
 
 class RestDayBanner extends ConsumerWidget {
@@ -162,6 +163,240 @@ class RoutineCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+
+/// Tarjeta de una rutina guardada (extra) que se puede contraer para no
+/// ocupar espacio: al tocar el encabezado se muestran sus entrenamientos y,
+/// dentro de cada uno, sus ejercicios.
+class CustomRoutineCard extends StatefulWidget {
+  final CustomRoutine routine;
+  final void Function(CustomWorkout workout) onStartWorkout;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const CustomRoutineCard({
+    super.key,
+    required this.routine,
+    required this.onStartWorkout,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  State<CustomRoutineCard> createState() => _CustomRoutineCardState();
+}
+
+class _CustomRoutineCardState extends State<CustomRoutineCard> {
+  bool _expanded = false;
+  final Set<int> _expandedWorkouts = {};
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    final routine = widget.routine;
+    final nWorkouts = routine.workoutCount;
+    final nExercises = routine.exerciseCount;
+    final duration = routine.estimatedDuration;
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.only(bottom: 10),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 6, 12, 6),
+              child: Row(
+                children: [
+                  Icon(
+                    _expanded ? Icons.expand_less : Icons.expand_more,
+                    color: primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          routine.name,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          nWorkouts == 0
+                              ? 'Sin entrenamientos'
+                              : '$nWorkouts entrenamiento'
+                                  '${nWorkouts == 1 ? '' : 's'} · '
+                                  '$nExercises ejercicios'
+                                  '${duration.isEmpty ? '' : ' · $duration'}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_expanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Divider(height: 1),
+                  const SizedBox(height: 4),
+                  if (routine.workouts.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        'Sin entrenamientos todavía',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    )
+                  else
+                    for (var i = 0; i < routine.workouts.length; i++)
+                      _workoutTile(primary, i, routine.workouts[i]),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: widget.onEdit,
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          label: const Text('Editar'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: widget.onDelete,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                        ),
+                        child: const Icon(Icons.delete_outline, size: 18),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _workoutTile(Color primary, int index, CustomWorkout workout) {
+    final open = _expandedWorkouts.contains(index);
+    final n = workout.exercises.length;
+    final duration = workout.estimatedDuration;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () => setState(() {
+                      if (open) {
+                        _expandedWorkouts.remove(index);
+                      } else {
+                        _expandedWorkouts.add(index);
+                      }
+                    }),
+                    child: Row(
+                      children: [
+                        Icon(
+                          open ? Icons.expand_less : Icons.expand_more,
+                          size: 20,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                workout.name.isEmpty
+                                    ? 'Entrenamiento ${index + 1}'
+                                    : workout.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                n == 0
+                                    ? 'Sin ejercicios'
+                                    : '$n ejercicios'
+                                        '${duration.isEmpty ? '' : ' · $duration'}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Empezar',
+                  icon: Icon(Icons.play_arrow, color: primary),
+                  onPressed: () => widget.onStartWorkout(workout),
+                ),
+              ],
+            ),
+          ),
+          if (open && workout.exercises.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+              child: Column(
+                children: [
+                  for (final e in workout.exercises)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          ExerciseThumb(exerciseId: e.exerciseId, size: 36),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              e.exerciseName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '${e.sets} × ${e.reps}',
+                            style: TextStyle(color: Colors.grey.shade600),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }

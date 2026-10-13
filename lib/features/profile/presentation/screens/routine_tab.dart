@@ -8,6 +8,7 @@ import '../../../training/presentation/screens/weekly_routine_screen.dart';
 import '../../../training/presentation/screens/exercise_library_screen.dart';
 import '../../../training/presentation/screens/edit_routine_day_screen.dart';
 import '../../../training/presentation/screens/edit_custom_routine_screen.dart';
+import '../../../training/presentation/screens/explore_routines_screen.dart';
 import '../../../training/presentation/screens/pick_exercise_screen.dart';
 import '../../../training/presentation/screens/workout_session_screen.dart';
 import '../../../training/presentation/providers/exercise_provider.dart';
@@ -204,14 +205,17 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
     ref.invalidate(workoutHistoryProvider);
   }
 
-  Future<void> _startCustomRoutine(CustomRoutine routine) async {
-    if (routine.exercises.isEmpty) {
+  Future<void> _startCustomWorkout(
+    CustomRoutine routine,
+    CustomWorkout workout,
+  ) async {
+    if (workout.exercises.isEmpty) {
       final edit = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text(routine.name),
+          title: Text(workout.name.isEmpty ? routine.name : workout.name),
           content: const Text(
-            'Esta rutina todavía no tiene ejercicios.\n¿Quieres editarla ahora?',
+            'Este entrenamiento todavía no tiene ejercicios.\n¿Quieres editarlo ahora?',
           ),
           actions: [
             TextButton(
@@ -231,10 +235,11 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
       return;
     }
 
+    final title = workout.name.isEmpty ? routine.name : workout.name;
     final day = RoutineDay(
       day: WorkoutSession.weekdayName(),
-      title: routine.name,
-      exercises: routine.exercises,
+      title: title,
+      exercises: workout.exercises,
     );
     final user = ref.read(authServiceProvider).currentUser;
     WorkoutSession? existing;
@@ -244,7 +249,7 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
           .findIncompleteSessionForRoutine(
         user.uid,
         dayName: day.day,
-        title: routine.name,
+        title: title,
       );
     }
     if (!mounted) return;
@@ -268,6 +273,16 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
       context,
       MaterialPageRoute(
         builder: (_) => const EditCustomRoutineScreen(),
+      ),
+    );
+    ref.invalidate(customRoutinesProvider);
+  }
+
+  Future<void> _exploreRoutines() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const ExploreRoutinesScreen(),
       ),
     );
     ref.invalidate(customRoutinesProvider);
@@ -317,55 +332,6 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
     }
   }
 
-  Widget _customRoutineTile(CustomRoutine routine) {
-    final primary = Theme.of(context).colorScheme.primary;
-    final n = routine.exercises.length;
-    final duration = routine.estimatedDuration;
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: primary.withValues(alpha: 0.12),
-          child: Icon(Icons.fitness_center, color: primary),
-        ),
-        title: Text(
-          routine.name,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Text(
-          n == 0
-              ? 'Sin ejercicios'
-              : '$n ejercicios${duration.isEmpty ? '' : ' · $duration'}',
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              tooltip: 'Empezar',
-              icon: Icon(Icons.play_arrow, color: primary),
-              onPressed: () => _startCustomRoutine(routine),
-            ),
-            PopupMenuButton<String>(
-              tooltip: 'Opciones',
-              onSelected: (v) {
-                if (v == 'edit') {
-                  _editCustomRoutine(routine);
-                } else if (v == 'delete') {
-                  _deleteCustomRoutine(routine);
-                }
-              },
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'edit', child: Text('Editar')),
-                PopupMenuItem(value: 'delete', child: Text('Eliminar')),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final routinesAsync = ref.watch(routinesProvider);
@@ -376,6 +342,23 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+
+        // ─── Entrenamiento libre (acceso rápido) ──
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.tonalIcon(
+            onPressed: _startFreeWorkout,
+            icon: const Icon(Icons.bolt, size: 22),
+            label: const Text(
+              'Entrenamiento libre',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
 
         // ─── Sesión en curso (mini player) ────────────────
         const ActiveSessionBanner(),
@@ -441,43 +424,42 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
         ),
         const SizedBox(height: 24),
 
-        // ═══ 1b) Entrenamiento libre ══════════════════════
-        Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            leading: Icon(Icons.bolt, color: primary),
-            title: const Text(
-              'Entrenamiento libre',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: const Text('Empieza sin rutina o eligiendo ejercicios'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: _startFreeWorkout,
+        // ═══ 2) Rutinas (extras reutilizables) ═══════════
+        Text(
+          'Rutinas',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: primary,
           ),
         ),
-        const SizedBox(height: 20),
-
-        // ═══ 1c) Rutinas extras ══════════════════════════
+        const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
-              child: Text(
-                'Tus rutinas extras',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: primary,
+              child: FilledButton(
+                onPressed: _createCustomRoutine,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+                child: const FittedBox(
+                  child: Text('Crear nueva rutina'),
                 ),
               ),
             ),
-            TextButton.icon(
-              onPressed: _createCustomRoutine,
-              icon: const Icon(Icons.add),
-              label: const Text('Nueva'),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _exploreRoutines,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+                child: const FittedBox(child: Text('Explorar')),
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 12),
         customRoutinesAsync.when(
           loading: () => const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
@@ -493,8 +475,9 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
                 child: const Padding(
                   padding: EdgeInsets.all(16),
                   child: Text(
-                    'Aún no tienes rutinas extras. Crea una para reutilizarla '
-                    'cuando quieras, sin ocupar un día de la semana.',
+                    'Aún no tienes rutinas. Crea una o explora rutinas listas '
+                    'para reutilizarlas cuando quieras, sin ocupar un día de '
+                    'la semana.',
                     style: TextStyle(color: Colors.grey),
                   ),
                 ),
@@ -502,7 +485,13 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
             }
             return Column(
               children: [
-                for (final r in routines) _customRoutineTile(r),
+                for (final r in routines)
+                  CustomRoutineCard(
+                    routine: r,
+                    onStartWorkout: (w) => _startCustomWorkout(r, w),
+                    onEdit: () => _editCustomRoutine(r),
+                    onDelete: () => _deleteCustomRoutine(r),
+                  ),
               ],
             );
           },
