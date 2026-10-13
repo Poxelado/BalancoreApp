@@ -12,6 +12,23 @@ class _NotifId {
   static const progress = 1004;
   /// 1100–1110 slots de racha
   static const streakBase = 1100;
+  static const inactivity = 1200;
+  static const restDone = 1300;
+  static const restTimer = 1301;
+  /// 9900+ avisos de prueba (nunca colisionan con los reales)
+  static const testBase = 9900;
+}
+
+/// Un canal por tema: así el usuario puede silenciar uno sin apagar el resto
+/// desde los ajustes del sistema.
+class _Channel {
+  static const workout = ('balancore_workout', 'Entrenamiento');
+  static const meal = ('balancore_meal', 'Comidas');
+  static const weight = ('balancore_weight', 'Peso');
+  static const progress = ('balancore_progress', 'Progreso');
+  static const streak = ('balancore_streak', 'Racha');
+  static const rest = ('balancore_rest', 'Descanso');
+  static const general = ('balancore_general', 'General');
 }
 
 class NotificationService {
@@ -24,6 +41,10 @@ class NotificationService {
   int? smartWorkoutHour;
   int? smartMealHour;
 
+  /// Id del aviso de fin de descanso (cancelable desde [cancelRestTimer]).
+  static const int kRestDoneId = _NotifId.restDone;
+  static const int kRestTimerId = _NotifId.restTimer;
+
   Future<void> init() async {
     if (_ready) return;
     tzdata.initializeTimeZones();
@@ -34,10 +55,12 @@ class NotificationService {
     }
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+    // No pedimos permisos en el arranque: se solicitan cuando el usuario
+    // activa las notificaciones (evita el prompt apenas abre la app).
     const ios = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
     );
     await _plugin.initialize(
       const InitializationSettings(android: android, iOS: ios),
@@ -45,7 +68,9 @@ class NotificationService {
     _ready = true;
   }
 
-  /// true = concedido; false = denegado (abre ajustes si es permanente)
+  /// true = concedido. Solo abre los ajustes del sistema si el permiso quedó
+  /// denegado de forma permanente; en una denegación simple devuelve false
+  /// para que la UI pueda volver a pedirlo más adelante.
   Future<bool> requestPermission() async {
     if (!_ready) await init();
     var status = await Permission.notification.status;
@@ -54,11 +79,16 @@ class NotificationService {
     status = await Permission.notification.request();
     if (status.isGranted) return true;
 
-    // Segunda vez / denegado: abrir ajustes del sistema
-    if (status.isPermanentlyDenied || status.isDenied) {
+    if (status.isPermanentlyDenied) {
       await openAppSettings();
     }
     return false;
+  }
+
+  /// Abre los ajustes del sistema para que el usuario habilite o silencie
+  /// notificaciones (incluye los canales por tema en Android).
+  Future<void> openSystemSettings() async {
+    await openAppSettings();
   }
 
   void learnFromHistory({
@@ -105,6 +135,7 @@ class NotificationService {
             prefs.smartEnabled, smartWorkoutHour, prefs.workoutMinutes),
         title: 'Hora de entrenar 💪',
         body: 'Tu rutina de hoy te espera en Balancore.',
+        channel: _Channel.workout,
       );
     }
 
@@ -115,6 +146,7 @@ class NotificationService {
             prefs.smartEnabled, smartMealHour, prefs.mealMinutes),
         title: 'Registra tu comida 🍽️',
         body: 'Anota lo que comiste para macros y racha.',
+        channel: _Channel.meal,
       );
     }
 
@@ -126,6 +158,7 @@ class NotificationService {
         weekday: prefs.weightWeekday,
         title: 'Registra tu peso ⚖️',
         body: 'Un registro semanal basta para ver tu tendencia.',
+        channel: _Channel.weight,
       );
     }
 
@@ -136,6 +169,7 @@ class NotificationService {
         weekday: DateTime.sunday,
         title: 'Revisa tu progreso 📊',
         body: 'Mira tu constancia y hábitos de la semana.',
+        channel: _Channel.progress,
       );
     }
 
@@ -145,7 +179,8 @@ class NotificationService {
     }
 
     if (kDebugMode) {
-      debugPrint('[Notif] reprogramadas · streak cada ${prefs.streakIntervalHours}h');
+      debugPrint(
+          '[Notif] reprogramadas · streak cada ${prefs.streakIntervalHours}h');
     }
   }
 
@@ -160,7 +195,8 @@ class NotificationService {
         minutes: hour * 60,
         title: '¡No pierdas tu racha! 🔥',
         body:
-        'Registra al menos 3 de 4 (entreno, agua, sueño o comida) antes de que termine el día.',
+            'Registra al menos 3 de 4 (entreno, agua, sueño o comida) antes de que termine el día.',
+        channel: _Channel.streak,
       );
       slot++;
       if (slot > 8) break;
@@ -172,6 +208,7 @@ class NotificationService {
     required int minutes,
     required String title,
     required String body,
+    required (String, String) channel,
   }) async {
     final when = _nextInstanceOfTime(minutes);
     await _plugin.zonedSchedule(
@@ -179,10 +216,10 @@ class NotificationService {
       title,
       body,
       when,
-      _details(),
+      _details(channel),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
-      UILocalNotificationDateInterpretation.absoluteTime,
+          UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
     );
   }
@@ -193,6 +230,7 @@ class NotificationService {
     required int weekday,
     required String title,
     required String body,
+    required (String, String) channel,
   }) async {
     final when = _nextInstanceOfWeekday(weekday, minutes);
     await _plugin.zonedSchedule(
@@ -200,25 +238,30 @@ class NotificationService {
       title,
       body,
       when,
-      _details(),
+      _details(channel),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
-      UILocalNotificationDateInterpretation.absoluteTime,
+          UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
     );
   }
 
-  NotificationDetails _details() {
-    return const NotificationDetails(
+  NotificationDetails _details(
+    (String, String) channel, {
+    Importance importance = Importance.defaultImportance,
+    Priority priority = Priority.defaultPriority,
+  }) {
+    final (id, name) = channel;
+    return NotificationDetails(
       android: AndroidNotificationDetails(
-        'balancore_reminders',
-        'Recordatorios Balancore',
-        channelDescription: 'Entreno, comidas, peso, racha y progreso',
-        importance: Importance.defaultImportance,
-        priority: Priority.defaultPriority,
+        id,
+        name,
+        channelDescription: 'Recordatorios de Balancore · $name',
+        importance: importance,
+        priority: priority,
         icon: '@mipmap/ic_launcher',
       ),
-      iOS: DarwinNotificationDetails(),
+      iOS: const DarwinNotificationDetails(),
     );
   }
 
@@ -227,7 +270,7 @@ class NotificationService {
     final h = minutesFromMidnight ~/ 60;
     final m = minutesFromMidnight % 60;
     var scheduled =
-    tz.TZDateTime(tz.local, now.year, now.month, now.day, h, m);
+        tz.TZDateTime(tz.local, now.year, now.month, now.day, h, m);
     if (!scheduled.isAfter(now)) {
       scheduled = scheduled.add(const Duration(days: 1));
     }
@@ -239,16 +282,12 @@ class NotificationService {
     final h = minutesFromMidnight ~/ 60;
     final m = minutesFromMidnight % 60;
     var scheduled =
-    tz.TZDateTime(tz.local, now.year, now.month, now.day, h, m);
+        tz.TZDateTime(tz.local, now.year, now.month, now.day, h, m);
     while (scheduled.weekday != weekday || !scheduled.isAfter(now)) {
       scheduled = scheduled.add(const Duration(days: 1));
     }
     return scheduled;
   }
-
-  /// Id del aviso de fin de descanso (cancelable desde [cancelRestTimer]).
-static const int kRestDoneId = 9110;
-static const int kRestTimerId = 9111;
 
   /// Avisa de que el descanso terminó. Se dispara aunque la app esté en
   /// segundo plano, para no perder el aviso al tener la pantalla apagada.
@@ -263,7 +302,8 @@ static const int kRestTimerId = 9111;
         kRestDoneId,
         'Descanso terminado ⏱️',
         'Puedes con la siguiente serie.',
-        _details(),
+        _details(_Channel.rest,
+            importance: Importance.high, priority: Priority.high),
       );
     } catch (e) {
       debugPrint('notifications: no se pudo avisar del fin de descanso: $e');
@@ -283,7 +323,8 @@ static const int kRestTimerId = 9111;
           DateTime.now().add(Duration(seconds: seconds)),
           tz.local,
         ),
-        _details(),
+        _details(_Channel.rest,
+            importance: Importance.high, priority: Priority.high),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
@@ -315,10 +356,10 @@ static const int kRestTimerId = 9111;
   Future<void> showInactivity(String body) async {
     if (!_ready) await init();
     await _plugin.show(
-      9106,
+      _NotifId.inactivity,
       'Te echamos de menos 👋',
       body,
-      _details(),
+      _details(_Channel.general),
     );
   }
 
@@ -331,42 +372,49 @@ static const int kRestTimerId = 9111;
     if (!_ready) await init();
     final map = {
       'workout': (
-      9101,
-      'Prueba · Entrenamiento 💪',
-      'Así se verá el recordatorio de entrenar.',
+        _NotifId.testBase + 1,
+        'Prueba · Entrenamiento 💪',
+        'Así se verá el recordatorio de entrenar.',
+        _Channel.workout,
       ),
       'meal': (
-      9102,
-      'Prueba · Comida 🍽️',
-      'Así se verá el recordatorio de registrar comida.',
+        _NotifId.testBase + 2,
+        'Prueba · Comida 🍽️',
+        'Así se verá el recordatorio de registrar comida.',
+        _Channel.meal,
       ),
       'weight': (
-      9103,
-      'Prueba · Peso ⚖️',
-      'Así se verá el recordatorio semanal de peso.',
+        _NotifId.testBase + 3,
+        'Prueba · Peso ⚖️',
+        'Así se verá el recordatorio semanal de peso.',
+        _Channel.weight,
       ),
       'progress': (
-      9104,
-      'Prueba · Progreso 📊',
-      'Así se verá el recordatorio de revisar progreso.',
+        _NotifId.testBase + 4,
+        'Prueba · Progreso 📊',
+        'Así se verá el recordatorio de revisar progreso.',
+        _Channel.progress,
       ),
       'streak': (
-      9105,
-      'Prueba · Racha 🔥',
-      'Registra 3 de 4 hábitos para no perder la racha.',
+        _NotifId.testBase + 5,
+        'Prueba · Racha 🔥',
+        'Registra 3 de 4 hábitos para no perder la racha.',
+        _Channel.streak,
       ),
       'inactivity': (
-      9106,
-      'Te echamos de menos 👋',
-      'Llevas varios días sin registrar. Vuelve a Balancore y retoma el hábito.',
+        _NotifId.testBase + 6,
+        'Te echamos de menos 👋',
+        'Llevas varios días sin registrar. Vuelve a Balancore y retoma el hábito.',
+        _Channel.general,
       ),
       'general': (
-      9999,
-      'Balancore',
-      'Las notificaciones están activas ✅',
+        _NotifId.testBase,
+        'Balancore',
+        'Las notificaciones están activas ✅',
+        _Channel.general,
       ),
     };
     final data = map[kind] ?? map['general']!;
-    await _plugin.show(data.$1, data.$2, data.$3, _details());
+    await _plugin.show(data.$1, data.$2, data.$3, _details(data.$4));
   }
 }

@@ -21,6 +21,7 @@ class HomeTab extends ConsumerStatefulWidget {
 class _HomeTabState extends ConsumerState<HomeTab> {
   bool _tutorialChecked = false;
   bool _activityRefined = false;
+  bool _notificationsRefreshed = false;
   String? _motivationMsg;
   String? _motivationKey;
 
@@ -64,8 +65,13 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      refreshSmartNotifications(ref);
-      checkInactivityAndNotify(ref);
+      // Reprogramar/avisar una sola vez por sesión: evita cancelar y volver a
+      // agendar los recordatorios en cada rebuild (agua, comidas, etc.).
+      if (!_notificationsRefreshed) {
+        _notificationsRefreshed = true;
+        refreshSmartNotifications(ref);
+        checkInactivityAndNotify(ref);
+      }
       _maybeRefineActivity();
     });
 

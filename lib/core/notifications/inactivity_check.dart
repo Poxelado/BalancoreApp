@@ -52,24 +52,28 @@ Future<void> checkInactivityAndNotify(WidgetRef ref) async {
 
     final startToday = DateTime(today.year, today.month, today.day);
 
-    int daysSince(DateTime? last) {
-      if (last == null) return 999;
+    // Sin ningún registro histórico no hay nada que medir: no avisamos para
+    // no molestar a un usuario nuevo con un "llevas N días" falso.
+    if (lastTrain == null && lastFood == null) return;
+
+    int? daysSince(DateTime? last) {
+      if (last == null) return null;
       return startToday.difference(last).inDays;
     }
 
     final daysTrain = daysSince(lastTrain);
     final daysFood = daysSince(lastFood);
 
-    // Aviso si AMBOS están por debajo del umbral (inactivo en general)
-    // o si cualquiera supera el umbral (mensaje específico)
-    final inactiveTrain = daysTrain >= threshold;
-    final inactiveFood = daysFood >= threshold;
+    // Sólo cuenta como inactiva una categoría que el usuario ya usaba antes;
+    // si nunca la registró, no lo tratamos como inactivo.
+    final inactiveTrain = daysTrain != null && daysTrain >= threshold;
+    final inactiveFood = daysFood != null && daysFood >= threshold;
     if (!inactiveTrain && !inactiveFood) return;
 
     String body;
     if (inactiveTrain && inactiveFood) {
       body =
-      'Llevas $threshold+ días sin entrenar ni registrar comida. ¡Retoma el ritmo en Balancore!';
+      'Llevas varios días sin entrenar ni registrar comida. ¡Retoma el ritmo en Balancore!';
     } else if (inactiveTrain) {
       body =
       'Llevas $daysTrain días sin entrenar. Una sesión corta cuenta.';

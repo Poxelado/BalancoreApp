@@ -305,6 +305,30 @@ class NotificationSettingsScreen extends ConsumerWidget {
               ),
             ),
           ),
+          const SizedBox(height: 12),
+          Card(
+            child: Column(
+              children: [
+                const ListTile(
+                  leading: Icon(Icons.tune),
+                  title: Text('Canales del sistema'),
+                  subtitle: Text(
+                      'Puedes silenciar o cambiar el sonido de cada tema '
+                      '(entreno, comidas, peso, racha…) desde los ajustes '
+                      'de notificaciones del teléfono.'),
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () =>
+                        NotificationService.instance.openSystemSettings(),
+                    icon: const Icon(Icons.open_in_new, size: 16),
+                    label: const Text('Abrir ajustes del sistema'),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
