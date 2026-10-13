@@ -676,22 +676,22 @@ class SetLogRow extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 1),
                       decoration: BoxDecoration(
-                        color: Colors.amber.withValues(alpha: 0.2),
+                        color: AppDataColors.gold.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.amber, width: 1),
+                        border: Border.all(color: AppDataColors.gold, width: 1),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const Icon(Icons.emoji_events,
-                              size: 11, color: Colors.amber),
+                              size: 11, color: AppDataColors.gold),
                           const SizedBox(width: 3),
                           Flexible(
                             child: Text(
                               prLabel!,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                color: Colors.amber,
+                                color: AppDataColors.gold,
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
                               ),

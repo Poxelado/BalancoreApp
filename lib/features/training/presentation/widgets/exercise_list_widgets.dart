@@ -336,7 +336,7 @@ class ExerciseListBody extends StatelessWidget {
                         : 'Añadir a favoritos',
                     icon: Icon(
                       isFav ? Icons.star : Icons.star_border,
-                      color: isFav ? Colors.amber : Colors.grey,
+                      color: isFav ? AppDataColors.gold : Colors.grey,
                     ),
                     onPressed: () => onToggleFavorite!(e),
                   )

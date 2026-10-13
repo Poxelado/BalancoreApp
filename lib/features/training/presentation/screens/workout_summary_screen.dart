@@ -113,15 +113,15 @@ class WorkoutSummaryScreen extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
-                    color: Colors.amber.withValues(alpha: 0.12),
+                    color: AppDataColors.gold.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                        color: Colors.amber.withValues(alpha: 0.5)),
+                        color: AppDataColors.gold.withValues(alpha: 0.5)),
                   ),
                   child: Row(
                     children: [
                       const Icon(Icons.emoji_events,
-                          color: Colors.amber, size: 18),
+                          color: AppDataColors.gold, size: 18),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -133,7 +133,7 @@ class WorkoutSummaryScreen extends StatelessWidget {
                         _fmtKg(r.value),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: Colors.amber,
+                          color: AppDataColors.gold,
                         ),
                       ),
                     ],
