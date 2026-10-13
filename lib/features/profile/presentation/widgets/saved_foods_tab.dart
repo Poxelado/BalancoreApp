@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class SavedFoodsTab extends ConsumerWidget {
   const SavedFoodsTab({super.key});
@@ -13,7 +14,7 @@ class SavedFoodsTab extends ConsumerWidget {
     final primary = Theme.of(context).colorScheme.primary;
 
     return foodsAsync.when(
-      loading: () => Center(child: CircularProgressIndicator(color: primary)),
+      loading: () => Center(child: CircularProgressIndicator(color: accentOf(context))),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (foods) {
         return Column(
@@ -165,7 +166,7 @@ class SavedFoodsTab extends ConsumerWidget {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: primary,
+                        color: accentOf(context),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -181,7 +182,7 @@ class SavedFoodsTab extends ConsumerWidget {
                       'Cantidad / medida',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: primary,
+                        color: accentOf(context),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -217,7 +218,7 @@ class SavedFoodsTab extends ConsumerWidget {
                       'Calorias y Macros',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: primary,
+                        color: accentOf(context),
                       ),
                     ),
                     const SizedBox(height: 12),

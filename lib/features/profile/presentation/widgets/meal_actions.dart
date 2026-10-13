@@ -6,6 +6,7 @@ import '../providers/profile_provider.dart';
 import '../screens/food_search_screen.dart';
 import '../screens/recipe_editor_screen.dart';
 import 'meal_editor_sheet.dart';
+import '../../../../core/theme/app_theme.dart';
 part 'meal_recipe_actions.dart';
 
 Future<void> saveMealAsFood(
@@ -122,7 +123,7 @@ Future<void> openCopyDaySheet(BuildContext context, WidgetRef ref) async {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: primary,
+                    color: accentOf(context),
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -257,12 +258,12 @@ Future<void> showAddChooser(BuildContext context, WidgetRef ref) async {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: primary,
+                  color: accentOf(context),
                 ),
               ),
               const SizedBox(height: 16),
               ListTile(
-                leading: Icon(Icons.restaurant_menu, color: primary),
+                leading: Icon(Icons.restaurant_menu, color: accentOf(context)),
                 title: const Text('Un plato / receta'),
                 subtitle:
                 const Text('Elegir uno guardado o crear uno nuevo'),
@@ -274,7 +275,7 @@ Future<void> showAddChooser(BuildContext context, WidgetRef ref) async {
               ),
               const SizedBox(height: 10),
               ListTile(
-                leading: Icon(Icons.fastfood_outlined, color: primary),
+                leading: Icon(Icons.fastfood_outlined, color: accentOf(context)),
                 title: const Text('Un alimento / comida'),
                 subtitle: const Text(
                     'Manual, Mis alimentos u Open Food Facts'),

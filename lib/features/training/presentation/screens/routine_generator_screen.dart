@@ -10,6 +10,7 @@ import '../../domain/exercise.dart';
 import '../../domain/routine_generator.dart';
 import '../providers/exercise_provider.dart';
 import 'ai_settings_screen.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// Pantalla del asistente: recoge los datos de la rutina y la genera.
 ///
@@ -163,7 +164,7 @@ class _RoutineGeneratorScreenState
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    final primary = accentOf(context);
     final catalog = ref.watch(exercisesProvider);
 
     return Scaffold(
@@ -226,7 +227,7 @@ class _RoutineGeneratorScreenState
                       ? Row(
                           children: [
                             Icon(Icons.auto_awesome,
-                                size: 16, color: primary),
+                                size: 16, color: accentOf(context)),
                             const SizedBox(width: 6),
                             const Text(
                               'Generada con IA',
@@ -236,7 +237,7 @@ class _RoutineGeneratorScreenState
                         )
                       : Row(
                           children: [
-                            Icon(Icons.rule, size: 16, color: primary),
+                            Icon(Icons.rule, size: 16, color: accentOf(context)),
                             const SizedBox(width: 6),
                             const Text(
                               'Generada con el motor de reglas',
@@ -288,7 +289,7 @@ class _RoutineGeneratorScreenState
   }
 
   Widget _aiNotice() {
-    final primary = Theme.of(context).colorScheme.primary;
+    final primary = accentOf(context);
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -297,7 +298,7 @@ class _RoutineGeneratorScreenState
       ),
       child: Row(
         children: [
-          Icon(Icons.info_outline, size: 18, color: primary),
+          Icon(Icons.info_outline, size: 18, color: accentOf(context)),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -439,7 +440,7 @@ class _RoutineGeneratorScreenState
         style: TextStyle(
           fontWeight: FontWeight.w700,
           fontSize: 15,
-          color: primary,
+          color: accentOf(context),
         ),
       );
 }

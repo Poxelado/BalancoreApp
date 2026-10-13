@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/exercise.dart';
 import '../providers/exercise_provider.dart';
 import '../widgets/exercise_list_widgets.dart';
+import '../../../../../core/theme/app_theme.dart';
 
 /// Selector de ejercicios para añadir a una rutina.
 /// Devuelve `List<Exercise>` (selección múltiple) al pulsar "Añadir".
@@ -53,7 +54,7 @@ class _PickExerciseScreenState extends ConsumerState<PickExerciseScreen> {
         ],
       ),
       body: exercisesAsync.when(
-        loading: () => Center(child: CircularProgressIndicator(color: primary)),
+        loading: () => Center(child: CircularProgressIndicator(color: accentOf(context))),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (base) {
           final all = ExerciseCatalog.forPicker(base);

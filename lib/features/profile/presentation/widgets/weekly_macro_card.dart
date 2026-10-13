@@ -26,7 +26,6 @@ class _WeeklyMacroCardState extends ConsumerState<WeeklyMacroCard> {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
     final profile = ref.watch(userProfileProvider).value;
     final logsAsync = ref.watch(dailyLogsHistoryProvider(14));
 
@@ -53,12 +52,12 @@ class _WeeklyMacroCardState extends ConsumerState<WeeklyMacroCard> {
           child: Column(
             children: [
               ListTile(
-                leading: Icon(Icons.insights, color: primary),
+                leading: Icon(Icons.insights, color: accentOf(context)),
                 title: Text(
                   'Macros · esta semana',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: primary,
+                    color: accentOf(context),
                   ),
                 ),
                 subtitle: Text(
@@ -67,7 +66,7 @@ class _WeeklyMacroCardState extends ConsumerState<WeeklyMacroCard> {
                 ),
                 trailing: Icon(
                   _expanded ? Icons.expand_less : Icons.expand_more,
-                  color: primary,
+                  color: accentOf(context),
                 ),
                 onTap: () => setState(() => _expanded = !_expanded),
               ),

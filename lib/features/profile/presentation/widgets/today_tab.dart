@@ -10,6 +10,7 @@ import 'meal_editor_sheet.dart';
 import 'meal_section.dart';
 import 'quick_foods_bar.dart';
 import 'water_row.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class TodayTab extends ConsumerWidget {
   final DailyLog log;
@@ -42,7 +43,7 @@ class TodayTab extends ConsumerWidget {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: primary,
+                color: accentOf(context),
               ),
             ),
             const Spacer(),
@@ -142,7 +143,7 @@ class TodayTab extends ConsumerWidget {
 
         Text('Macros',
             style: TextStyle(
-                fontSize: 16, fontWeight: FontWeight.bold, color: primary)),
+                fontSize: 16, fontWeight: FontWeight.bold, color: accentOf(context))),
         const SizedBox(height: 8),
         MacroBar(
             label: 'Proteína',
@@ -167,7 +168,7 @@ class TodayTab extends ConsumerWidget {
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: primary)),
+                    color: accentOf(context))),
             const Spacer(),
             IconButton(
               tooltip: 'Buscar alimento (Open Food Facts)',

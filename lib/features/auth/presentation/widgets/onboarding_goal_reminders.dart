@@ -58,7 +58,7 @@ class GoalPage extends StatelessWidget {
                 title: Text(g),
                 subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
                 trailing:
-                    selected ? Icon(Icons.check_circle, color: primary) : null,
+                    selected ? Icon(Icons.check_circle, color: accentOf(context)) : null,
                 onTap: () => onGoalChanged(g),
               ),
             );
@@ -77,7 +77,7 @@ class GoalPage extends StatelessWidget {
                     'Tu plan diario estimado',
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: primary,
+                      color: accentOf(context),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -86,7 +86,7 @@ class GoalPage extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 36,
                       fontWeight: FontWeight.bold,
-                      color: primary,
+                      color: accentOf(context),
                     ),
                   ),
                   const Text('kcal / día',
@@ -95,7 +95,7 @@ class GoalPage extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.water_drop, size: 18, color: primary),
+                      Icon(Icons.water_drop, size: 18, color: accentOf(context)),
                       const SizedBox(width: 6),
                       Flexible(
                         child: Text(
@@ -206,9 +206,9 @@ class RemindersPage extends StatelessWidget {
               child: OutlinedButton(
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  foregroundColor: primary,
+                  foregroundColor: accentOf(context),
                   side: BorderSide(
-                    color: primary,
+                    color: accentOf(context),
                     width: wantNotifs == false ? 2.5 : 1.5,
                   ),
                   backgroundColor: wantNotifs == false
@@ -221,7 +221,7 @@ class RemindersPage extends StatelessWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
-                    color: primary,
+                    color: accentOf(context),
                   ),
                 ),
               ),
@@ -276,13 +276,13 @@ class RemindersPage extends StatelessWidget {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 16,
-              color: primary,
+              color: accentOf(context),
             ),
           ),
           const SizedBox(height: 8),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.fitness_center, color: primary),
+            leading: Icon(Icons.fitness_center, color: accentOf(context)),
             title: Text('Entrenamiento', style: TextStyle(color: onSurface)),
             subtitle: Text(_hhmm(workoutMin)),
             trailing: Icon(Icons.edit_outlined, color: onSurface),
@@ -299,7 +299,7 @@ class RemindersPage extends StatelessWidget {
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.restaurant, color: primary),
+            leading: Icon(Icons.restaurant, color: accentOf(context)),
             title: Text('Comida', style: TextStyle(color: onSurface)),
             subtitle: Text(_hhmm(mealMin)),
             trailing: Icon(Icons.edit_outlined, color: onSurface),
@@ -316,7 +316,7 @@ class RemindersPage extends StatelessWidget {
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.monitor_weight_outlined, color: primary),
+            leading: Icon(Icons.monitor_weight_outlined, color: accentOf(context)),
             title: Text('Peso (semanal)', style: TextStyle(color: onSurface)),
             subtitle: Text(
               '${NotificationPreferences.weekdayNames[weightWeekday]} · ${_hhmm(weightMin)}',
@@ -354,7 +354,7 @@ class RemindersPage extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             'Avisos de racha (después de las 12:00)',
-            style: TextStyle(fontWeight: FontWeight.w600, color: primary),
+            style: TextStyle(fontWeight: FontWeight.w600, color: accentOf(context)),
           ),
           const SizedBox(height: 8),
           SegmentedButton<int>(
@@ -371,7 +371,7 @@ class RemindersPage extends StatelessWidget {
                 }
                 return Colors.transparent;
               }),
-              side: WidgetStatePropertyAll(BorderSide(color: primary)),
+              side: WidgetStatePropertyAll(BorderSide(color: accentOf(context))),
             ),
             segments: const [
               ButtonSegment(value: 4, label: Text('Cada 4 h')),

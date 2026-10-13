@@ -7,6 +7,7 @@ import '../../../profile/presentation/providers/profile_provider.dart';
 import '../../domain/routine_templates.dart';
 import '../providers/exercise_provider.dart';
 import 'routine_generator_screen.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// Una rutina lista para usar, derivada de las plantillas de la app.
 class _ReadyRoutine {
@@ -101,7 +102,7 @@ class _ExploreRoutinesScreenState
       ),
       body: ref.watch(exercisesProvider).when(
             loading: () =>
-                Center(child: CircularProgressIndicator(color: primary)),
+                Center(child: CircularProgressIndicator(color: accentOf(context))),
             error: (e, _) => Center(child: Text('Error: $e')),
             data: (_) {
               final ready = _buildReady();
@@ -113,7 +114,7 @@ class _ExploreRoutinesScreenState
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: ListTile(
-                      leading: Icon(Icons.auto_awesome, color: primary),
+                      leading: Icon(Icons.auto_awesome, color: accentOf(context)),
                       title: const Text(
                         'Crear con el asistente',
                         style: TextStyle(fontWeight: FontWeight.w600),
@@ -131,7 +132,7 @@ class _ExploreRoutinesScreenState
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: primary,
+                      color: accentOf(context),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -167,7 +168,7 @@ class _ExploreRoutinesScreenState
           children: [
             CircleAvatar(
               backgroundColor: primary.withValues(alpha: 0.12),
-              child: Icon(Icons.fitness_center, color: primary),
+              child: Icon(Icons.fitness_center, color: accentOf(context)),
             ),
             const SizedBox(width: 12),
             Expanded(

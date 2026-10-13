@@ -8,6 +8,7 @@ import 'exercise_detail_screen.dart';
 import 'pick_exercise_screen.dart';
 import '../widgets/exercise_list_widgets.dart';
 import '../widgets/routine_day_widgets.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// Crea o edita una rutina extra (además de la rutina semanal).
 /// Una rutina agrupa varios entrenamientos y cada uno sus ejercicios.
@@ -266,7 +267,7 @@ class _EditCustomRoutineScreenState
                 'Entrenamientos (${_workouts.length})',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: primary,
+                  color: accentOf(context),
                   fontSize: 16,
                 ),
               ),
@@ -478,7 +479,7 @@ class _WorkoutEditorCardState extends State<_WorkoutEditorCard> {
                                   duration: const Duration(milliseconds: 200),
                                   child: Icon(
                                     Icons.chevron_right,
-                                    color: primary,
+                                    color: accentOf(context),
                                   ),
                                 ),
                               ),

@@ -8,6 +8,7 @@ import '../../../../core/notifications/smart_schedule.dart';
 import '../../../../core/notifications/inactivity_check.dart';
 import '../../../../core/first_run/first_run_prefs.dart';
 import '../../../../core/motivation/motivational_messages.dart';
+import '../../../../core/theme/app_theme.dart';
 
 const int kMlPerGlass = 200;
 class HomeTab extends ConsumerStatefulWidget {
@@ -78,7 +79,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
         .withValues(alpha: 0.65);
 
     return logAsync.when(
-      loading: () => Center(child: CircularProgressIndicator(color: primary)),
+      loading: () => Center(child: CircularProgressIndicator(color: accentOf(context))),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (log) {
         final profile = ref.watch(userProfileProvider).value;
@@ -162,7 +163,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
-                color: primary,
+                color: accentOf(context),
               ),
             ),
             const SizedBox(height: 4),
@@ -305,7 +306,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
               'Nutrición y entreno de hoy',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
-                color: primary,
+                color: accentOf(context),
               ),
             ),
             const SizedBox(height: 8),
@@ -355,7 +356,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
               'Accesos rápidos',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
-                color: primary,
+                color: accentOf(context),
               ),
             ),
             const SizedBox(height: 8),
@@ -365,7 +366,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                   child: QuickAccess(
                     icon: Icons.fitness_center,
                     label: 'Rutina',
-                    color: primary,
+                    color: accentOf(context),
                     onTap: () =>
                     ref.read(shellTabProvider.notifier).state = 3,
                   ),
@@ -375,7 +376,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                   child: QuickAccess(
                     icon: Icons.restaurant_menu,
                     label: 'Nutrición',
-                    color: primary,
+                    color: accentOf(context),
                     onTap: () =>
                     ref.read(shellTabProvider.notifier).state = 1,
                   ),
@@ -389,7 +390,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                   child: QuickAccess(
                     icon: Icons.insights,
                     label: 'Progreso',
-                    color: primary,
+                    color: accentOf(context),
                     onTap: () =>
                     ref.read(shellTabProvider.notifier).state = 0,
                   ),
@@ -399,7 +400,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                   child: QuickAccess(
                     icon: Icons.person_outline,
                     label: 'Perfil',
-                    color: primary,
+                    color: accentOf(context),
                     onTap: () =>
                     ref.read(shellTabProvider.notifier).state = 4,
                   ),

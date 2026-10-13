@@ -1,7 +1,6 @@
 part of 'meal_actions.dart';
 
 Future<void> openRecipePicker(BuildContext context, WidgetRef ref) async {
-  final primary = Theme.of(context).colorScheme.primary;
   final recipes = await ref.read(savedRecipesProvider.future);
   if (!context.mounted) return;
 
@@ -30,7 +29,7 @@ Future<void> openRecipePicker(BuildContext context, WidgetRef ref) async {
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.bold,
-                          color: primary,
+                          color: accentOf(context),
                         ),
                       ),
                     ),
@@ -58,7 +57,7 @@ Future<void> openRecipePicker(BuildContext context, WidgetRef ref) async {
                     final r = recipes[i];
                     return ListTile(
                       leading: Icon(Icons.restaurant_menu,
-                          color: primary),
+                          color: accentOf(context)),
                       title: Text(r.name),
                       subtitle: Text(
                         '${r.totalCalories} kcal · ${r.ingredients.length} ing.',
@@ -138,13 +137,13 @@ Future<void> logRecipeFromPicker(
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
-                    color: primary,
+                    color: accentOf(context),
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text('Momento del día',
                     style: TextStyle(
-                        fontWeight: FontWeight.w600, color: primary)),
+                        fontWeight: FontWeight.w600, color: accentOf(context))),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -166,7 +165,7 @@ Future<void> logRecipeFromPicker(
                 const SizedBox(height: 14),
                 Text('Porción',
                     style: TextStyle(
-                        fontWeight: FontWeight.w600, color: primary)),
+                        fontWeight: FontWeight.w600, color: accentOf(context))),
                 const SizedBox(height: 8),
                 SegmentedButton<double>(
                   segments: const [
@@ -185,7 +184,7 @@ Future<void> logRecipeFromPicker(
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    color: primary,
+                    color: accentOf(context),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -231,7 +230,6 @@ Future<void> onEditMealOrRecipe(
     return;
   }
 
-  final primary = Theme.of(context).colorScheme.primary;
   final choice = await showModalBottomSheet<String>(
     context: context,
     shape: const RoundedRectangleBorder(
@@ -249,7 +247,7 @@ Future<void> onEditMealOrRecipe(
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
-                  color: primary,
+                  color: accentOf(context),
                 ),
               ),
               const SizedBox(height: 12),
@@ -261,7 +259,7 @@ Future<void> onEditMealOrRecipe(
                 onTap: () => Navigator.pop(ctx, 'meal'),
               ),
               ListTile(
-                leading: Icon(Icons.restaurant_menu, color: primary),
+                leading: Icon(Icons.restaurant_menu, color: accentOf(context)),
                 title: const Text('Editar la receta'),
                 subtitle: const Text('Ingredientes del plato guardado'),
                 onTap: () => Navigator.pop(ctx, 'recipe'),

@@ -20,6 +20,7 @@ import '../../domain/personal_records.dart';
 import '../../domain/session_stats.dart';
 import '../workout_builders.dart';
 import 'workout_summary_screen.dart';
+import '../../../../core/theme/app_theme.dart';
 
 part 'workout_session_logic.dart';
 const _kRestSecondsKey = 'balancore_rest_seconds';
@@ -194,7 +195,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
                   Icon(
                     _paused ? Icons.pause_circle : Icons.timer_outlined,
                     size: 18,
-                    color: _paused ? Colors.orange : primary,
+                    color: _paused ? Colors.orange : accentOf(context),
                   ),
                   const SizedBox(width: 6),
                   Text(
@@ -240,7 +241,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
                     child: Text(
                       'Terminar',
                       style: TextStyle(
-                          color: primary, fontWeight: FontWeight.bold),
+                          color: accentOf(context), fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
@@ -254,7 +255,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
                   value: progress,
                   minHeight: 4,
                   backgroundColor: primary.withValues(alpha: 0.15),
-                  color: primary,
+                  color: accentOf(context),
                 ),
               ),
             ),

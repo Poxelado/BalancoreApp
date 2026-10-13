@@ -557,7 +557,7 @@ class MotivationBanner extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.auto_awesome, size: 18, color: primary),
+          Icon(Icons.auto_awesome, size: 18, color: accentOf(context)),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

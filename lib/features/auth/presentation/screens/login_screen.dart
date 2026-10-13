@@ -4,6 +4,7 @@ import '../providers/auth_provider.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -101,7 +102,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.bold,
-                            color: primary,
+                            color: accentOf(context),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -188,7 +189,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             },
                             child: Text(
                               '¿Olvidaste tu contraseña?',
-                              style: TextStyle(color: primary),
+                              style: TextStyle(color: accentOf(context)),
                             ),
                           ),
                         ),
@@ -293,7 +294,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 'Regístrate',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: primary,
+                                  color: accentOf(context),
                                 ),
                               ),
                             ),

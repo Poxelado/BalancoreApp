@@ -5,6 +5,7 @@ import '../providers/profile_provider.dart';
 import 'metric_card.dart';
 import 'progress_muscles.dart';
 import 'progress_workouts_tiles.dart';
+import '../../../../core/theme/app_theme.dart';
 
 // ═══════════════════════════════════════════════════════════
 // ENTRENAMIENTOS
@@ -399,7 +400,7 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
               // 1) Sectores arriba
               Text(
                 'Sectores musculares',
-                style: TextStyle(fontWeight: FontWeight.w600, color: primary),
+                style: TextStyle(fontWeight: FontWeight.w600, color: accentOf(context)),
               ),
               const SizedBox(height: 4),
               Text(
@@ -448,7 +449,7 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
                       label: 'Entrenos',
                       value: '$showSessions',
                       subtitle: _selectedMuscle == null ? 'ok' : 'con sector',
-                      color: primary,
+                      color: accentOf(context),
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -490,7 +491,7 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
                 _selectedMuscle != null
                     ? 'Series · $_selectedMuscle'
                     : 'Series por grupo muscular',
-                style: TextStyle(fontWeight: FontWeight.w600, color: primary),
+                style: TextStyle(fontWeight: FontWeight.w600, color: accentOf(context)),
               ),
               const SizedBox(height: 4),
               Text(
@@ -550,7 +551,7 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
                 _selectedMuscle == null
                     ? 'Sesiones'
                     : 'Sesiones · $_selectedMuscle',
-                style: TextStyle(fontWeight: FontWeight.w600, color: primary),
+                style: TextStyle(fontWeight: FontWeight.w600, color: accentOf(context)),
               ),
               const SizedBox(height: 8),
               if (listSessions.isEmpty)

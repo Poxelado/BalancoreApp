@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../domain/user_profile.dart';
+import '../../../../../core/theme/app_theme.dart';
 
 class MealSection extends StatelessWidget {
   final String type;
@@ -28,13 +29,12 @@ class MealSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ExpansionTile(
-        leading: Icon(_icon, color: primary),
+        leading: Icon(_icon, color: accentOf(context)),
         title: Text(type, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(
           meals.isEmpty
@@ -63,7 +63,7 @@ class MealSection extends StatelessWidget {
           if (m.isRecipe && m.ingredients.isNotEmpty) {
             return ExpansionTile(
               dense: true,
-              leading: Icon(Icons.restaurant_menu, color: primary, size: 20),
+              leading: Icon(Icons.restaurant_menu, color: accentOf(context), size: 20),
               title: Text(m.name,
                   style: const TextStyle(fontWeight: FontWeight.w600)),
               subtitle: Text(sub, style: const TextStyle(fontSize: 12)),

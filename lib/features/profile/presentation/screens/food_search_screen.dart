@@ -5,6 +5,7 @@ import '../../../../core/food/common_foods.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
+import '../../../../core/theme/app_theme.dart';
 
 part 'food_search_sheet.dart';
 
@@ -411,11 +412,11 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen>
                                     semanticLabel: p.displayName,
                                     errorBuilder: (_, __, ___) => Icon(
                                       Icons.fastfood,
-                                      color: primary,
+                                      color: accentOf(context),
                                     ),
                                   ),
                                 )
-                              : Icon(Icons.fastfood, color: primary),
+                              : Icon(Icons.fastfood, color: accentOf(context)),
                           title: Text(
                             p.displayName,
                             maxLines: 2,
@@ -466,7 +467,7 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen>
                       : f.category == 'Proteínas'
                           ? Icons.egg_alt
                           : Icons.restaurant,
-              color: primary,
+              color: accentOf(context),
             ),
             title: Text(f.name),
             subtitle: Text(

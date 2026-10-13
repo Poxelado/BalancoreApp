@@ -7,6 +7,7 @@ import '../../domain/routine_templates.dart';
 import '../providers/exercise_provider.dart';
 import 'edit_routine_day_screen.dart';
 import 'routine_generator_screen.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class WeeklyRoutineScreen extends ConsumerStatefulWidget {
   const WeeklyRoutineScreen({super.key});
@@ -30,7 +31,7 @@ class _WeeklyRoutineScreenState extends ConsumerState<WeeklyRoutineScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    final primary = accentOf(context);
     final routinesAsync = ref.watch(routinesProvider);
 
     return Scaffold(
@@ -45,7 +46,7 @@ class _WeeklyRoutineScreenState extends ConsumerState<WeeklyRoutineScreen> {
         ],
       ),
       body: routinesAsync.when(
-        loading: () => Center(child: CircularProgressIndicator(color: primary)),
+        loading: () => Center(child: CircularProgressIndicator(color: accentOf(context))),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (days) {
           if (days.isEmpty) {
@@ -62,7 +63,7 @@ class _WeeklyRoutineScreenState extends ConsumerState<WeeklyRoutineScreen> {
                     icon: const Icon(Icons.auto_awesome, size: 20),
                     label: const Text('Sugerir plantillas'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: primary,
+                      foregroundColor: accentOf(context),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
@@ -157,7 +158,6 @@ class _WeeklyRoutineScreenState extends ConsumerState<WeeklyRoutineScreen> {
   }
 
   Future<void> _showTemplates(BuildContext context, WidgetRef ref) async {
-    final primary = Theme.of(context).colorScheme.primary;
     // Garantiza que el catálogo esté cargado para resolver nombres/grupos
     // de los ejercicios de las plantillas.
     await ref.read(exerciseRepositoryProvider).loadCatalog();
@@ -181,7 +181,7 @@ class _WeeklyRoutineScreenState extends ConsumerState<WeeklyRoutineScreen> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: primary,
+                    color: accentOf(context),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -291,7 +291,7 @@ class _DayBlock extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: isToday
-            ? BorderSide(color: primary, width: 1.5)
+            ? BorderSide(color: accentOf(context), width: 1.5)
             : BorderSide.none,
       ),
       clipBehavior: Clip.antiAlias,
@@ -340,7 +340,7 @@ class _DayBlock extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
-                          color: primary,
+                          color: accentOf(context),
                         ),
                       ),
                     ),

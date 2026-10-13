@@ -53,7 +53,6 @@ class WorkoutSummaryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final primary = theme.colorScheme.primary;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Resumen')),
@@ -66,7 +65,7 @@ class WorkoutSummaryScreen extends StatelessWidget {
               textAlign: TextAlign.center,
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: primary,
+                color: accentOf(context),
               ),
             ),
             const SizedBox(height: 16),
@@ -77,7 +76,7 @@ class WorkoutSummaryScreen extends StatelessWidget {
                     icon: Icons.timer_outlined,
                     label: 'Duración',
                     value: _fmtDuration(stats.durationSeconds),
-                    primary: primary,
+                    primary: accentOf(context),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -86,7 +85,7 @@ class WorkoutSummaryScreen extends StatelessWidget {
                     icon: Icons.check_circle_outline,
                     label: 'Series',
                     value: '${stats.completedSets}/${stats.totalSets}',
-                    primary: primary,
+                    primary: accentOf(context),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -95,18 +94,18 @@ class WorkoutSummaryScreen extends StatelessWidget {
                     icon: Icons.fitness_center,
                     label: 'Volumen',
                     value: '${_fmtKg(stats.totalVolume)} kg',
-                    primary: primary,
+                    primary: accentOf(context),
                   ),
                 ),
               ],
             ),
             if (stats.hasPrevious) ...[
               const SizedBox(height: 10),
-              _comparison(primary),
+              _comparison(accentOf(context)),
             ],
             if (records.isNotEmpty) ...[
               const SizedBox(height: 18),
-              _sectionTitle('Récords personales', Icons.emoji_events, primary),
+              _sectionTitle('Récords personales', Icons.emoji_events, accentOf(context)),
               const SizedBox(height: 8),
               for (final r in records)
                 Container(
@@ -144,7 +143,7 @@ class WorkoutSummaryScreen extends StatelessWidget {
             if (stats.volumeByMuscle.isNotEmpty) ...[
               const SizedBox(height: 18),
               _sectionTitle(
-                  'Distribución por músculo', Icons.donut_large, primary),
+                  'Distribución por músculo', Icons.donut_large, accentOf(context)),
               const SizedBox(height: 8),
               _muscleDonut(context),
             ],

@@ -4,6 +4,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../profile/domain/user_profile.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import '../widgets/exercise_list_widgets.dart';
+import '../../../../../core/theme/app_theme.dart';
 
 /// Editar una sesión ya guardada (historial).
 class EditWorkoutHistoryScreen extends ConsumerStatefulWidget {
@@ -170,7 +171,6 @@ class _EditWorkoutHistoryScreenState
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Editar entrenamiento'),
@@ -219,7 +219,7 @@ class _EditWorkoutHistoryScreenState
           const SizedBox(height: 20),
           Text(
             'Ejercicios',
-            style: TextStyle(fontWeight: FontWeight.bold, color: primary),
+            style: TextStyle(fontWeight: FontWeight.bold, color: accentOf(context)),
           ),
           const SizedBox(height: 8),
           ..._session.exercises.asMap().entries.map((entry) {

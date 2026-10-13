@@ -4,6 +4,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import 'food_search_screen.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// Crear / editar un plato con ingredientes.
 class RecipeEditorScreen extends ConsumerStatefulWidget {
@@ -301,7 +302,7 @@ class _RecipeEditorScreenState extends ConsumerState<RecipeEditorScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontWeight: FontWeight.w700,
-                color: primary,
+                color: accentOf(context),
               ),
             ),
           ),
@@ -311,7 +312,7 @@ class _RecipeEditorScreenState extends ConsumerState<RecipeEditorScreen> {
             style: TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 16,
-              color: primary,
+              color: accentOf(context),
             ),
           ),
           const SizedBox(height: 8),

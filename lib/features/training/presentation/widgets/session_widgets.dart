@@ -72,7 +72,7 @@ class ExerciseSelectorStrip extends StatelessWidget {
                             width: 1.5,
                           ),
                         ),
-                        child: Icon(Icons.add, color: primary, size: 26),
+                        child: Icon(Icons.add, color: accentOf(context), size: 26),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -85,7 +85,7 @@ class ExerciseSelectorStrip extends StatelessWidget {
                         fontSize: 10,
                         height: 1.1,
                         fontWeight: FontWeight.w600,
-                        color: primary,
+                        color: accentOf(context),
                       ),
                     ),
                   ],
@@ -293,17 +293,17 @@ class ExerciseHeaderCard extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.timer_outlined, size: 16, color: primary),
+                      Icon(Icons.timer_outlined, size: 16, color: accentOf(context)),
                       const SizedBox(width: 4),
                       Text(
                         'Descanso ${fmtRest(ex.restSeconds > 0 ? ex.restSeconds : 60)}',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: primary,
+                          color: accentOf(context),
                         ),
                       ),
-                      Icon(Icons.edit, size: 14, color: primary),
+                      Icon(Icons.edit, size: 14, color: accentOf(context)),
                     ],
                   ),
                 ),
@@ -323,14 +323,14 @@ class ExerciseHeaderCard extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.speed, size: 16, color: primary),
+                          Icon(Icons.speed, size: 16, color: accentOf(context)),
                           const SizedBox(width: 6),
                           Text(
                             'RPE',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
-                              color: primary,
+                              color: accentOf(context),
                               letterSpacing: 0.3,
                             ),
                           ),
@@ -430,7 +430,7 @@ class ExerciseHeaderCard extends StatelessWidget {
                   ex.notes.isEmpty
                       ? Icons.note_add_outlined
                       : Icons.sticky_note_2,
-                  color: primary,
+                  color: accentOf(context),
                 ),
                 onPressed: onEditNotes,
               ),
@@ -516,13 +516,13 @@ class RestBanner extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           children: [
-            Icon(Icons.hourglass_bottom, color: primary),
+            Icon(Icons.hourglass_bottom, color: accentOf(context)),
             const SizedBox(width: 8),
             Text(
               fmtRest(remaining),
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: primary,
+                color: accentOf(context),
                 fontSize: 16,
               ),
             ),
@@ -530,12 +530,12 @@ class RestBanner extends StatelessWidget {
             IconButton(
               tooltip: 'Quitar 15s',
               onPressed: () => onAdjust(-15),
-              icon: Icon(Icons.remove_circle_outline, color: primary, size: 22),
+              icon: Icon(Icons.remove_circle_outline, color: accentOf(context), size: 22),
             ),
             IconButton(
               tooltip: 'Añadir 15s',
               onPressed: () => onAdjust(15),
-              icon: Icon(Icons.add_circle_outline, color: primary, size: 22),
+              icon: Icon(Icons.add_circle_outline, color: accentOf(context), size: 22),
             ),
             const SizedBox(width: 4),
             TextButton(onPressed: onSkip, child: const Text('Saltar')),

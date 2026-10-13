@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/profile_provider.dart';
+import '../../../../../core/theme/app_theme.dart';
 
 class WaterRow extends ConsumerWidget {
   final int glasses;
@@ -10,7 +11,6 @@ class WaterRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final primary = Theme.of(context).colorScheme.primary;
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
@@ -48,7 +48,7 @@ class WaterRow extends ConsumerWidget {
                     .updateTodayLog(user.uid, waterGlasses: glasses + 1);
                 invalidateProgressData(ref);
               },
-              icon: Icon(Icons.add_circle, color: primary),
+              icon: Icon(Icons.add_circle, color: accentOf(context)),
             ),
           ],
         ),

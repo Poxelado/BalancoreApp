@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 /// Estado vacío reutilizable: icono + mensaje + CTA opcional.
 class EmptyState extends StatelessWidget {
@@ -28,7 +29,7 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 56, color: primary.withValues(alpha: 0.7)),
+            Icon(icon, size: 56, color: accentOf(context).withValues(alpha: 0.9)),
             const SizedBox(height: 16),
             Text(
               title,

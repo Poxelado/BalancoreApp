@@ -4,6 +4,7 @@ import '../providers/profile_provider.dart';
 import '../widgets/progress_consistency.dart';
 import '../widgets/progress_habits.dart';
 import '../widgets/progress_workouts.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class ProgressTab extends ConsumerStatefulWidget {
   const ProgressTab({super.key});
@@ -61,7 +62,7 @@ class _ProgressTabState extends ConsumerState<ProgressTab> {
         const SizedBox(height: 8),
         Expanded(
           child: RefreshIndicator(
-            color: primary,
+            color: accentOf(context),
             onRefresh: () async {
               invalidateProgressData(ref);
               await Future.wait([

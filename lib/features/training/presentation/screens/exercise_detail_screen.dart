@@ -6,6 +6,7 @@ import '../../domain/strength_stats.dart';
 import '../providers/strength_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/exercise_provider.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// Traducción de los músculos de free-exercise-db (inglés) para la Guía.
 const _muscleEs = <String, String>{
@@ -109,7 +110,7 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    final primary = accentOf(context);
     final favAsync = ref.watch(favoriteExerciseIdsProvider);
     final isFav = favAsync.valueOrNull?.contains(widget.exerciseId) ?? false;
 
@@ -191,7 +192,7 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
                       if (progress == null) return child;
                       return Center(
                         child: CircularProgressIndicator(
-                          color: primary,
+                          color: accentOf(context),
                           strokeWidth: 2,
                         ),
                       );
@@ -243,7 +244,7 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: primary,
+              color: accentOf(context),
             ),
           ),
           const SizedBox(height: 8),
@@ -270,7 +271,7 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: primary,
+            color: accentOf(context),
           ),
         ),
         const SizedBox(height: 8),
@@ -296,7 +297,7 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
       children: [
         Row(
           children: [
-            Icon(Icons.bar_chart, color: primary),
+            Icon(Icons.bar_chart, color: accentOf(context)),
             const SizedBox(width: 8),
             const Text(
               'Tus estadísticas',
@@ -423,7 +424,7 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
                         ),
                     ],
                     isCurved: true,
-                    color: primary,
+                    color: accentOf(context),
                     barWidth: 3,
                     dotData: const FlDotData(show: true),
                     belowBarData: BarAreaData(
@@ -460,7 +461,7 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: primary,
+              color: accentOf(context),
             ),
           ),
           const SizedBox(height: 8),
@@ -512,7 +513,7 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
         return ListTile(
           leading: CircleAvatar(
             backgroundColor: primary.withValues(alpha: 0.12),
-            child: Icon(Icons.fitness_center, color: primary, size: 20),
+            child: Icon(Icons.fitness_center, color: accentOf(context), size: 20),
           ),
           title: Text(
             p.maxWeight > 0
@@ -531,7 +532,7 @@ class _ExerciseDetailScreenState extends ConsumerState<ExerciseDetailScreen>
   Widget _recordTile(IconData icon, String label, String value, Color primary) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: Icon(icon, color: primary),
+      leading: Icon(icon, color: accentOf(context)),
       title: Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
       trailing: Text(
         value,

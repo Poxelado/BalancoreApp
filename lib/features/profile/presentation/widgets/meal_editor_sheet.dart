@@ -5,6 +5,7 @@ import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import '../screens/food_search_screen.dart';
 import 'saved_food_chips.dart';
+import '../../../../core/theme/app_theme.dart';
 
 Future<void> openMealEditor(
     BuildContext context,
@@ -80,7 +81,7 @@ Future<void> openMealEditor(
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: primary,
+                      color: accentOf(context),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -125,7 +126,7 @@ Future<void> openMealEditor(
                       child: ExpansionTile(
                         tilePadding: EdgeInsets.zero,
                         childrenPadding: const EdgeInsets.only(bottom: 8),
-                        leading: Icon(Icons.bookmark_outline, color: primary),
+                        leading: Icon(Icons.bookmark_outline, color: accentOf(context)),
                         title: const Text(
                           'Desde Mis alimentos',
                           style: TextStyle(
@@ -163,7 +164,7 @@ Future<void> openMealEditor(
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
-                      color: primary,
+                      color: accentOf(context),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -220,7 +221,7 @@ Future<void> openMealEditor(
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.lock_outline, size: 18, color: primary),
+                          Icon(Icons.lock_outline, size: 18, color: accentOf(context)),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -319,7 +320,7 @@ Future<void> openMealEditor(
                     'Cantidad / medida',
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: primary,
+                      color: accentOf(context),
                     ),
                   ),
                   const SizedBox(height: 8),

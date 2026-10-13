@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// Discos disponibles por lado (kg), de mayor a menor.
 const List<double> kAvailablePlates = [25, 20, 15, 10, 5, 2.5, 1.25];
@@ -109,7 +110,6 @@ class _PlateCalculatorSheetState extends State<PlateCalculatorSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bd = computePlates(_target, bar: _bar);
 
@@ -138,7 +138,7 @@ class _PlateCalculatorSheetState extends State<PlateCalculatorSheet> {
             const SizedBox(height: 12),
             Row(
               children: [
-                Icon(Icons.calculate_outlined, color: primary),
+                Icon(Icons.calculate_outlined, color: accentOf(context)),
                 const SizedBox(width: 8),
                 const Text(
                   'Calculadora de discos',
@@ -198,7 +198,7 @@ class _PlateCalculatorSheetState extends State<PlateCalculatorSheet> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: primary,
+                  color: accentOf(context),
                 ),
               ),
               const SizedBox(height: 8),

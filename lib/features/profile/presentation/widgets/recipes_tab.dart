@@ -4,6 +4,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import '../screens/recipe_editor_screen.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class RecipesTab extends ConsumerWidget {
   const RecipesTab({super.key});
@@ -14,7 +15,7 @@ class RecipesTab extends ConsumerWidget {
     final recipesAsync = ref.watch(savedRecipesProvider);
 
     return recipesAsync.when(
-      loading: () => Center(child: CircularProgressIndicator(color: primary)),
+      loading: () => Center(child: CircularProgressIndicator(color: accentOf(context))),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (recipes) {
         return Column(
@@ -29,7 +30,7 @@ class RecipesTab extends ConsumerWidget {
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 16,
-                        color: primary,
+                        color: accentOf(context),
                       ),
                     ),
                   ),
@@ -76,7 +77,7 @@ class RecipesTab extends ConsumerWidget {
                   return Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ExpansionTile(
-                      leading: Icon(Icons.restaurant_menu, color: primary),
+                      leading: Icon(Icons.restaurant_menu, color: accentOf(context)),
                       title: Text(
                         r.name,
                         style: const TextStyle(fontWeight: FontWeight.w600),
@@ -199,13 +200,13 @@ class RecipesTab extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.bold,
-                      color: primary,
+                      color: accentOf(context),
                     ),
                   ),
                   const SizedBox(height: 12),
                   Text('Momento del día',
                       style: TextStyle(
-                          fontWeight: FontWeight.w600, color: primary)),
+                          fontWeight: FontWeight.w600, color: accentOf(context))),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
@@ -227,7 +228,7 @@ class RecipesTab extends ConsumerWidget {
                   const SizedBox(height: 14),
                   Text('Porción',
                       style: TextStyle(
-                          fontWeight: FontWeight.w600, color: primary)),
+                          fontWeight: FontWeight.w600, color: accentOf(context))),
                   const SizedBox(height: 8),
                   SegmentedButton<double>(
                     segments: const [
@@ -246,7 +247,7 @@ class RecipesTab extends ConsumerWidget {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      color: primary,
+                      color: accentOf(context),
                     ),
                   ),
                   const SizedBox(height: 12),

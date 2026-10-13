@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/notifications/notification_preferences.dart';
 import '../../../../core/notifications/notification_service.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class NotificationSettingsScreen extends ConsumerWidget {
   const NotificationSettingsScreen({super.key});
@@ -125,7 +126,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
                     'Recordatorios',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: primary,
+                      color: accentOf(context),
                       fontSize: 16,
                     ),
                   ),
@@ -226,7 +227,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
                     'Inteligentes',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: primary,
+                      color: accentOf(context),
                       fontSize: 16,
                     ),
                   ),
@@ -245,7 +246,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
                     'Inactividad',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: primary,
+                      color: accentOf(context),
                       fontSize: 16,
                     ),
                   ),

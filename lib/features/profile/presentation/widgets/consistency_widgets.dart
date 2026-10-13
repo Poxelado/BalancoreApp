@@ -70,7 +70,7 @@ class WeekCircles extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: fill,
-                border: isToday ? Border.all(color: primary, width: 2) : null,
+                border: isToday ? Border.all(color: accentOf(context), width: 2) : null,
               ),
               child: trained
                   ? const Icon(Icons.check, color: Colors.white, size: 18)

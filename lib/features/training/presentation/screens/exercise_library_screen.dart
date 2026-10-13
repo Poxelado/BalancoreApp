@@ -5,6 +5,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/exercise_provider.dart';
 import '../widgets/exercise_list_widgets.dart';
 import 'exercise_detail_screen.dart';
+import '../../../../../core/theme/app_theme.dart';
 
 class ExerciseLibraryScreen extends ConsumerStatefulWidget {
   const ExerciseLibraryScreen({super.key});
@@ -22,7 +23,6 @@ class _ExerciseLibraryScreenState extends ConsumerState<ExerciseLibraryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
     final exercisesAsync = ref.watch(exercisesProvider);
     final favAsync = ref.watch(favoriteExerciseIdsProvider);
     final favs = favAsync.valueOrNull ?? {};
@@ -39,7 +39,7 @@ class _ExerciseLibraryScreenState extends ConsumerState<ExerciseLibraryScreen> {
         ],
       ),
       body: exercisesAsync.when(
-        loading: () => Center(child: CircularProgressIndicator(color: primary)),
+        loading: () => Center(child: CircularProgressIndicator(color: accentOf(context))),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (list) {
           final groups = availableGroups(list);

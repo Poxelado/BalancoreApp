@@ -197,7 +197,7 @@ class BodyPage extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.water_drop, color: primary, size: 32),
+                    Icon(Icons.water_drop, color: accentOf(context), size: 32),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
@@ -207,7 +207,7 @@ class BodyPage extends StatelessWidget {
                             'Agua recomendada',
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
-                              color: primary,
+                              color: accentOf(context),
                             ),
                           ),
                           const SizedBox(height: 2),

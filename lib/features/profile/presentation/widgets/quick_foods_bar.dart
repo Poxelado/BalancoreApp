@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// Frecuentes (savedFoods por useCount) + recientes — 1 toque = registrar.
 class QuickFoodsBar extends ConsumerWidget {
@@ -17,7 +18,6 @@ class QuickFoodsBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final primary = Theme.of(context).colorScheme.primary;
     final foodsAsync = ref.watch(savedFoodsProvider);
     final recentAsync = ref.watch(recentMealsProvider);
 
@@ -38,7 +38,7 @@ class QuickFoodsBar extends ConsumerWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: primary,
+              color: accentOf(context),
             ),
           ),
           const SizedBox(height: 6),
@@ -59,7 +59,7 @@ class QuickFoodsBar extends ConsumerWidget {
                     );
                   },
                   child: ActionChip(
-                    avatar: Icon(Icons.bolt, size: 16, color: primary),
+                    avatar: Icon(Icons.bolt, size: 16, color: accentOf(context)),
                     label: Text(
                       f.name,
                       style: const TextStyle(fontSize: 12),
@@ -88,7 +88,7 @@ class QuickFoodsBar extends ConsumerWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: primary,
+              color: accentOf(context),
             ),
           ),
           const SizedBox(height: 6),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../profile/domain/user_profile.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class RestTimeSheet extends StatefulWidget {
   final int initialSeconds;
@@ -313,7 +314,7 @@ class ExerciseEditorPanelState extends State<ExerciseEditorPanel> {
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 child: Row(
                   children: [
-                    Icon(Icons.timer_outlined, color: primary, size: 20),
+                    Icon(Icons.timer_outlined, color: accentOf(context), size: 20),
                     const SizedBox(width: 8),
                     const Text(
                       'Descanso:',
@@ -324,7 +325,7 @@ class ExerciseEditorPanelState extends State<ExerciseEditorPanel> {
                       _fmtRest(_restSeconds),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: primary,
+                        color: accentOf(context),
                         fontSize: 16,
                       ),
                     ),
@@ -378,7 +379,7 @@ class ExerciseEditorPanelState extends State<ExerciseEditorPanel> {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: primary,
+                          color: accentOf(context),
                         ),
                       ),
                     ),

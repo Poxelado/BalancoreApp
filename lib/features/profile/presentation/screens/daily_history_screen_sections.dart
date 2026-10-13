@@ -62,7 +62,6 @@ mixin _DailyHistorySections on ConsumerState<DailyHistoryScreen> {
 
   /// Agrupa por semana (Lun–Dom) para rango 1 mes.
   List<Widget> _buildWeekSections(List<DailyLog> logsDesc) {
-    final primary = Theme.of(context).colorScheme.primary;
     final map = <String, List<DailyLog>>{};
     for (final log in logsDesc) {
       final d = _parseLogDate(log.date);
@@ -129,7 +128,7 @@ mixin _DailyHistorySections on ConsumerState<DailyHistoryScreen> {
               ),
               trailing: Icon(
                 expanded ? Icons.expand_less : Icons.expand_more,
-                color: primary,
+                color: accentOf(context),
               ),
               onTap: () {
                 setState(() {
@@ -172,8 +171,6 @@ mixin _DailyHistorySections on ConsumerState<DailyHistoryScreen> {
       final days = byMonth[monthKey]!;
       final expanded = _expandedSection == monthKey;
       final label = _monthLabel(monthKey);
-      final primary = Theme.of(context).colorScheme.primary;
-
       // resumen mes
       final totalCal =
       days.fold<int>(0, (s, l) => s + l.consumedCalories);
@@ -197,7 +194,7 @@ mixin _DailyHistorySections on ConsumerState<DailyHistoryScreen> {
               ),
               trailing: Icon(
                 expanded ? Icons.expand_less : Icons.expand_more,
-                color: primary,
+                color: accentOf(context),
               ),
               onTap: () {
                 setState(() {
@@ -259,7 +256,6 @@ mixin _DailyHistorySections on ConsumerState<DailyHistoryScreen> {
     final pCtrl = TextEditingController(text: '${log.proteinGrams}');
     final cCtrl = TextEditingController(text: '${log.carbsGrams}');
     final fCtrl = TextEditingController(text: '${log.fatGrams}');
-    final primary = Theme.of(context).colorScheme.primary;
 
     final ok = await showDialog<bool>(
       context: context,
@@ -325,7 +321,7 @@ mixin _DailyHistorySections on ConsumerState<DailyHistoryScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Guardar', style: TextStyle(color: primary)),
+            child: Text('Guardar', style: TextStyle(color: accentOf(context))),
           ),
         ],
       ),

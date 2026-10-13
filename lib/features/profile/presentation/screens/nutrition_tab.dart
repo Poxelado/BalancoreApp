@@ -5,6 +5,7 @@ import '../providers/profile_provider.dart';
 import '../widgets/recipes_tab.dart';
 import '../widgets/saved_foods_tab.dart';
 import '../widgets/today_tab.dart';
+import '../../../../../core/theme/app_theme.dart';
 
 class NutritionTab extends ConsumerWidget {
   const NutritionTab({super.key});
@@ -13,10 +14,9 @@ class NutritionTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final logAsync = ref.watch(todayLogProvider);
     final profile = ref.watch(userProfileProvider).value;
-    final primary = Theme.of(context).colorScheme.primary;
 
     return logAsync.when(
-      loading: () => Center(child: CircularProgressIndicator(color: primary)),
+      loading: () => Center(child: CircularProgressIndicator(color: accentOf(context))),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (log) => _NutritionBody(log: log, profile: profile),
     );

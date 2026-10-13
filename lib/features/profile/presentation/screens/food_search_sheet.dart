@@ -88,7 +88,7 @@ Future<FoodSearchResult?> _quantitySheet(
                   'Cantidad',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: primary,
+                    color: accentOf(context),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -168,7 +168,7 @@ Future<FoodSearchResult?> _quantitySheet(
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: primary,
+                          color: accentOf(context),
                         ),
                       ),
                     ],

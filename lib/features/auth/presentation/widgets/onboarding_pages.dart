@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../profile/domain/user_profile.dart';
 import '../../../../core/notifications/notification_preferences.dart';
+import '../../../../core/theme/app_theme.dart';
 part 'onboarding_identity_body.dart';
 part 'onboarding_goal_reminders.dart';
 

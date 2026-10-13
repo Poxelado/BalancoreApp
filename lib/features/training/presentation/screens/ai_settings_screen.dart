@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/ai/ai_key_store.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// Configuración de la IA: el usuario trae su propia clave de Gemini.
 ///
@@ -115,7 +116,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 15,
-                color: primary,
+                color: accentOf(context),
               ),
             ),
             const SizedBox(height: 4),

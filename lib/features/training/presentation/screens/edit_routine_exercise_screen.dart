@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../profile/domain/user_profile.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// Edición detallada de un ejercicio dentro de la rutina del día.
 /// Pesos por serie, reps, descanso entre series, notas.
@@ -177,7 +178,7 @@ class _EditRoutineExerciseScreenState extends State<EditRoutineExerciseScreen> {
           const SizedBox(height: 12),
           Row(
             children: [
-              Icon(Icons.timer_outlined, color: primary, size: 20),
+              Icon(Icons.timer_outlined, color: accentOf(context), size: 20),
               const SizedBox(width: 8),
               const Text(
                 'Descanso entre series',
@@ -270,7 +271,7 @@ class _EditRoutineExerciseScreenState extends State<EditRoutineExerciseScreen> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: primary,
+                          color: accentOf(context),
                         ),
                       ),
                     ),

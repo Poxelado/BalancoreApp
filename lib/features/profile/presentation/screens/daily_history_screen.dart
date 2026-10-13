@@ -5,6 +5,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import '../widgets/history_components.dart';
+import '../../../../core/theme/app_theme.dart';
 part 'daily_history_screen_sections.dart';
 
 
@@ -75,7 +76,6 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen>
 
   Future<void> _pickRange() async {
     if (widget.fixedDays != null) return;
-    final primary = Theme.of(context).colorScheme.primary;
     final chosen = await showModalBottomSheet<int>(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -104,7 +104,7 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen>
                 title: Text(r.$2),
                 subtitle: Text(r.$3),
                 trailing: _days == r.$1
-                    ? Icon(Icons.check, color: primary)
+                    ? Icon(Icons.check, color: accentOf(context))
                     : null,
                 onTap: () => Navigator.pop(ctx, r.$1),
               ),
@@ -117,7 +117,6 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen>
   }
 
   Widget _rangeDropdown() {
-    final primary = Theme.of(context).colorScheme.primary;
     return Material(
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
       borderRadius: BorderRadius.circular(10),
@@ -140,11 +139,11 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen>
                     _rangeLabel,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: primary,
+                      color: accentOf(context),
                     ),
                   ),
                   if (widget.fixedDays == null)
-                    Icon(Icons.expand_more, size: 18, color: primary),
+                    Icon(Icons.expand_more, size: 18, color: accentOf(context)),
                 ],
               ),
             ],
@@ -170,7 +169,6 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen>
       });
     }
 
-    final primary = Theme.of(context).colorScheme.primary;
     final groupByMonth = _days >= 90;
     final groupByWeek = _days >= 30 && _days < 90;
 
@@ -194,7 +192,7 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen>
 
     final content = historyAsync.when(
       loading: () =>
-          Center(child: CircularProgressIndicator(color: primary)),
+          Center(child: CircularProgressIndicator(color: accentOf(context))),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (logsDesc) {
         final logs = logsDesc.where(_logHasData).toList();
@@ -236,7 +234,7 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen>
               _chartTitle(),
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: primary,
+                color: accentOf(context),
               ),
             ),
             const SizedBox(height: 8),
@@ -258,7 +256,7 @@ class _DailyHistoryScreenState extends ConsumerState<DailyHistoryScreen>
                   : 'Registros del rango',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: primary,
+                color: accentOf(context),
               ),
             ),
             const SizedBox(height: 10),

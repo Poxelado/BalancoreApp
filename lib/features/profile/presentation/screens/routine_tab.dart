@@ -16,6 +16,7 @@ import '../../../training/presentation/workout_builders.dart';
 import '../../../training/presentation/widgets/exercise_list_widgets.dart';
 import '../widgets/home_widgets.dart';
 import '../widgets/routine_tab_widgets.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class RoutineTab extends ConsumerStatefulWidget {
   const RoutineTab({super.key});
@@ -120,7 +121,7 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: primary,
+                  color: accentOf(context),
                 ),
               ),
             ),
@@ -134,7 +135,7 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
             ListTile(
               leading: CircleAvatar(
                 backgroundColor: primary.withValues(alpha: 0.12),
-                child: Icon(Icons.play_circle_outline, color: primary),
+                child: Icon(Icons.play_circle_outline, color: accentOf(context)),
               ),
               title: const Text('Empezar vacío'),
               subtitle: const Text(
@@ -145,7 +146,7 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
             ListTile(
               leading: CircleAvatar(
                 backgroundColor: primary.withValues(alpha: 0.12),
-                child: Icon(Icons.checklist_rtl, color: primary),
+                child: Icon(Icons.checklist_rtl, color: accentOf(context)),
               ),
               title: const Text('Elegir ejercicios antes de empezar'),
               subtitle: const Text(
@@ -336,7 +337,6 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
   Widget build(BuildContext context) {
     final routinesAsync = ref.watch(routinesProvider);
     final customRoutinesAsync = ref.watch(customRoutinesProvider);
-    final primary = Theme.of(context).colorScheme.primary;
     final todayName = WorkoutSession.weekdayName();
 
     return ListView(
@@ -372,13 +372,13 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: primary,
+                  color: accentOf(context),
                 ),
               ),
             ),
             IconButton(
               tooltip: 'Editar semana',
-              icon: Icon(Icons.edit, color: primary),
+              icon: Icon(Icons.edit, color: accentOf(context)),
               onPressed: () {
                 Navigator.push(
                   context,
@@ -394,7 +394,7 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
         SizedBox(
           height: 250,
           child: routinesAsync.when(
-            loading: () => Center(child: CircularProgressIndicator(color: primary)),
+            loading: () => Center(child: CircularProgressIndicator(color: accentOf(context))),
             error: (e, _) => Text('Error: $e'),
             data: (routines) {
               if (routines.isEmpty) {
@@ -430,7 +430,7 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: primary,
+            color: accentOf(context),
           ),
         ),
         const SizedBox(height: 8),
@@ -506,7 +506,7 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
         Card(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: ListTile(
-            leading: Icon(Icons.menu_book_outlined, color: primary),
+            leading: Icon(Icons.menu_book_outlined, color: accentOf(context)),
             title: const Text(
               'Biblioteca de ejercicios',
               style: TextStyle(fontWeight: FontWeight.w600),
@@ -556,7 +556,7 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
                             Text(
                               day.day,
                               style: TextStyle(
-                                color: primary,
+                                color: accentOf(context),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -572,7 +572,7 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
                       ),
                       IconButton(
                         tooltip: 'Editar día',
-                        icon: Icon(Icons.edit, color: primary),
+                        icon: Icon(Icons.edit, color: accentOf(context)),
                         onPressed: () async {
                           Navigator.pop(ctx);
                           await Navigator.push(

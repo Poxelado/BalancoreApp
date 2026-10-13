@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/auth_provider.dart';
+import '../../../../../core/theme/app_theme.dart';
 
 /// Pantalla bloqueante que se muestra mientras el correo no está verificado.
 class VerifyEmailScreen extends ConsumerStatefulWidget {
@@ -97,7 +98,6 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen>
   @override
   Widget build(BuildContext context) {
     final email = ref.watch(authServiceProvider).currentUser?.email ?? '';
-    final primary = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       body: SafeArea(
@@ -107,7 +107,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.mark_email_unread_outlined, size: 72, color: primary),
+                Icon(Icons.mark_email_unread_outlined, size: 72, color: accentOf(context)),
                 const SizedBox(height: 24),
                 const Text(
                   'Verifica tu correo',

@@ -205,7 +205,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const SizedBox(height: 8),
                     const Divider(height: 1),
                     ListTile(
-                      leading: Icon(Icons.notifications_outlined, color: primary),
+                      leading: Icon(Icons.notifications_outlined, color: accentOf(context)),
                       title: const Text('Notificaciones'),
                       subtitle: const Text('Entreno, comidas, peso y racha'),
                       trailing: const Icon(Icons.chevron_right),

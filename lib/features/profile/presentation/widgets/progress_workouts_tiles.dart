@@ -5,6 +5,7 @@ import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import '../../../training/presentation/screens/workout_session_screen.dart';
 import '../../../training/presentation/screens/edit_workout_history_screen.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// Reconstruye una rutina efímera a partir de una sesión guardada,
 /// para poder reabrirla en la pantalla de entrenamiento.
@@ -90,11 +91,11 @@ class WorkoutRangeHeader extends StatelessWidget {
                     periodLabel,
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      color: primary,
+                      color: accentOf(context),
                       fontSize: 13,
                     ),
                   ),
-                  Icon(Icons.expand_more, size: 18, color: primary),
+                  Icon(Icons.expand_more, size: 18, color: accentOf(context)),
                 ],
               ),
             ),

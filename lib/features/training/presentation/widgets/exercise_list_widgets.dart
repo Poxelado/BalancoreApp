@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/exercise.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// Miniatura de un ejercicio (imagen remota con fallback al ícono).
 /// Acepta un [Exercise] o resuelve por [exerciseId] desde el catálogo.
@@ -19,10 +20,9 @@ class ExerciseThumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
     final e = exercise ?? ExerciseCatalog.byId(exerciseId!);
     final url = e?.imageUrl;
-    if (url == null) return _fallback(primary);
+    if (url == null) return _fallback(accentOf(context));
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: Image.network(
@@ -31,7 +31,7 @@ class ExerciseThumb extends StatelessWidget {
         height: size,
         fit: BoxFit.cover,
         semanticLabel: e?.name ?? 'Imagen del ejercicio',
-        errorBuilder: (_, __, ___) => _fallback(primary),
+        errorBuilder: (_, __, ___) => _fallback(accentOf(context)),
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;
           return SizedBox(
@@ -41,7 +41,7 @@ class ExerciseThumb extends StatelessWidget {
               child: SizedBox(
                 width: 16,
                 height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: primary),
+                child: CircularProgressIndicator(strokeWidth: 2, color: accentOf(context)),
               ),
             ),
           );
@@ -293,7 +293,7 @@ class ExerciseListBody extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: primary,
+                color: accentOf(context),
                 letterSpacing: 0.3,
               ),
             ),

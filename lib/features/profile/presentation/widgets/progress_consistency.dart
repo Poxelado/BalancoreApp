@@ -4,6 +4,7 @@ import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import 'metric_card.dart';
 import 'consistency_widgets.dart';
+import '../../../../core/theme/app_theme.dart';
 
 // ═══════════════════════════════════════════════════════════
 // CONSTANCIA (una sola vista, sin duplicar)
@@ -82,7 +83,7 @@ class WeekSummarySection extends ConsumerWidget {
                 ListTile(
                   title: Text(p.$2),
                   trailing: periodDays == p.$1
-                      ? Icon(Icons.check, color: primary)
+                      ? Icon(Icons.check, color: accentOf(context))
                       : null,
                   onTap: () => Navigator.pop(ctx, p.$1),
                 ),
@@ -193,7 +194,7 @@ class WeekSummarySection extends ConsumerWidget {
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: primary,
+                              color: accentOf(context),
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -238,11 +239,11 @@ class WeekSummarySection extends ConsumerWidget {
                                     _periodLabel,
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      color: primary,
+                                      color: accentOf(context),
                                     ),
                                   ),
                                   Icon(Icons.expand_more,
-                                      size: 18, color: primary),
+                                      size: 18, color: accentOf(context)),
                                 ],
                               ),
                             ],
@@ -263,7 +264,7 @@ class WeekSummarySection extends ConsumerWidget {
                         label: 'Entrenos',
                         value: '$completed',
                         subtitle: 'ok',
-                        color: primary,
+                        color: accentOf(context),
                       ),
                     ),
                     const SizedBox(width: 4),
@@ -305,7 +306,7 @@ class WeekSummarySection extends ConsumerWidget {
                   'Días registrados',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: primary,
+                    color: accentOf(context),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -332,7 +333,7 @@ class WeekSummarySection extends ConsumerWidget {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      LegendDot(color: primary, label: 'Entreno'),
+                      LegendDot(color: accentOf(context), label: 'Entreno'),
                       const SizedBox(width: 12),
                       LegendDot(
                         color:
@@ -353,7 +354,7 @@ class WeekSummarySection extends ConsumerWidget {
                   'Hábitos del periodo',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: primary,
+                    color: accentOf(context),
                   ),
                 ),
                 const SizedBox(height: 10),

@@ -61,10 +61,6 @@ extension AppColorThemeX on AppColorTheme {
     }
   }
 
-  /// Color de acento ya adaptado al brillo actual (más claro en oscuro).
-  Color accentFor(Brightness brightness) =>
-      brightness == Brightness.dark ? accent : secondary;
-
   static AppColorTheme fromName(String? name) {
     return AppColorTheme.values.firstWhere(
           (e) => e.name == name,
@@ -166,9 +162,42 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   }
 }
 
+/// Tono claro de la paleta para usar como PRIMER PLANO (textos, iconos,
+/// bordes, botones delineados) sobre el fondo oscuro. En modo claro coincide
+/// con el primario. Usa `accentOf(context)`.
+@immutable
+class AppAccentColors extends ThemeExtension<AppAccentColors> {
+  final Color accent;
+
+  const AppAccentColors({required this.accent});
+
+  static AppAccentColors of(BuildContext context) =>
+      Theme.of(context).extension<AppAccentColors>() ??
+      const AppAccentColors(accent: Color(0xFF6B1228));
+
+  @override
+  AppAccentColors copyWith({Color? accent}) =>
+      AppAccentColors(accent: accent ?? this.accent);
+
+  @override
+  AppAccentColors lerp(ThemeExtension<AppAccentColors>? other, double t) {
+    if (other is! AppAccentColors) return this;
+    return AppAccentColors(accent: Color.lerp(accent, other.accent, t)!);
+  }
+}
+
+/// Primer plano legible con el color de la paleta elegida.
+Color accentOf(BuildContext context) => AppAccentColors.of(context).accent;
+
 class AppTheme {
   /// Radio base usado por tarjetas, botones e inputs.
   static const double radius = 16;
+
+  /// Texto/icono legible sobre [background] (blanco o negro según contraste).
+  static Color _on(Color background) =>
+      ThemeData.estimateBrightnessForColor(background) == Brightness.dark
+          ? Colors.white
+          : Colors.black;
 
   static ThemeData light(AppColorTheme colorTheme) =>
       _build(colorTheme, Brightness.light);
@@ -178,14 +207,22 @@ class AppTheme {
 
   static ThemeData _build(AppColorTheme colorTheme, Brightness brightness) {
     final isDark = brightness == Brightness.dark;
+    // El primario de cada paleta es oscuro: sirve de fondo de botones con
+    // texto blanco. Para primer plano sobre el fondo oscuro se usa el tono
+    // claro de la paleta (accent), que mantiene el color elegido legible.
     final primary = colorTheme.primary;
     final secondary = colorTheme.secondary;
+    final accent = isDark ? colorTheme.accent : colorTheme.primary;
+    final onPrimary = _on(primary);
+    final onSecondary = _on(secondary);
 
     final scheme = ColorScheme.fromSeed(
       seedColor: primary,
       brightness: brightness,
       primary: primary,
+      onPrimary: onPrimary,
       secondary: secondary,
+      onSecondary: onSecondary,
       surface: isDark ? const Color(0xFF1A1A1C) : const Color(0xFFFFFFFF),
       onSurface: isDark ? const Color(0xFFEDEDED) : const Color(0xFF1A1A1A),
     );
@@ -205,6 +242,7 @@ class AppTheme {
       scaffoldBackgroundColor: scaffold,
       extensions: [
         isDark ? AppSemanticColors.dark : AppSemanticColors.light,
+        AppAccentColors(accent: accent),
       ],
       appBarTheme: AppBarTheme(
         centerTitle: true,
@@ -238,8 +276,8 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: primary,
-          side: BorderSide(color: scheme.outlineVariant),
+          foregroundColor: accent,
+          side: BorderSide(color: accent.withValues(alpha: 0.55)),
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
           shape: shape,
           textStyle: const TextStyle(fontWeight: FontWeight.w600),
@@ -247,7 +285,7 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: primary,
+          foregroundColor: accent,
           textStyle: const TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
@@ -266,13 +304,13 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radius),
-          borderSide: BorderSide(color: primary, width: 2),
+          borderSide: BorderSide(color: accent, width: 2),
         ),
         contentPadding:
         const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        selectedItemColor: primary,
+        selectedItemColor: accent,
         unselectedItemColor: textMuted,
         backgroundColor: isDark ? const Color(0xFF1A1A1C) : Colors.white,
         elevation: 0,
@@ -301,7 +339,9 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radius),
         ),
-        selectedColor: scheme.primaryContainer,
+        selectedColor:
+            isDark ? accent.withValues(alpha: 0.22) : scheme.primaryContainer,
+        checkmarkColor: accent,
         side: BorderSide(color: scheme.outlineVariant),
       ),
       dividerTheme: DividerThemeData(
@@ -321,7 +361,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
         ),
       ),
-      progressIndicatorTheme: ProgressIndicatorThemeData(color: primary),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: accent),
       dividerColor: scheme.outlineVariant,
       textTheme: TextTheme(
         bodyLarge: TextStyle(color: textMain),

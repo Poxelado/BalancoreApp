@@ -9,6 +9,7 @@ import '../widgets/profile_tab_widgets.dart';
 import '../../../training/presentation/screens/edit_workout_history_screen.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../training/presentation/screens/exercise_detail_screen.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class ProfileTab extends ConsumerStatefulWidget {
   const ProfileTab({super.key});
@@ -201,7 +202,7 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
     final primary = Theme.of(context).colorScheme.primary;
 
     return profileAsync.when(
-      loading: () => Center(child: CircularProgressIndicator(color: primary)),
+      loading: () => Center(child: CircularProgressIndicator(color: accentOf(context))),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (profile) {
         if (profile == null) {
@@ -237,7 +238,7 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
                           style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
-                            color: primary,
+                            color: accentOf(context),
                           ),
                         ),
                       ),
@@ -357,7 +358,7 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
                       'Historial de entrenamientos',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: primary,
+                        color: accentOf(context),
                       ),
                     ),
                     const Spacer(),
@@ -390,7 +391,7 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(32),
-                  child: Center(child: CircularProgressIndicator(color: primary)),
+                  child: Center(child: CircularProgressIndicator(color: accentOf(context))),
                 ),
               )
             else if (sessions.isEmpty)

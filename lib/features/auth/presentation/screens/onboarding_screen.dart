@@ -7,6 +7,7 @@ import '../../../../core/errors/app_exception.dart';
 import '../../../../core/notifications/notification_preferences.dart';
 import '../../../../core/notifications/notification_service.dart';
 import '../widgets/onboarding_pages.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -324,7 +325,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: primary,
+                          color: accentOf(context),
                         ),
                       ),
                     ),

@@ -146,7 +146,7 @@ class RoutineCard extends StatelessWidget {
                     onPressed: onStart,
                     style: FilledButton.styleFrom(
                       backgroundColor: Colors.white,
-                      foregroundColor: primary,
+                      foregroundColor: accentOf(context),
                       padding: const EdgeInsets.symmetric(vertical: 10),
                     ),
                     icon: const Icon(Icons.play_arrow, size: 20),
@@ -217,7 +217,7 @@ class _CustomRoutineCardState extends State<CustomRoutineCard> {
                 children: [
                   Icon(
                     _expanded ? Icons.expand_less : Icons.expand_more,
-                    color: primary,
+                    color: accentOf(context),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -359,7 +359,7 @@ class _CustomRoutineCardState extends State<CustomRoutineCard> {
                 ),
                 IconButton(
                   tooltip: 'Empezar',
-                  icon: Icon(Icons.play_arrow, color: primary),
+                  icon: Icon(Icons.play_arrow, color: accentOf(context)),
                   onPressed: () => widget.onStartWorkout(workout),
                 ),
               ],
@@ -531,7 +531,7 @@ class ActiveSessionBanner extends ConsumerWidget {
                   tooltip: session.isPaused ? 'Reanudar' : 'Pausar',
                   icon: Icon(
                     session.isPaused ? Icons.play_arrow : Icons.pause,
-                    color: primary,
+                    color: accentOf(context),
                   ),
                   onPressed: () => _togglePause(ref, session),
                 ),
