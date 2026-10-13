@@ -113,21 +113,44 @@ class RoutineExercise {
     );
   }
 
-  /// Duración estimada de un día (1 min por serie + descansos entre series).
-  static String estimateDayDuration(List<RoutineExercise> exercises) {
-    if (exercises.isEmpty) return '';
-    var totalSec = 0;
+  /// Segundos de trabajo por repetición.
+  static const int _secPerRep = 4;
+  /// Trabajo mínimo y máximo por serie (segundos).
+  static const int _minSetSec = 20;
+  static const int _maxSetSec = 240;
+  /// Preparación/cambio por ejercicio (masa, material, transición).
+  static const int _setupSec = 60;
+
+  /// Duración estimada de un entrenamiento, en segundos.
+  ///
+  /// Cada serie suma su trabajo (reps × 4 s, acotado a 20–240 s) más su
+  /// descanso; a cada ejercicio se le añade una preparación/cambio para
+  /// reflejar el montaje y la transición al siguiente ejercicio.
+  static int estimateSeconds(List<RoutineExercise> exercises) {
+    var seconds = 0;
     for (final e in exercises) {
-      final n = e.effectiveSets.length;
-      if (n <= 0) continue;
-      totalSec += n * 60; // trabajo ~1 min/serie
-      if (n > 1) totalSec += (n - 1) * e.restSeconds;
+      final sets = e.effectiveSets;
+      if (sets.isEmpty) continue;
+      seconds += _setupSec;
+      for (final s in sets) {
+        seconds +=
+            (s.reps * _secPerRep).clamp(_minSetSec, _maxSetSec) +
+                e.restSeconds;
+      }
     }
+    return seconds;
+  }
+
+  /// Duración estimada legible, p. ej. "30 min" o "1h 54min".
+  static String estimateDayDuration(List<RoutineExercise> exercises) {
+    final totalSec = estimateSeconds(exercises);
     if (totalSec <= 0) return '';
-    final h = totalSec ~/ 3600;
-    final m = (totalSec % 3600) ~/ 60;
-    if (h > 0) return '${h}h ${m}min';
-    return '$m min';
+    final minutes = (totalSec / 60).round();
+    if (minutes < 1) return '<1 min';
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    if (h > 0) return m == 0 ? '${h}h' : '${h}h ${m}min';
+    return '$minutes min';
   }
 }
 

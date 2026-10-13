@@ -43,15 +43,34 @@ void main() {
       expect(RoutineExercise.estimateDayDuration(const []), '');
     });
 
-    test('calcula minutos (trabajo + descansos)', () {
+    test('calcula minutos (trabajo por reps + descansos + preparación)', () {
       const e = RoutineExercise(
         exerciseId: 'x',
         exerciseName: 'x',
         sets: 3,
         reps: 10,
       );
-      // 3*60 trabajo + 2*60 descanso = 300 s = 5 min
-      expect(RoutineExercise.estimateDayDuration([e]), '5 min');
+      // 60 preparación + 3*(10*4 trabajo + 60 descanso) = 360 s = 6 min
+      expect(RoutineExercise.estimateDayDuration([e]), '6 min');
+    });
+
+    test('el trabajo por serie depende de las repeticiones', () {
+      const corto = RoutineExercise(
+        exerciseId: 'x',
+        exerciseName: 'x',
+        sets: 3,
+        reps: 5,
+      );
+      const largo = RoutineExercise(
+        exerciseId: 'x',
+        exerciseName: 'x',
+        sets: 3,
+        reps: 25,
+      );
+      // 60 + 3*(20 acotado + 60) = 300 s = 5 min
+      expect(RoutineExercise.estimateDayDuration([corto]), '5 min');
+      // 60 + 3*(25*4 + 60) = 540 s = 9 min
+      expect(RoutineExercise.estimateDayDuration([largo]), '9 min');
     });
 
     test('formatea horas cuando supera los 60 minutos', () {
@@ -61,8 +80,8 @@ void main() {
         sets: 20,
         restSeconds: 300,
       );
-      // 20*60 + 19*300 = 6900 s = 1h 55min
-      expect(RoutineExercise.estimateDayDuration([e]), '1h 55min');
+      // 60 + 20*(10*4 + 300) = 6860 s ≈ 114 min = 1h 54min
+      expect(RoutineExercise.estimateDayDuration([e]), '1h 54min');
     });
   });
 

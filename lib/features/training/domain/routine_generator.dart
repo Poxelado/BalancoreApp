@@ -241,18 +241,9 @@ String _describe(List<RoutineExercise> exercises) {
   return groups.join(' · ');
 }
 
-/// Estimación gruesa: ~4 s por rep + el descanso de cada serie.
-String _estimateDuration(List<RoutineExercise> exercises) {
-  var seconds = 0;
-  for (final e in exercises) {
-    final sets = e.effectiveSets;
-    for (final s in sets) {
-      seconds += s.reps * 4 + e.restSeconds;
-    }
-  }
-  final m = (seconds / 60).round();
-  return m < 60 ? '$m min' : '${m ~/ 60} h ${(m % 60)} min';
-}
+/// Estimación de duración, compartida con las rutinas personalizadas.
+String _estimateDuration(List<RoutineExercise> exercises) =>
+    RoutineExercise.estimateDayDuration(exercises);
 
 /// Elige los ejercicios de un slot, ordenados de mejor a peor opción.
 ///

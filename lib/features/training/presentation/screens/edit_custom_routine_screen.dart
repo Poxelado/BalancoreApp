@@ -251,7 +251,7 @@ class _EditCustomRoutineScreenState
             decoration: const InputDecoration(
               labelText: 'Duración estimada (auto)',
               border: OutlineInputBorder(),
-              helperText: '1 min por serie + descansos entre series',
+              helperText: 'Trabajo + descansos y cambios entre ejercicios',
             ),
             child: Text(
               _autoDuration.isEmpty ? '—' : _autoDuration,
