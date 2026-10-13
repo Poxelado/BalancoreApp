@@ -3,11 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../training/domain/exercise.dart';
 import '../../../training/presentation/screens/weekly_routine_screen.dart';
 import '../../../training/presentation/screens/exercise_library_screen.dart';
 import '../../../training/presentation/screens/edit_routine_day_screen.dart';
+import '../../../training/presentation/screens/edit_custom_routine_screen.dart';
+import '../../../training/presentation/screens/pick_exercise_screen.dart';
 import '../../../training/presentation/screens/workout_session_screen.dart';
 import '../../../training/presentation/providers/exercise_provider.dart';
+import '../../../training/presentation/workout_builders.dart';
 import '../../../training/presentation/widgets/exercise_list_widgets.dart';
 import '../widgets/home_widgets.dart';
 import '../widgets/routine_tab_widgets.dart';
@@ -95,9 +99,277 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
     ref.invalidate(workoutHistoryProvider);
   }
 
+  /// Entrenamiento libre: pregunta si empezar vacío o eligiendo ejercicios.
+  Future<void> _startFreeWorkout() async {
+    final primary = Theme.of(context).colorScheme.primary;
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+              child: Text(
+                'Entrenamiento libre',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: primary,
+                ),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Text(
+                'Elige cómo quieres empezar tu sesión.',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            ListTile(
+              leading: CircleAvatar(
+                backgroundColor: primary.withValues(alpha: 0.12),
+                child: Icon(Icons.play_circle_outline, color: primary),
+              ),
+              title: const Text('Empezar vacío'),
+              subtitle: const Text(
+                'Arranca sin ejercicios y añádelos a medida que entrenas.',
+              ),
+              onTap: () => Navigator.pop(ctx, 'empty'),
+            ),
+            ListTile(
+              leading: CircleAvatar(
+                backgroundColor: primary.withValues(alpha: 0.12),
+                child: Icon(Icons.checklist_rtl, color: primary),
+              ),
+              title: const Text('Elegir ejercicios antes de empezar'),
+              subtitle: const Text(
+                'Selecciona los ejercicios ahora y la sesión arranca con ellos.',
+              ),
+              onTap: () => Navigator.pop(ctx, 'pick'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (choice == null || !mounted) return;
+
+    if (choice == 'empty') {
+      await _pushFreeSession(initialExercises: const []);
+      return;
+    }
+
+    final picked = await Navigator.push<List<Exercise>>(
+      context,
+      MaterialPageRoute(builder: (_) => const PickExerciseScreen()),
+    );
+    if (picked == null || picked.isEmpty || !mounted) return;
+
+    final user = ref.read(authServiceProvider).currentUser;
+    final repo = ref.read(profileRepositoryProvider);
+    final logs = <WorkoutExerciseLog>[];
+    for (final exercise in picked) {
+      logs.add(
+        await buildWorkoutExerciseLog(
+          repo: repo,
+          exercise: exercise,
+          uid: user?.uid,
+        ),
+      );
+    }
+    if (!mounted) return;
+    await _pushFreeSession(initialExercises: logs);
+  }
+
+  Future<void> _pushFreeSession({
+    required List<WorkoutExerciseLog> initialExercises,
+  }) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => WorkoutSessionScreen(
+          initialExercises: initialExercises,
+          title: 'Entrenamiento libre',
+          allowAddExercises: true,
+        ),
+      ),
+    );
+    ref.invalidate(todayWorkoutSessionProvider);
+    ref.invalidate(activeWorkoutSessionProvider);
+    ref.invalidate(workoutHistoryProvider);
+  }
+
+  Future<void> _startCustomRoutine(CustomRoutine routine) async {
+    if (routine.exercises.isEmpty) {
+      final edit = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(routine.name),
+          content: const Text(
+            'Esta rutina todavía no tiene ejercicios.\n¿Quieres editarla ahora?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Editar'),
+            ),
+          ],
+        ),
+      );
+      if (edit == true && mounted) {
+        await _editCustomRoutine(routine);
+      }
+      return;
+    }
+
+    final day = RoutineDay(
+      day: WorkoutSession.weekdayName(),
+      title: routine.name,
+      exercises: routine.exercises,
+    );
+    final user = ref.read(authServiceProvider).currentUser;
+    WorkoutSession? existing;
+    if (user != null) {
+      existing = await ref
+          .read(profileRepositoryProvider)
+          .findIncompleteSessionForRoutine(
+        user.uid,
+        dayName: day.day,
+        title: routine.name,
+      );
+    }
+    if (!mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => WorkoutSessionScreen(
+          routine: day,
+          existing: existing,
+          allowAddExercises: true,
+        ),
+      ),
+    );
+    ref.invalidate(todayWorkoutSessionProvider);
+    ref.invalidate(activeWorkoutSessionProvider);
+    ref.invalidate(workoutHistoryProvider);
+  }
+
+  Future<void> _createCustomRoutine() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const EditCustomRoutineScreen(),
+      ),
+    );
+    ref.invalidate(customRoutinesProvider);
+  }
+
+  Future<void> _editCustomRoutine(CustomRoutine routine) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditCustomRoutineScreen(routine: routine),
+      ),
+    );
+    ref.invalidate(customRoutinesProvider);
+  }
+
+  Future<void> _deleteCustomRoutine(CustomRoutine routine) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar rutina'),
+        content: Text(
+          '¿Eliminar "${routine.name}"? Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final user = ref.read(authServiceProvider).currentUser;
+    if (user == null) return;
+    await ref
+        .read(profileRepositoryProvider)
+        .deleteCustomRoutine(user.uid, routine.id);
+    ref.invalidate(customRoutinesProvider);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Rutina eliminada')),
+      );
+    }
+  }
+
+  Widget _customRoutineTile(CustomRoutine routine) {
+    final primary = Theme.of(context).colorScheme.primary;
+    final n = routine.exercises.length;
+    final duration = routine.estimatedDuration;
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: primary.withValues(alpha: 0.12),
+          child: Icon(Icons.fitness_center, color: primary),
+        ),
+        title: Text(
+          routine.name,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          n == 0
+              ? 'Sin ejercicios'
+              : '$n ejercicios${duration.isEmpty ? '' : ' · $duration'}',
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              tooltip: 'Empezar',
+              icon: Icon(Icons.play_arrow, color: primary),
+              onPressed: () => _startCustomRoutine(routine),
+            ),
+            PopupMenuButton<String>(
+              tooltip: 'Opciones',
+              onSelected: (v) {
+                if (v == 'edit') {
+                  _editCustomRoutine(routine);
+                } else if (v == 'delete') {
+                  _deleteCustomRoutine(routine);
+                }
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'edit', child: Text('Editar')),
+                PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final routinesAsync = ref.watch(routinesProvider);
+    final customRoutinesAsync = ref.watch(customRoutinesProvider);
     final primary = Theme.of(context).colorScheme.primary;
     final todayName = WorkoutSession.weekdayName();
 
@@ -166,6 +438,74 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
               );
             },
           ),
+        ),
+        const SizedBox(height: 24),
+
+        // ═══ 1b) Entrenamiento libre ══════════════════════
+        Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: ListTile(
+            leading: Icon(Icons.bolt, color: primary),
+            title: const Text(
+              'Entrenamiento libre',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: const Text('Empieza sin rutina o eligiendo ejercicios'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _startFreeWorkout,
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // ═══ 1c) Rutinas extras ══════════════════════════
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Tus rutinas extras',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: primary,
+                ),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: _createCustomRoutine,
+              icon: const Icon(Icons.add),
+              label: const Text('Nueva'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        customRoutinesAsync.when(
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (e, _) => Text('Error: $e'),
+          data: (routines) {
+            if (routines.isEmpty) {
+              return Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    'Aún no tienes rutinas extras. Crea una para reutilizarla '
+                    'cuando quieras, sin ocupar un día de la semana.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+              );
+            }
+            return Column(
+              children: [
+                for (final r in routines) _customRoutineTile(r),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 24),
 

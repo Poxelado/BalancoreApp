@@ -141,6 +141,9 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
   Future<void> _persist({bool silent = false}) async {
     final user = ref.read(authServiceProvider).currentUser;
     if (user == null) return;
+    // Una sesión libre recién abierta y sin ejercicios no se guarda: evita
+    // entradas fantasma en el historial y en el mini-player.
+    if (_session.exercises.isEmpty && !_session.completed) return;
     _session = _session.copyWith(
       elapsedSeconds: _elapsedSeconds,
       isPaused: _paused,
@@ -861,7 +864,45 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
     await _persist();
   }
 
+  /// Abre el selector y añade los ejercicios elegidos a la sesión en curso.
+  /// Se usa en entrenamientos libres (y rutinas extra) para armar la sesión
+  /// sobre la marcha.
+  Future<void> _addExercisesToSession() async {
+    final picked = await Navigator.push<List<Exercise>>(
+      context,
+      MaterialPageRoute(builder: (_) => const PickExerciseScreen()),
+    );
+    if (picked == null || picked.isEmpty) return;
+
+    final user = ref.read(authServiceProvider).currentUser;
+    final added = <WorkoutExerciseLog>[];
+    for (final exercise in picked) {
+      added.add(
+        await buildWorkoutExerciseLog(
+          repo: ref.read(profileRepositoryProvider),
+          exercise: exercise,
+          uid: user?.uid,
+        ),
+      );
+    }
+    if (!mounted) return;
+
+    final exercises = [..._session.exercises, ...added];
+    setState(() {
+      _session = _session.copyWith(exercises: exercises);
+      _exerciseIndex = exercises.length - added.length;
+    });
+    for (final ex in added) {
+      _syncControllersForExercise(ex);
+    }
+    await _persist(silent: true);
+  }
+
   Future<void> _finish() async {
+    if (_session.exercises.isEmpty) {
+      _toast('Añade al menos un ejercicio antes de terminar');
+      return;
+    }
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(

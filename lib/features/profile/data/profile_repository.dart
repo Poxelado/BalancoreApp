@@ -6,6 +6,7 @@ part 'profile_repository_routines.dart';
 part 'profile_repository_nutrition.dart';
 part 'profile_repository_workouts.dart';
 part 'profile_repository_account.dart';
+part 'profile_repository_custom_routines.dart';
 
 class ProfileRepository {
   ProfileRepository({FirebaseFirestore? db})

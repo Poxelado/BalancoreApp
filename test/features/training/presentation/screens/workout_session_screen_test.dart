@@ -129,6 +129,33 @@ Future<void> _openScreen(
   await tester.pump(const Duration(milliseconds: 400));
 }
 
+/// Igual que [_openScreen], pero abriendo una pantalla cualquiera.
+Future<void> _openWidget(
+  WidgetTester tester,
+  ProviderContainer container,
+  Widget screen,
+) async {
+  tester.view.physicalSize = const Size(1236, 2745);
+  tester.view.devicePixelRatio = 3.0;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+
+  await _loadRealFont();
+
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(
+        home: Scaffold(body: Center(child: Text('HOME'))),
+      ),
+    ),
+  );
+  final nav = tester.state<NavigatorState>(find.byType(Navigator));
+  nav.push(MaterialPageRoute(builder: (_) => screen));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
+}
+
 /// Drena microtareas/escrituras asíncronas sin disparar pumpAndSettle
 /// (el temporizador tick de 1s impide que se asiente).
 Future<void> _flush(WidgetTester tester) async {
@@ -610,6 +637,58 @@ testWidgets('borrar una serie la elimina de la sesión y renumera',
     expect(done.length, 1);
     expect(done.single.completed, isTrue);
     expect(await active(), isNull, reason: 'Ya no hay sesión activa');
+
+    await _unmount(tester);
+  });
+
+  testWidgets('el entreno libre vacío invita a añadir y no persiste nada',
+      (WidgetTester tester) async {
+    await _openWidget(
+      tester,
+      container,
+      const WorkoutSessionScreen(
+        title: 'Entrenamiento libre',
+        allowAddExercises: true,
+      ),
+    );
+    await _flush(tester);
+
+    expect(find.textContaining('vacío'), findsOneWidget);
+    expect(find.text('Añadir ejercicio'), findsOneWidget);
+    expect(await active(), isNull,
+        reason: 'Una sesión vacía sin empezar no se guarda');
+
+    await _unmount(tester);
+  });
+
+  testWidgets('el entreno libre arranca con los ejercicios elegidos y permite añadir',
+      (WidgetTester tester) async {
+    await _openWidget(
+      tester,
+      container,
+      const WorkoutSessionScreen(
+        title: 'Entrenamiento libre',
+        allowAddExercises: true,
+        initialExercises: [
+          WorkoutExerciseLog(
+            exerciseId: 'ex1',
+            exerciseName: 'Press Banca',
+            muscleGroup: 'Pecho',
+            sets: [WorkoutSetLog(setNumber: 1, reps: 10)],
+          ),
+        ],
+      ),
+    );
+    await _flush(tester);
+
+    expect(find.text('Press Banca'), findsWidgets);
+    expect(find.text('Añadir'), findsOneWidget,
+        reason: 'El selector muestra el botón para añadir más ejercicios');
+
+    final s = await active();
+    expect(s, isNotNull);
+    expect(s!.title, 'Entrenamiento libre');
+    expect(s.exercises.single.exerciseName, 'Press Banca');
 
     await _unmount(tester);
   });

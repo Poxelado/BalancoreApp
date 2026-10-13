@@ -2,6 +2,7 @@ part 'user_profile_account.dart';
 part 'user_profile_routine.dart';
 part 'user_profile_food.dart';
 part 'user_profile_workouts.dart';
+part 'user_profile_custom_routine.dart';
 
 // ─── Helpers anti-null (Firestore) ─────────────────────────
 String _str(dynamic v, [String fallback = '']) {

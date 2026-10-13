@@ -109,6 +109,81 @@ void main() {
     });
   });
 
+  group('Rutinas extras', () {
+    test('getCustomRoutines devuelve [] si no hay datos', () async {
+      expect(await repo.getCustomRoutines('u1'), isEmpty);
+    });
+
+    test('saveCustomRoutine + getCustomRoutines hace round-trip', () async {
+      await repo.saveCustomRoutine(
+        'u1',
+        CustomRoutine(
+          name: 'Full body',
+          createdAt: DateTime(2026, 10, 1),
+          exercises: const [
+            RoutineExercise(
+              exerciseId: 'ex1',
+              exerciseName: 'Press Banca',
+              muscleGroup: 'Pecho',
+              plannedSets: [
+                PlannedSet(weight: 60, reps: 8),
+                PlannedSet(weight: 60, reps: 8),
+              ],
+              restSeconds: 90,
+              notes: 'codo alto',
+            ),
+          ],
+        ),
+      );
+
+      final list = await repo.getCustomRoutines('u1');
+      expect(list.length, 1);
+      final r = list.first;
+      expect(r.id, isNotEmpty);
+      expect(r.name, 'Full body');
+      expect(r.totalSets, 2);
+      expect(r.exercises.first.exerciseName, 'Press Banca');
+      expect(r.exercises.first.restSeconds, 90);
+      expect(r.exercises.first.notes, 'codo alto');
+    });
+
+    test('saveCustomRoutine respeta el id existente y actualiza', () async {
+      await repo.saveCustomRoutine(
+        'u1',
+        const CustomRoutine(id: 'cr_1', name: 'A'),
+      );
+      await repo.saveCustomRoutine(
+        'u1',
+        const CustomRoutine(id: 'cr_1', name: 'B'),
+      );
+      final list = await repo.getCustomRoutines('u1');
+      expect(list.length, 1);
+      expect(list.first.name, 'B');
+    });
+
+    test('deleteCustomRoutine la elimina', () async {
+      await repo.saveCustomRoutine(
+        'u1',
+        const CustomRoutine(id: 'cr_1', name: 'A'),
+      );
+      await repo.deleteCustomRoutine('u1', 'cr_1');
+      expect(await repo.getCustomRoutines('u1'), isEmpty);
+    });
+
+    test('las rutinas se ordenan por fecha descendente', () async {
+      await repo.saveCustomRoutine(
+        'u1',
+        CustomRoutine(id: 'cr_vieja', name: 'Vieja', createdAt: DateTime(2026, 1, 1)),
+      );
+      await repo.saveCustomRoutine(
+        'u1',
+        CustomRoutine(id: 'cr_nueva', name: 'Nueva', createdAt: DateTime(2026, 10, 1)),
+      );
+      final list = await repo.getCustomRoutines('u1');
+      expect(list.map((r) => r.name).toList(), ['Nueva', 'Vieja']);
+    });
+  });
+
   group('Comidas del día', () {
     setUp(() async {
       await repo.saveProfile(_profile());

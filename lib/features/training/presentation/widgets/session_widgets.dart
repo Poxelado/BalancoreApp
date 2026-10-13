@@ -27,6 +27,9 @@ class ExerciseSelectorStrip extends StatelessWidget {
   final Color cardBg;
   final ValueChanged<int> onSelect;
 
+  /// Si no es null, muestra un botón "+" al final para añadir ejercicios.
+  final VoidCallback? onAdd;
+
   const ExerciseSelectorStrip({
     super.key,
     required this.exercises,
@@ -34,17 +37,62 @@ class ExerciseSelectorStrip extends StatelessWidget {
     required this.primary,
     required this.cardBg,
     required this.onSelect,
+    this.onAdd,
   });
 
   @override
   Widget build(BuildContext context) {
+    final hasAdd = onAdd != null;
     return SizedBox(
       height: 92,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        itemCount: exercises.length,
+        itemCount: exercises.length + (hasAdd ? 1 : 0),
         itemBuilder: (context, i) {
+          if (hasAdd && i == exercises.length) {
+            return Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: SizedBox(
+                width: 64,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: onAdd,
+                      child: Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: primary.withValues(alpha: 0.08),
+                          border: Border.all(
+                            color: primary.withValues(alpha: 0.6),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Icon(Icons.add, color: primary, size: 26),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Añadir',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 10,
+                        height: 1.1,
+                        fontWeight: FontWeight.w600,
+                        color: primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
           final e = exercises[i];
           final selected = i == selectedIndex;
           final allDone = e.sets.isNotEmpty && e.sets.every((s) => s.completed);

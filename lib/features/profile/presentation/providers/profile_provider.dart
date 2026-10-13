@@ -27,6 +27,12 @@ final routinesProvider = FutureProvider<List<RoutineDay>>((ref) async {
   return ref.watch(profileRepositoryProvider).getRoutines(user.uid);
 });
 
+final customRoutinesProvider = FutureProvider<List<CustomRoutine>>((ref) async {
+  final user = ref.watch(authStateProvider).value;
+  if (user == null) return [];
+  return ref.watch(profileRepositoryProvider).getCustomRoutines(user.uid);
+});
+
 final todayLogProvider = FutureProvider.autoDispose<DailyLog>((ref) async {
   final user = ref.watch(authStateProvider).value;
   if (user == null) return DailyLog(date: '');

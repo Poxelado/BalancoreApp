@@ -178,28 +178,12 @@ class ActiveSessionBanner extends ConsumerWidget {
   }
 
   Future<void> _resume(BuildContext context, WidgetRef ref, WorkoutSession session) async {
-    // Construir RoutineDay mínimo desde la sesión
-    final day = RoutineDay(
-      day: session.dayName,
-      title: session.title,
-      exercises: session.exercises
-          .map(
-            (e) => RoutineExercise(
-          exerciseId: e.exerciseId,
-          exerciseName: e.exerciseName,
-          muscleGroup: e.muscleGroup,
-          sets: e.sets.length,
-          reps: e.sets.isNotEmpty ? e.sets.first.reps : 10,
-        ),
-      )
-          .toList(),
-    );
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => WorkoutSessionScreen(
-          routine: day,
           existing: session,
+          allowAddExercises: true,
         ),
       ),
     );

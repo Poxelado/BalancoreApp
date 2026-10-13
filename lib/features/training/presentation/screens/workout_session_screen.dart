@@ -8,29 +8,50 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../profile/domain/user_profile.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import 'exercise_detail_screen.dart';
+import 'pick_exercise_screen.dart';
 import '../widgets/session_rest_time_sheet.dart';
 import '../widgets/session_plates_sheet.dart';
 import '../widgets/session_widgets.dart';
 import '../../../../core/motivation/motivational_messages.dart';
 import '../../../../core/notifications/notification_service.dart';
+import '../../domain/exercise.dart';
 import '../../domain/progression_rules.dart';
 import '../../domain/personal_records.dart';
 import '../../domain/session_stats.dart';
+import '../workout_builders.dart';
 import 'workout_summary_screen.dart';
 
 part 'workout_session_logic.dart';
 const _kRestSecondsKey = 'balancore_rest_seconds';
 
 class WorkoutSessionScreen extends ConsumerStatefulWidget {
-  final RoutineDay routine;
+  /// Rutina semanal o extra desde la que arranca la sesión. Puede ser null
+  /// para un entrenamiento libre (se usa [initialExercises] y [title]).
+  final RoutineDay? routine;
   final WorkoutSession? existing;
   final DateTime? sessionDate;
 
+  /// Ejercicios con los que arranca una sesión libre (sin rutina).
+  final List<WorkoutExerciseLog>? initialExercises;
+
+  /// Título del entreno libre ("Entrenamiento libre" por defecto).
+  final String title;
+
+  /// Nombre de día para el entreno libre; por defecto, el día de hoy.
+  final String dayName;
+
+  /// Muestra el botón "Añadir ejercicio" dentro de la sesión.
+  final bool allowAddExercises;
+
   const WorkoutSessionScreen({
     super.key,
-    required this.routine,
+    this.routine,
     this.existing,
     this.sessionDate,
+    this.initialExercises,
+    this.title = '',
+    this.dayName = '',
+    this.allowAddExercises = false,
   });
 
   @override
@@ -48,10 +69,23 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
       _session = widget.existing!;
       _elapsedSeconds = widget.existing!.elapsedSeconds;
       _paused = widget.existing!.isPaused;
-    } else {
+    } else if (widget.routine != null) {
       _session = WorkoutSession.fromRoutine(
-        widget.routine,
+        widget.routine!,
         date: widget.sessionDate,
+      );
+      _elapsedSeconds = 0;
+      _paused = false;
+    } else {
+      // Entrenamiento libre: sin rutina, sin ejercicios o con los elegidos.
+      _session = WorkoutSession(
+        id: WorkoutSession.newSessionId(),
+        dayName: widget.dayName.isEmpty
+            ? WorkoutSession.weekdayName()
+            : widget.dayName,
+        title: widget.title.isEmpty ? 'Entrenamiento libre' : widget.title,
+        startedAt: widget.sessionDate ?? DateTime.now(),
+        exercises: widget.initialExercises ?? const [],
       );
       _elapsedSeconds = 0;
       _paused = false;
@@ -104,10 +138,37 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
           backgroundColor: primary,
           foregroundColor: Colors.white,
         ),
-        body: const Center(
-          child: Text(
-            'Sin ejercicios en esta rutina.',
-            textAlign: TextAlign.center,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.fitness_center,
+                  size: 56,
+                  color: primary.withValues(alpha: 0.6),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  widget.allowAddExercises
+                      ? 'Este entrenamiento está vacío.\n'
+                          'Añade tu primer ejercicio.'
+                      : 'Sin ejercicios en esta rutina.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 15),
+                ),
+                if (widget.allowAddExercises) ...[
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: _addExercisesToSession,
+                    style: FilledButton.styleFrom(backgroundColor: primary),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Añadir ejercicio'),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
       );
@@ -206,6 +267,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
               primary: primary,
               cardBg: cardBg,
               onSelect: (i) => setState(() => _exerciseIndex = i),
+              onAdd: widget.allowAddExercises ? _addExercisesToSession : null,
             ),
             ExerciseHeaderCard(
               ex: ex,
