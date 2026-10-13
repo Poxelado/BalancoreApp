@@ -12,6 +12,7 @@ import 'package:balancore/features/auth/presentation/providers/auth_provider.dar
 import 'package:balancore/features/profile/domain/user_profile.dart';
 import 'package:balancore/features/profile/presentation/providers/profile_provider.dart';
 import 'package:balancore/features/training/presentation/screens/workout_session_screen.dart';
+import 'package:balancore/features/training/presentation/screens/workout_summary_screen.dart';
 import 'package:balancore/features/training/presentation/widgets/session_plates_sheet.dart';
 import 'package:balancore/features/training/presentation/widgets/session_widgets.dart';
 
@@ -594,8 +595,16 @@ testWidgets('borrar una serie la elimina de la sesión y renumera',
     await tester.pump(const Duration(milliseconds: 400));
     await _flush(tester);
 
-    // Vuelve a la pantalla base.
+    // Terminado el entrenamiento se muestra el resumen.
+    expect(find.byType(WorkoutSummaryScreen), findsOneWidget);
+    expect(find.text('Resumen'), findsOneWidget);
+
+    // "Listo" cierra el resumen y vuelve a la pantalla base.
+    await tester.tap(find.text('Listo'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('HOME'), findsOneWidget);
+    expect(find.byType(WorkoutSummaryScreen), findsNothing);
 
     final done = (await all()).where((s) => s.completed).toList();
     expect(done.length, 1);

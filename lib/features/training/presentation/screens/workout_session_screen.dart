@@ -15,6 +15,8 @@ import '../../../../core/motivation/motivational_messages.dart';
 import '../../../../core/notifications/notification_service.dart';
 import '../../domain/progression_rules.dart';
 import '../../domain/personal_records.dart';
+import '../../domain/session_stats.dart';
+import 'workout_summary_screen.dart';
 
 part 'workout_session_logic.dart';
 const _kRestSecondsKey = 'balancore_rest_seconds';

@@ -889,21 +889,33 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
         isPaused: false,
         elapsedSeconds: _elapsedSeconds,
         finishedAt: DateTime.now(),
+        clearRest: true,
       );
+      _restTimer?.cancel();
+      _restRemaining = null;
       await _persist();
-      if (mounted) {
-        final history =
-        await ref.read(workoutHistoryProvider(120).future);
-        final completedBefore = history
-            .where((s) => s.completed && s.id != _session.id)
-            .length;
-        MotivationalMessages.pickSync(MotivationContext(
-          justFinishedWorkout: true,
-          firstWorkoutEver: completedBefore == 0,
-          trainedToday: true,
-        ));
-        if (mounted) Navigator.pop(context);
-      }
+      if (!mounted) return;
+      final history = await ref.read(workoutHistoryProvider(120).future);
+      if (!mounted) return;
+      final past = history.where((s) => s.id != _session.id).toList();
+      final message = MotivationalMessages.pickSync(MotivationContext(
+        justFinishedWorkout: true,
+        firstWorkoutEver: past.where((s) => s.completed).isEmpty,
+        trainedToday: true,
+      ));
+      if (!mounted) return;
+      // Sustituye la pantalla de sesión por el resumen: el botón "Listo" cierra
+      // el resumen y vuelve al hub, sin pasar por detrás.
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => WorkoutSummaryScreen(
+            stats: computeSessionStats(_session, past),
+            records: detectPersonalRecords(_session, past),
+            title: message,
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
