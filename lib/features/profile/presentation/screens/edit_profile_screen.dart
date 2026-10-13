@@ -136,9 +136,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
     if (rawWeight == null || rawHeight == null || age == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Revisa peso, altura y edad'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: const Text('Revisa peso, altura y edad'),
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
       return;
@@ -205,7 +205,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Theme.of(context).colorScheme.error),
         );
       }
     } finally {

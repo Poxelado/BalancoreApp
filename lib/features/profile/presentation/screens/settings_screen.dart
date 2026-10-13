@@ -41,7 +41,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
             child: const Text('Eliminar'),
           ),
         ],
@@ -64,7 +64,7 @@ class SettingsScreen extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('$e'), backgroundColor: Theme.of(context).colorScheme.error),
         );
       }
     }
@@ -191,7 +191,7 @@ class SettingsScreen extends ConsumerWidget {
               SettingsTile(
                 icon: Icons.logout,
                 title: 'Cerrar sesión',
-                color: Colors.red,
+                color: Theme.of(context).colorScheme.error,
                 onTap: () async {
                   await ref.read(authServiceProvider).signOut();
                 },
@@ -200,7 +200,7 @@ class SettingsScreen extends ConsumerWidget {
                 icon: Icons.delete_forever_outlined,
                 title: 'Eliminar cuenta',
                 subtitle: 'Borra perfil y datos de forma permanente',
-                color: Colors.red,
+                color: Theme.of(context).colorScheme.error,
                 onTap: () => _confirmDeleteAccount(context, ref),
               ),
             ],

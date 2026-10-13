@@ -115,7 +115,7 @@ class ExerciseSelectorStrip extends StatelessWidget {
                         color: selected
                             ? primary
                             : (allDone
-                                ? Colors.green.withValues(alpha: 0.3)
+                                ? AppSemanticColors.of(context).success.withValues(alpha: 0.3)
                                 : cardBg),
                         border: Border.all(
                           color: selected
@@ -461,7 +461,7 @@ class ProgressionBanner extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
       child: Material(
         color:
-            (suggestion.isIncrease ? Colors.green : primary).withValues(
+            (suggestion.isIncrease ? AppSemanticColors.of(context).success : primary).withValues(
           alpha: 0.12,
         ),
         borderRadius: BorderRadius.circular(10),
@@ -472,7 +472,7 @@ class ProgressionBanner extends StatelessWidget {
               Icon(
                 suggestion.isIncrease ? Icons.trending_up : Icons.history,
                 size: 20,
-                color: suggestion.isIncrease ? Colors.green : primary,
+                color: suggestion.isIncrease ? AppSemanticColors.of(context).success : primary,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -619,13 +619,13 @@ class SetLogRow extends StatelessWidget {
       key: ValueKey(dismissKey),
       direction: DismissDirection.horizontal,
       background: Container(
-        color: Colors.red.shade700,
+        color: Theme.of(context).colorScheme.error,
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.only(left: 20),
         child: const Icon(Icons.delete, color: Colors.white),
       ),
       secondaryBackground: Container(
-        color: Colors.red.shade700,
+        color: Theme.of(context).colorScheme.error,
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         child: const Icon(Icons.delete, color: Colors.white),
@@ -637,7 +637,7 @@ class SetLogRow extends StatelessWidget {
         onLongPress: onLongPress,
         child: Container(
         decoration: BoxDecoration(
-          color: s.completed ? Colors.green.withValues(alpha: 0.08) : null,
+          color: s.completed ? AppSemanticColors.of(context).success.withValues(alpha: 0.08) : null,
           border: Border(left: BorderSide(color: typeColor, width: 3)),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -798,7 +798,7 @@ class SetLogRow extends StatelessWidget {
                 onPressed: onToggle,
                 icon: Icon(
                   s.completed ? Icons.check_circle : Icons.check_circle_outline,
-                  color: s.completed ? Colors.green : Colors.grey,
+                  color: s.completed ? AppSemanticColors.of(context).success : Colors.grey,
                 ),
               ),
             ),

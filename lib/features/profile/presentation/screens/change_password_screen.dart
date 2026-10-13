@@ -35,7 +35,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        backgroundColor: error ? Colors.red : null,
+        backgroundColor: error ? Theme.of(context).colorScheme.error : null,
       ),
     );
   }

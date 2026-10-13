@@ -258,7 +258,7 @@ class _EditWorkoutHistoryScreenState
                         s.completed
                             ? Icons.check_circle
                             : Icons.check_circle_outline,
-                        color: s.completed ? Colors.green : Colors.grey,
+                        color: s.completed ? AppSemanticColors.of(context).success : Colors.grey,
                         size: 20,
                       ),
                       onTap: () => _editSet(i, si),

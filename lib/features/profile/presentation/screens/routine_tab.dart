@@ -314,7 +314,7 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+            child: Text('Eliminar', style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ),
         ],
       ),

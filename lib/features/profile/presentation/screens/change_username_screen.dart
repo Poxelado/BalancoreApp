@@ -26,7 +26,7 @@ class _ChangeUsernameScreenState extends ConsumerState<ChangeUsernameScreen> {
   void _snack(String msg, {bool error = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: error ? Colors.red : null),
+      SnackBar(content: Text(msg), backgroundColor: error ? Theme.of(context).colorScheme.error : null),
     );
   }
 

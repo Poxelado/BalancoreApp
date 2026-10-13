@@ -226,7 +226,7 @@ class _PlateCalculatorSheetState extends State<PlateCalculatorSheet> {
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
                     'Faltan ${_fmtKg(bd.remainder.abs())} kg (no alcanzable con estos discos)',
-                    style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+                    style: TextStyle(fontSize: 12, color: AppSemanticColors.of(context).warning),
                   ),
                 ),
             ],

@@ -86,7 +86,7 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Theme.of(context).colorScheme.error),
         );
       }
     } finally {
@@ -403,9 +403,9 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
                               ),
                               IconButton(
                                 tooltip: 'Eliminar',
-                                icon: const Icon(
+                                icon: Icon(
                                   Icons.delete_outline,
-                                  color: Colors.red,
+                                  color: Theme.of(context).colorScheme.error,
                                 ),
                                 onPressed: () {
                                   setState(() {

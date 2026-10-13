@@ -159,11 +159,11 @@ class WorkoutSessionGroupTile extends ConsumerWidget {
                 ListTile(
                   leading: CircleAvatar(
                     backgroundColor: s.completed
-                        ? Colors.green.withValues(alpha: 0.15)
+                        ? AppSemanticColors.of(context).success.withValues(alpha: 0.15)
                         : primary.withValues(alpha: 0.12),
                     child: Icon(
                       s.completed ? Icons.check : Icons.fitness_center,
-                      color: s.completed ? Colors.green : primary,
+                      color: s.completed ? AppSemanticColors.of(context).success : primary,
                       size: 20,
                     ),
                   ),
@@ -219,7 +219,7 @@ class WorkoutSessionGroupTile extends ConsumerWidget {
                               TextButton(
                                 onPressed: () => Navigator.pop(ctx, true),
                                 style: TextButton.styleFrom(
-                                  foregroundColor: Colors.red,
+                                  foregroundColor: Theme.of(context).colorScheme.error,
                                 ),
                                 child: const Text('Eliminar'),
                               ),
@@ -234,12 +234,12 @@ class WorkoutSessionGroupTile extends ConsumerWidget {
                         }
                       }
                     },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(
                         value: 'open',
                         child: Text('Abrir / continuar'),
                       ),
-                      PopupMenuItem(
+                      const PopupMenuItem(
                         value: 'edit',
                         child: Text('Editar'),
                       ),
@@ -247,7 +247,7 @@ class WorkoutSessionGroupTile extends ConsumerWidget {
                         value: 'delete',
                         child: Text(
                           'Eliminar',
-                          style: TextStyle(color: Colors.red),
+                          style: TextStyle(color: Theme.of(context).colorScheme.error),
                         ),
                       ),
                     ],

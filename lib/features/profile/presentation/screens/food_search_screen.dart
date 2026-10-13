@@ -388,7 +388,7 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen>
           if (_error != null && !_loading && tab != 1)
             Padding(
               padding: const EdgeInsets.all(16),
-              child: Text(_error!, style: const TextStyle(color: Colors.red)),
+              child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ),
           Expanded(
             child: tab == 1

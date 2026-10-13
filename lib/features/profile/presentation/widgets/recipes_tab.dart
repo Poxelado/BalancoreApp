@@ -120,7 +120,7 @@ class RecipesTab extends ConsumerWidget {
                             ),
                             TextButton(
                               style: TextButton.styleFrom(
-                                foregroundColor: Colors.red,
+                                foregroundColor: Theme.of(context).colorScheme.error,
                               ),
                               onPressed: () async {
                                 final user = ref

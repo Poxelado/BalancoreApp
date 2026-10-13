@@ -373,10 +373,10 @@ Future<void> openMealEditor(
                       final cal = int.tryParse(calCtrl.text);
                       if (name.isEmpty || cal == null || cal <= 0) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
+                          SnackBar(
                             content:
-                            Text('Nombre y calorías son obligatorios'),
-                            backgroundColor: Colors.red,
+                            const Text('Nombre y calorías son obligatorios'),
+                            backgroundColor: Theme.of(context).colorScheme.error,
                           ),
                         );
                         return;

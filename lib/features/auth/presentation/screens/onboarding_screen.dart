@@ -163,7 +163,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
             child: const Text('Salir'),
           ),
         ],
@@ -263,7 +263,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('$e'), backgroundColor: Theme.of(context).colorScheme.error),
         );
       }
     } finally {

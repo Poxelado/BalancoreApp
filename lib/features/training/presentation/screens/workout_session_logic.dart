@@ -579,9 +579,9 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
             ),
             ListTile(
               enabled: ex.sets.length > 1,
-              leading: Icon(Icons.delete_outline, color: Colors.red.shade400),
+              leading: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
               title: Text('Eliminar serie',
-                  style: TextStyle(color: Colors.red.shade400)),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
               onTap: () => Navigator.pop(ctx, 'delete'),
             ),
           ],

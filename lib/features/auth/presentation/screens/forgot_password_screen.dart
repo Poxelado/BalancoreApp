@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
@@ -40,7 +41,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString()),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -141,10 +142,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Icon(
+        Icon(
           Icons.mark_email_read_outlined,
           size: 80,
-          color: Colors.green,
+          color: AppSemanticColors.of(context).success,
         ),
         const SizedBox(height: 24),
         const Text(

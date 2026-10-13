@@ -101,7 +101,7 @@ class WorkoutSummaryScreen extends StatelessWidget {
             ),
             if (stats.hasPrevious) ...[
               const SizedBox(height: 10),
-              _comparison(accentOf(context)),
+              _comparison(context, accentOf(context)),
             ],
             if (records.isNotEmpty) ...[
               const SizedBox(height: 18),
@@ -203,21 +203,22 @@ class WorkoutSummaryScreen extends StatelessWidget {
     );
   }
 
-  Widget _comparison(Color primary) {
+  Widget _comparison(BuildContext context, Color primary) {
     final delta = stats.volumeDelta ?? 0;
     final up = stats.volumeImproved;
     final pct = stats.volumeDeltaPercent;
+    final sem = AppSemanticColors.of(context);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: (up ? Colors.green : Colors.orange).withValues(alpha: 0.1),
+        color: (up ? sem.success : sem.warning).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         children: [
           Icon(
             up ? Icons.trending_up : Icons.trending_down,
-            color: up ? Colors.green : Colors.orange,
+            color: up ? sem.success : sem.warning,
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -233,7 +234,7 @@ class WorkoutSummaryScreen extends StatelessWidget {
             '${pct == null ? '' : ' (${pct.abs().toStringAsFixed(0)}%)'}',
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: up ? Colors.green : Colors.orange,
+              color: up ? sem.success : sem.warning,
             ),
           ),
         ],

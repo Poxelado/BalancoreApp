@@ -195,7 +195,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
                   Icon(
                     _paused ? Icons.pause_circle : Icons.timer_outlined,
                     size: 18,
-                    color: _paused ? Colors.orange : accentOf(context),
+                    color: _paused ? AppSemanticColors.of(context).warning : accentOf(context),
                   ),
                   const SizedBox(width: 6),
                   Text(
@@ -203,16 +203,16 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: _paused ? Colors.orange : null,
+                      color: _paused ? AppSemanticColors.of(context).warning : null,
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
                   if (_paused)
-                    const Padding(
-                      padding: EdgeInsets.only(left: 6),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 6),
                       child: Text('PAUSA',
                           style: TextStyle(
-                              color: Colors.orange,
+                              color: AppSemanticColors.of(context).warning,
                               fontSize: 11,
                               fontWeight: FontWeight.bold)),
                     ),

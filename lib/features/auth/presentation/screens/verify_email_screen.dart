@@ -66,7 +66,7 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('$e'), backgroundColor: Theme.of(context).colorScheme.error),
         );
       }
     } finally {

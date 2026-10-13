@@ -29,7 +29,7 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
     final value = double.tryParse(text);
     if (value == null || value <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ingresa un peso válido'), backgroundColor: Colors.red),
+        SnackBar(content: const Text('Ingresa un peso válido'), backgroundColor: Theme.of(context).colorScheme.error),
       );
       return;
     }
@@ -51,7 +51,7 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+          SnackBar(content: Text(e.toString()), backgroundColor: Theme.of(context).colorScheme.error),
         );
       }
     } finally {

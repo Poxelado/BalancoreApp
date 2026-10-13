@@ -249,7 +249,7 @@ class _RecipeEditorScreenState extends ConsumerState<RecipeEditorScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Theme.of(context).colorScheme.error),
         );
       }
     } finally {
@@ -341,7 +341,7 @@ class _RecipeEditorScreenState extends ConsumerState<RecipeEditorScreen> {
                   ),
                   trailing: IconButton(
                     tooltip: 'Eliminar ingrediente',
-                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                    icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
                     onPressed: () => setState(() => _items.removeAt(i)),
                   ),
                 ),

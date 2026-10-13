@@ -280,7 +280,7 @@ class _CustomRoutineCardState extends State<CustomRoutineCard> {
                       OutlinedButton(
                         onPressed: widget.onDelete,
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red,
+                          foregroundColor: Theme.of(context).colorScheme.error,
                         ),
                         child: const Icon(Icons.delete_outline, size: 18),
                       ),
@@ -451,8 +451,8 @@ class ActiveSessionBanner extends ConsumerWidget {
               child: const Text('No')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Sí, cancelar',
-                style: TextStyle(color: Colors.red)),
+            child: Text('Sí, cancelar',
+                style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ),
         ],
       ),

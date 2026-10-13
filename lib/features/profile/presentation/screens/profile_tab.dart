@@ -96,7 +96,7 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
                       ),
                       IconButton(
                         tooltip: 'Eliminar',
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
                         onPressed: () async {
                           final ok = await showDialog<bool>(
                             context: context,
@@ -113,7 +113,7 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
                                 TextButton(
                                   onPressed: () => Navigator.pop(d, true),
                                   style: TextButton.styleFrom(
-                                    foregroundColor: Colors.red,
+                                    foregroundColor: Theme.of(context).colorScheme.error,
                                   ),
                                   child: const Text('Eliminar'),
                                 ),
@@ -169,7 +169,7 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
                               ? Icons.check_circle
                               : Icons.fitness_center,
                           color: done == e.sets.length && e.sets.isNotEmpty
-                              ? Colors.green
+                              ? AppSemanticColors.of(context).success
                               : primary,
                         ),
                         onTap: () {
