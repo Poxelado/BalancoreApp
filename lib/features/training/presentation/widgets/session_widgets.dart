@@ -39,10 +39,10 @@ class ExerciseSelectorStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 72,
+      height: 92,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         itemCount: exercises.length,
         itemBuilder: (context, i) {
           final e = exercises[i];
@@ -52,49 +52,82 @@ class ExerciseSelectorStrip extends StatelessWidget {
             padding: const EdgeInsets.only(right: 10),
             child: GestureDetector(
               onTap: () => onSelect(i),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: selected
-                      ? primary
-                      : (allDone
-                          ? Colors.green.withValues(alpha: 0.3)
-                          : cardBg),
-                  border: Border.all(
-                    color: selected
-                        ? primary
-                        : Colors.grey.withValues(alpha: 0.3),
-                    width: selected ? 2.5 : 1,
-                  ),
-                ),
-                child: Stack(
+              child: SizedBox(
+                width: 64,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Center(
-                      child: Icon(
-                        allDone ? Icons.check : Icons.fitness_center,
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
                         color: selected
-                            ? Colors.white
-                            : (allDone ? Colors.green : Colors.grey),
-                        size: 22,
-                      ),
-                    ),
-                    if (e.hasSuperset)
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: const BoxDecoration(
-                            color: Colors.deepPurple,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.link,
-                              size: 11, color: Colors.white),
+                            ? primary
+                            : (allDone
+                                ? Colors.green.withValues(alpha: 0.3)
+                                : cardBg),
+                        border: Border.all(
+                          color: selected
+                              ? primary
+                              : Colors.grey.withValues(alpha: 0.3),
+                          width: selected ? 2.5 : 1,
                         ),
                       ),
+                      child: Stack(
+                        children: [
+                          Center(
+                            child: ExerciseThumb(
+                              exerciseId: e.exerciseId,
+                              size: 40,
+                            ),
+                          ),
+                          if (allDone)
+                            Positioned(
+                              bottom: 2,
+                              right: 2,
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(
+                                  color: Colors.green,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.check,
+                                    size: 11, color: Colors.white),
+                              ),
+                            ),
+                          if (e.hasSuperset)
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(
+                                  color: Colors.deepPurple,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.link,
+                                    size: 11, color: Colors.white),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      e.exerciseName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 10,
+                        height: 1.1,
+                        fontWeight:
+                            selected ? FontWeight.w700 : FontWeight.w500,
+                        color: selected ? primary : Colors.grey.shade600,
+                      ),
+                    ),
                   ],
                 ),
               ),
