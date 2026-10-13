@@ -17,6 +17,12 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
   final Map<String, TextEditingController> _repsCtrls = {};
   /// exerciseId -> suggestion from history
   final Map<String, ProgressionSuggestion> _suggestions = {};
+  /// Claves "<índiceEjercicio>_<índiceSerie>" de las series que son récord.
+  final Set<String> _prKeys = {};
+
+  /// Etiqueta de récord para la serie, o null si no lo es.
+  String? _prLabelFor(int exerciseIndex, int setIndex) =>
+      _prKeys.contains('$exerciseIndex' '_$setIndex') ? 'PR' : null;
   Future<void> _loadProgression() async {
     try {
       final history = await ref.read(workoutHistoryProvider(120).future);
@@ -272,6 +278,40 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
     if (!wasDone) {
       HapticFeedback.lightImpact();
       _startRest();
+      await _checkPersonalRecords(exerciseIndex, setIndex);
+    }
+  }
+
+  /// Recalcula los récords de la sesión y avisa si esta serie los batió.
+  Future<void> _checkPersonalRecords(int exerciseIndex, int setIndex) async {
+    final ex = _session.exercises[exerciseIndex];
+    final set = ex.sets[setIndex];
+    if (!set.completed || !set.countsForRecord || set.weight <= 0) return;
+    try {
+      final history = await ref.read(workoutHistoryProvider(120).future);
+      if (!mounted) return;
+      // La sesión en curso ya está persistida: si se contara, cada serie
+      // igualaría su propio récord y nunca habría aviso. Solo el pasado.
+      final past = history.where((s) => s.id != _session.id).toList();
+      final records = recordsForSet(
+        exercise: ex,
+        set: set,
+        history: past,
+      );
+      if (records.isEmpty) return;
+      final key = '${exerciseIndex}_$setIndex';
+      _prKeys.add(key);
+      // Aviso visible solo para peso o 1RM: el volumen cambia casi en cada
+      // serie y molestaría.
+      final headline =
+          records.where((r) => r.kind != PrKind.volume).toList();
+      if (headline.isEmpty) return;
+      setState(() {});
+      final best = headline.first;
+      _toast('🏆 ¡Nuevo récord en ${ex.exerciseName}! '
+          '${best.label}: ${best.value.round()} kg');
+    } catch (e) {
+      debugPrint('workout_session: no se pudieron calcular los récords: $e');
     }
   }
 

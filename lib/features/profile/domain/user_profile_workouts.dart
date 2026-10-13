@@ -118,6 +118,12 @@ class WorkoutSetLog {
 
   bool get isWarmup => type == SetType.warmup;
 
+  /// ¿Esta serie cuenta para los récords personales? El calentamiento no
+  /// (no busca fuerza máxima) ni la serie al fallo (representa menos de lo
+  /// que el usuario habría podido mover).
+  bool get countsForRecord =>
+      type != SetType.warmup && type != SetType.failure;
+
   /// Volumen de la serie (peso × reps). No incluye calentamiento por sí solo;
   /// el filtrado de calentamiento lo hace quien suma el volumen.
   double get volume => weight * reps;

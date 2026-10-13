@@ -14,6 +14,7 @@ import '../widgets/session_widgets.dart';
 import '../../../../core/motivation/motivational_messages.dart';
 import '../../../../core/notifications/notification_service.dart';
 import '../../domain/progression_rules.dart';
+import '../../domain/personal_records.dart';
 
 part 'workout_session_logic.dart';
 const _kRestSecondsKey = 'balancore_rest_seconds';
@@ -313,6 +314,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
                     onEditNote: () => _editSetNote(_exerciseIndex, i),
                     onLongPress: () => _showSetActions(_exerciseIndex, i),
                     onToggle: () => _toggleComplete(_exerciseIndex, i),
+                    prLabel: _prLabelFor(_exerciseIndex, i),
                     onDismissed: () => _deleteSet(_exerciseIndex, i),
                     confirmDismiss: () async {
                       if (ex.sets.length <= 1) {

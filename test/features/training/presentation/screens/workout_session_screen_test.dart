@@ -454,6 +454,45 @@ testWidgets('borrar una serie la elimina de la sesión y renumera',
     await _unmount(tester);
   });
 
+  testWidgets('la primera serie completada queda marcada como récord',
+      (WidgetTester tester) async {
+    await _openScreen(tester, container);
+    await _flush(tester);
+
+    await tester.enterText(find.byType(TextField).first, '80');
+    await _flush(tester);
+    await _visible(tester, find.byIcon(Icons.check_circle_outline).first);
+    await tester.tap(find.byIcon(Icons.check_circle_outline).first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    // Sin historial previo, la primera serie marcada es récord personal.
+    expect(find.text('PR'), findsWidgets);
+    expect(find.textContaining('¡Nuevo récord en Press Banca!'), findsOneWidget);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('una serie igual al récord previo no se marca',
+      (WidgetTester tester) async {
+    await repo.saveWorkoutSession(_uid, _previousSession());
+
+    await _openScreen(tester, container);
+    await _flush(tester);
+
+    // El Press Banca ya tiene 70 kg: repetir 70 no es récord.
+    await tester.enterText(find.byType(TextField).first, '70');
+    await _flush(tester);
+    await _visible(tester, find.byIcon(Icons.check_circle_outline).first);
+    await tester.tap(find.byIcon(Icons.check_circle_outline).first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('PR'), findsNothing);
+
+    await _unmount(tester);
+  });
+
   testWidgets('el descanso se ajusta con ±15s y se salta limpiando el instante',
       (WidgetTester tester) async {
     await _openScreen(tester, container);

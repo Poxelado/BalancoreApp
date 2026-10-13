@@ -524,6 +524,9 @@ class SetLogRow extends StatelessWidget {
   final VoidCallback onToggle;
   final VoidCallback onDismissed;
   final Future<bool> Function() confirmDismiss;
+  /// Etiqueta de récord personal (p. ej. "PR · Peso") o null si la serie no
+  /// es récord.
+  final String? prLabel;
 
   const SetLogRow({
     super.key,
@@ -543,6 +546,7 @@ class SetLogRow extends StatelessWidget {
     required this.onToggle,
     required this.onDismissed,
     required this.confirmDismiss,
+    this.prLabel,
   });
 
   @override
@@ -603,6 +607,36 @@ class SetLogRow extends StatelessWidget {
                             : Colors.grey.shade600,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                if (prLabel != null)
+                    Container(
+                      margin: const EdgeInsets.only(top: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.amber, width: 1),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.emoji_events,
+                              size: 11, color: Colors.amber),
+                          const SizedBox(width: 3),
+                          Flexible(
+                            child: Text(
+                              prLabel!,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.amber,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                 ],
