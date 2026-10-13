@@ -81,28 +81,37 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 color: primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     'Cómo funciona',
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
-                  SizedBox(height: 6),
+                  const SizedBox(height: 6),
                   Text(
-                    'La app genera rutinas con un motor de reglas que funciona '
-                    'sin internet. Si añades una clave de Gemini, además se '
-                    'consulta al modelo para proponer la rutina.\n\n'
-                    'La clave se guarda solo en este dispositivo y no se sube '
-                    'a la nube.',
-                    style: TextStyle(fontSize: 13),
+                    hasEmbeddedAiKey
+                        ? 'Esta versión de la app ya trae la IA activada: '
+                            'puedes generar rutinas con el modelo sin '
+                            'configurar nada.\n\n'
+                            'Si pones tu propia clave de Gemini, se usará '
+                            'esa en lugar de la de la app (por ejemplo, si '
+                            'quieres tu propia cuota). Se guarda solo en este '
+                            'dispositivo.'
+                        : 'La app genera rutinas con un motor de reglas que '
+                            'funciona sin internet. Si añades una clave de '
+                            'Gemini, además se consulta al modelo para '
+                            'proponer la rutina.\n\n'
+                            'La clave se guarda solo en este dispositivo y no '
+                            'se sube a la nube.',
+                    style: const TextStyle(fontSize: 13),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 20),
             Text(
-              'Clave de API de Gemini',
+              hasEmbeddedAiKey ? 'Tu clave (opcional)' : 'Clave de API de Gemini',
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 15,
@@ -112,8 +121,11 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
             const SizedBox(height: 4),
             Text(
               _loaded && _hasKey
-                  ? 'Ya hay una clave guardada en este dispositivo.'
-                  : 'Opcional. Consíguela gratis en Google AI Studio.',
+                  ? 'Ya hay una clave personal guardada en este dispositivo.'
+                  : hasEmbeddedAiKey
+                      ? 'La app ya funciona sin clave. Esto es solo si quieres '
+                          'usar la tuya.'
+                      : 'Opcional. Consíguela gratis en Google AI Studio.',
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
             const SizedBox(height: 10),

@@ -385,4 +385,42 @@ void main() {
       expect(await AiKeyStore.read(), isNull);
     });
   });
+
+  group('resolveAiKey', () {
+    test('la clave del usuario manda sobre la incorporada', () {
+      expect(resolveAiKey(userKey: 'usr', embedded: 'app'), 'usr');
+    });
+
+    test('si el usuario no tiene, se usa la incorporada', () {
+      expect(resolveAiKey(userKey: null, embedded: 'app'), 'app');
+      expect(resolveAiKey(userKey: '  ', embedded: 'app'), 'app');
+    });
+
+    test('sin ninguna clave no hay IA', () {
+      expect(resolveAiKey(userKey: null, embedded: null), isNull);
+      expect(resolveAiKey(userKey: '  ', embedded: '  '), isNull);
+      expect(resolveAiKey(userKey: '', embedded: ''), isNull);
+    });
+  });
+
+  group('RoutineAiServiceImpl.load', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    test('toma la clave del usuario guardada', () async {
+      await AiKeyStore.save('AIza-user');
+      final service = RoutineAiServiceImpl();
+      await service.load();
+      expect(service.hasKey, isTrue);
+    });
+
+    test('sin clave del usuario ni incorporada no hay IA', () async {
+      final service = RoutineAiServiceImpl();
+      await service.load();
+      // En los tests no se compila con --dart-define, así que no hay clave.
+      expect(service.hasKey, isFalse);
+      expect(kEmbeddedGeminiKey, isEmpty);
+    });
+  });
 }

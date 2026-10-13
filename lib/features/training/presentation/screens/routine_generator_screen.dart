@@ -47,7 +47,7 @@ class _RoutineGeneratorScreenState
   bool _hasKey = false;
 
   Future<void> _loadKey() async {
-    final has = await AiKeyStore.hasKey();
+    final has = await AiKeyStore.isConfigured();
     if (mounted) setState(() => _hasKey = has);
   }
 

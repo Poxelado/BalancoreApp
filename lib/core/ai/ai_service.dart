@@ -112,9 +112,13 @@ class RoutineAiServiceImpl implements RoutineAiService {
     _key = null;
   }
 
-  /// Carga la clave guardada (local, no se sincroniza).
+  /// Carga la clave: la del usuario si la trajo, si no la incorporada en la
+  /// app (local, no se sincroniza).
   Future<void> load() async {
-    _key = await AiKeyStore.read();
+    _key = resolveAiKey(
+      userKey: await AiKeyStore.read(),
+      embedded: kEmbeddedGeminiKey,
+    );
   }
 
   @override
