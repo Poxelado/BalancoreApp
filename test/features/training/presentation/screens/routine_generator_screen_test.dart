@@ -12,6 +12,7 @@ import 'package:balancore/core/ai/ai_key_store.dart';
 import 'package:balancore/features/auth/presentation/providers/auth_provider.dart';
 import 'package:balancore/features/profile/presentation/providers/profile_provider.dart';
 import 'package:balancore/features/training/domain/exercise.dart';
+import 'package:balancore/features/training/domain/routine_generator.dart';
 import 'package:balancore/features/training/presentation/providers/exercise_provider.dart';
 import 'package:balancore/features/training/presentation/screens/routine_generator_screen.dart';
 
@@ -173,5 +174,37 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     expect((await repo.getRoutines(_uid)).length, 5);
+  });
+
+  testWidgets('el tiempo por sesión ajusta el volumen de la rutina',
+      (WidgetTester tester) async {
+    await open(tester);
+    await tester.tap(find.widgetWithText(ChoiceChip, '90+ min'));
+    await tester.pump();
+    await tester.tap(find.text('Generar rutina'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await scrollToApply(tester);
+    await tester.tap(find.text('Aplicar a mi semana'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text('Aplicar'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    int totalOf(int? minutes) => generateRoutine(
+          RoutineRequest(
+            goal: RoutineGoal.mantenimiento,
+            level: RoutineLevel.intermedio,
+            daysPerWeek: 4,
+            catalog: _catalog(),
+            minutesAvailable: minutes,
+          ),
+        ).fold<int>(0, (s, d) => s + d.exercises.length);
+
+    final saved = await repo.getRoutines(_uid);
+    final total = saved.expand((d) => d.exercises).length;
+    expect(total, totalOf(90), reason: 'usa el tiempo elegido (90 min)');
+    expect(total, greaterThan(totalOf(30)));
   });
 }

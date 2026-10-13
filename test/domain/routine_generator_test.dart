@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:balancore/features/profile/domain/user_profile.dart';
 import 'package:balancore/features/training/domain/exercise.dart';
 import 'package:balancore/features/training/domain/routine_generator.dart';
 
@@ -64,6 +65,7 @@ RoutineRequest _req({
   int days = 4,
   Set<String> equipment = const {},
   List<Exercise>? catalog,
+  int? minutes,
 }) =>
     RoutineRequest(
       goal: goal,
@@ -71,6 +73,7 @@ RoutineRequest _req({
       daysPerWeek: days,
       catalog: catalog ?? _catalog(),
       equipment: equipment,
+      minutesAvailable: minutes,
     );
 
 void main() {
@@ -234,6 +237,75 @@ void main() {
       if (rests.containsKey('Pierna') && rests.containsKey('Core')) {
         expect(rests['Pierna'], greaterThan(rests['Core']!));
       }
+    });
+
+    test('el tiempo disponible ajusta los ejercicios por día', () {
+      final short = generateRoutine(_req(minutes: 30));
+      final long = generateRoutine(_req(minutes: 90));
+      int total(List<dynamic> days) =>
+          days.fold<int>(0, (s, d) => s + (d.exercises as List).length);
+      expect(total(short), lessThan(total(long)));
+      // Ningún día queda por debajo del mínimo razonable.
+      for (final d in short) {
+        expect(d.exercises.length, greaterThanOrEqualTo(3));
+      }
+    });
+
+    test('el objetivo de ejercicios por día crece con el tiempo', () {
+      expect(
+        targetExercisesFor(
+            minutes: 30, daysPerWeek: 4, level: RoutineLevel.intermedio),
+        lessThan(targetExercisesFor(
+            minutes: 90, daysPerWeek: 4, level: RoutineLevel.intermedio)),
+      );
+      // Más días por semana = días más específicos = algo menos de volumen.
+      expect(
+        targetExercisesFor(
+            minutes: 60, daysPerWeek: 6, level: RoutineLevel.intermedio),
+        lessThan(targetExercisesFor(
+            minutes: 60, daysPerWeek: 2, level: RoutineLevel.intermedio)),
+      );
+    });
+
+    test('sin tiempo definido mantiene el volumen del reparto', () {
+      final a = generateRoutine(_req(days: 4));
+      final b = generateRoutine(_req(days: 4, minutes: null));
+      expect(
+        a.map((d) => d.exercises.length).toList(),
+        b.map((d) => d.exercises.length).toList(),
+      );
+    });
+
+    test('topUpRoutineDays completa el día sin duplicar ni romper el orden',
+        () {
+      final rules = generateRoutine(_req(days: 4));
+      // Simula una IA que devolvió solo 2 ejercicios en el primer día.
+      final ai = [
+        RoutineDay(
+          day: 'Lunes',
+          title: 'Tren superior A',
+          exercises: rules.first.exercises.take(2).toList(),
+        ),
+      ];
+      final merged = topUpRoutineDays(ai, rules);
+      expect(merged.length, rules.length, reason: 'se rellenan los días');
+      expect(
+        merged.first.exercises.length,
+        rules.first.exercises.length,
+        reason: 'el día 1 recupera su volumen',
+      );
+      final ids = merged.first.exercises.map((e) => e.exerciseId).toList();
+      expect(ids.toSet().length, ids.length, reason: 'sin duplicados');
+      // Los dos que eligió la IA van primero.
+      expect(
+        ids.take(2).toList(),
+        rules.first.exercises.take(2).map((e) => e.exerciseId).toList(),
+      );
+    });
+
+    test('topUpRoutineDays usa las reglas si la IA no devolvió nada', () {
+      final rules = generateRoutine(_req(days: 3));
+      expect(topUpRoutineDays(const [], rules), rules);
     });
   });
 

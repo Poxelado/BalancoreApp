@@ -36,6 +36,12 @@ class RoutineAiContext {
   final String? sex;
   final int? streakDays;
 
+  /// Minutos disponibles por sesión. null = sin límite definido.
+  final int? minutesAvailable;
+
+  /// Nº objetivo de ejercicios por día, ya calculado por las reglas.
+  final int? targetExercisesPerDay;
+
   const RoutineAiContext({
     required this.goal,
     required this.daysPerWeek,
@@ -45,6 +51,8 @@ class RoutineAiContext {
     this.age,
     this.sex,
     this.streakDays,
+    this.minutesAvailable,
+    this.targetExercisesPerDay,
   });
 }
 
@@ -190,13 +198,24 @@ String buildRoutinePrompt({
   if (ctx.weight != null) buf.writeln('- Peso: ${ctx.weight} kg');
   if (ctx.age != null) buf.writeln('- Edad: ${ctx.age}');
   if (ctx.sex != null) buf.writeln('- Sexo: ${ctx.sex}');
+  if (ctx.minutesAvailable != null) {
+    buf.writeln('- Tiempo por sesión: ${ctx.minutesAvailable} min');
+  }
+  final target = ctx.targetExercisesPerDay;
   buf
     ..writeln('')
     ..writeln('REGLAS:')
     ..writeln('- Usa SOLO los ids de ejercicio de la lista EXERCICIOS.')
     ..writeln('- No repitas el mismo id dentro de un mismo día.')
-    ..writeln('- Cada día entre 4 y 7 ejercicios.')
-    ..writeln('- Prioriza ejercicios compuestos al inicio del día.')
+    ..writeln(
+      target != null
+          ? '- Cada día debe tener EXACTAMENTE $target ejercicios.'
+          : '- Cada día entre 6 y 8 ejercicios.',
+    )
+    ..writeln('- Ordena el día: primero 2-3 compuestos (multiarticulares), '
+        'luego el resto como aislamiento.')
+    ..writeln('- Reparte el trabajo del grupo muscular del día de forma '
+        'equilibrada entre sus ejercicios.')
     ..writeln('- Respeta el número de días indicado.')
     ..writeln('')
     ..writeln('Responde SOLO con este JSON, sin texto antes ni después:')

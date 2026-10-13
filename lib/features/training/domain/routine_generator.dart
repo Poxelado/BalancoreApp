@@ -40,6 +40,9 @@ class RoutineRequest {
   /// Equipamiento disponible. Vacío = se asume que se puede todo.
   final Set<String> equipment;
 
+  /// Minutos disponibles por sesión. null = sin límite (volumen estándar).
+  final int? minutesAvailable;
+
   /// Catálogo del que se eligen ejercicios (biblioteca del usuario).
   final List<Exercise> catalog;
 
@@ -49,7 +52,31 @@ class RoutineRequest {
     required this.daysPerWeek,
     required this.catalog,
     this.equipment = const {},
+    this.minutesAvailable,
   });
+}
+
+/// Nº objetivo de ejercicios por día según el tiempo disponible.
+///
+/// Es una guía para dar volumen al día y para decirle al modelo cuántos
+/// ejercicios poner. Los días más frecuentes llevan menos ejercicios (son más
+/// específicos) y un principiante tolera algo menos de volumen.
+int targetExercisesFor({
+  required int minutes,
+  required int daysPerWeek,
+  required RoutineLevel level,
+}) {
+  var per = switch (minutes) {
+    <= 30 => 4,
+    <= 45 => 5,
+    <= 60 => 6,
+    <= 80 => 7,
+    _ => 8,
+  };
+  if (daysPerWeek >= 5) per -= 1;
+  if (level == RoutineLevel.principiante) per -= 1;
+  if (level == RoutineLevel.avanzado) per += 1;
+  return per.clamp(3, 9);
 }
 
 /// Un espacio a llenar dentro de un día de la rutina.
@@ -93,11 +120,19 @@ List<RoutineDay> generateRoutine(RoutineRequest req) {
   final usedGlobally = <String>{};
   for (var i = 0; i < plan.length; i++) {
     final p = plan[i];
+    final counts = _dayCounts(req, p.slots);
     final exercises = <RoutineExercise>[];
     final usedInDay = <String>{};
 
-    for (final slot in p.slots) {
-      final picked = _pickFor(req, slot, usedInDay, usedGlobally);
+    for (var j = 0; j < p.slots.length; j++) {
+      final slot = p.slots[j];
+      final picked = _pickFor(
+        req,
+        slot,
+        usedInDay,
+        usedGlobally,
+        count: counts[j],
+      );
       for (final e in picked) {
         usedInDay.add(e.id);
         usedGlobally.add(e.id);
@@ -146,6 +181,25 @@ RoutineExercise _toRoutineExercise(
       (_) => PlannedSet(weight: 0, reps: reps),
     ),
   );
+}
+
+/// Reparte el total de ejercicios del día entre los huecos, respetando el
+/// peso relativo de cada uno. Sin tiempo definido se usan los valores del
+/// reparto tal cual.
+List<int> _dayCounts(RoutineRequest req, List<_Slot> slots) {
+  final minutes = req.minutesAvailable;
+  if (minutes == null) return [for (final s in slots) s.count];
+  final target = targetExercisesFor(
+    minutes: minutes,
+    daysPerWeek: req.daysPerWeek,
+    level: req.level,
+  );
+  final base = slots.fold<int>(0, (a, s) => a + s.count);
+  if (base <= 0) return [for (final _ in slots) 0];
+  return [
+    for (final s in slots)
+      (s.count * target / base).round().clamp(1, 12),
+  ];
 }
 
 int _setsFor(RoutineRequest req, _Slot slot) {
@@ -208,8 +262,9 @@ List<Exercise> _pickFor(
   RoutineRequest req,
   _Slot slot,
   Set<String> usedInDay,
-  Set<String> usedGlobally,
-) {
+  Set<String> usedGlobally, {
+  int? count,
+}) {
   List<Exercise> candidates(Set<String> exclude) => req.catalog
       .where((e) => e.muscleGroup == slot.muscle)
       .where((e) => !usedInDay.contains(e.id))
@@ -243,7 +298,7 @@ List<Exercise> _pickFor(
     return a.id.compareTo(b.id); // desempate estable
   });
 
-  return pool.take(slot.count).toList();
+  return pool.take(count ?? slot.count).toList();
 }
 
 /// Cardio: hay pocas opciones (trotadora y bici), así que se repiten entre
@@ -446,4 +501,43 @@ List<_DayPlan> _splitsFor(int days) {
         ]),
       ];
   }
+}
+
+/// Completa una rutina generada (p. ej. por el modelo) con otra de respaldo
+/// (las reglas) para que nunca tenga menos volumen del previsto.
+///
+/// El modelo tiende a proponer el mínimo de ejercicios; esta red de seguridad
+/// garantiza que cada día conserve la estructura y el volumen que las reglas
+/// ya calculan para el tiempo disponible. No duplica ejercicios y respeta el
+/// orden que propuso el modelo.
+List<RoutineDay> topUpRoutineDays(
+  List<RoutineDay> generated,
+  List<RoutineDay> fallback,
+) {
+  if (generated.isEmpty) return fallback;
+  final out = <RoutineDay>[];
+  for (var i = 0; i < fallback.length; i++) {
+    if (i >= generated.length) {
+      out.add(fallback[i]);
+      continue;
+    }
+    final g = generated[i];
+    final f = fallback[i];
+    final items = [...g.exercises];
+    final ids = {for (final e in items) e.exerciseId};
+    for (final e in f.exercises) {
+      if (items.length >= f.exercises.length) break;
+      if (ids.add(e.exerciseId)) items.add(e);
+    }
+    out.add(
+      RoutineDay(
+        day: g.day,
+        title: g.title,
+        description: items.map((e) => e.muscleGroup).toSet().join(' · '),
+        duration: g.duration.isNotEmpty ? g.duration : f.duration,
+        exercises: items,
+      ),
+    );
+  }
+  return out;
 }

@@ -343,6 +343,23 @@ void main() {
         allowedExercises: _allowed,
       );
       expect(prompt, contains('gimnasio completo'));
+      // Sin objetivo explícito pide un rango razonable, no el mínimo.
+      expect(prompt, contains('entre 6 y 8 ejercicios'));
+    });
+
+    test('con tiempo y objetivo pide exactamente esos ejercicios', () {
+      final prompt = buildRoutinePrompt(
+        context: const RoutineAiContext(
+          goal: 'Ganar músculo',
+          daysPerWeek: 4,
+          level: 'Intermedio',
+          minutesAvailable: 60,
+          targetExercisesPerDay: 6,
+        ),
+        allowedExercises: _allowed,
+      );
+      expect(prompt, contains('Tiempo por sesión: 60 min'));
+      expect(prompt, contains('EXACTAMENTE 6 ejercicios'));
     });
   });
 

@@ -28,6 +28,7 @@ class _RoutineGeneratorScreenState
   RoutineGoal _goal = RoutineGoal.mantenimiento;
   RoutineLevel _level = RoutineLevel.intermedio;
   int _days = 4;
+  int _minutes = 60;
   final Set<String> _equipment = {};
   bool _generating = false;
 
@@ -70,6 +71,7 @@ class _RoutineGeneratorScreenState
         daysPerWeek: _days,
         catalog: catalog,
         equipment: _equipment,
+        minutesAvailable: _minutes,
       );
       // Capa 1: reglas. Siempre disponible.
       var days = generateRoutine(req);
@@ -90,6 +92,12 @@ class _RoutineGeneratorScreenState
               weight: profile?.currentWeight,
               age: profile?.age,
               sex: profile?.sex,
+              minutesAvailable: _minutes,
+              targetExercisesPerDay: targetExercisesFor(
+                minutes: _minutes,
+                daysPerWeek: _days,
+                level: _level,
+              ),
             ),
             allowedExercises: [
               for (final e in catalog)
@@ -101,7 +109,9 @@ class _RoutineGeneratorScreenState
             ],
           );
           if (aiDays != null && aiDays.isNotEmpty) {
-            days = aiDays;
+            // El modelo elige los ejercicios; las reglas garantizan el
+            // volumen y la estructura del día.
+            days = topUpRoutineDays(aiDays, days);
             source = 'ai';
           }
         } catch (_) {
@@ -189,6 +199,8 @@ class _RoutineGeneratorScreenState
                 _levelSelector(primary),
                 const SizedBox(height: 16),
                 _daysSelector(primary),
+                const SizedBox(height: 16),
+                _timeSelector(primary),
                 const SizedBox(height: 16),
                 _equipmentSelector(primary),
                 const SizedBox(height: 8),
@@ -360,6 +372,28 @@ class _RoutineGeneratorScreenState
                 label: Text('$n'),
                 selected: _days == n,
                 onSelected: (_) => setState(() => _days = n),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _timeSelector(Color primary) {
+    const options = [30, 45, 60, 75, 90];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _label('Tiempo por sesión', primary),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final m in options)
+              ChoiceChip(
+                label: Text(m == 90 ? '90+ min' : '$m min'),
+                selected: _minutes == m,
+                onSelected: (_) => setState(() => _minutes = m),
               ),
           ],
         ),
