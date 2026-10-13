@@ -12,6 +12,7 @@ import '../widgets/session_rest_time_sheet.dart';
 import '../widgets/session_plates_sheet.dart';
 import '../widgets/session_widgets.dart';
 import '../../../../core/motivation/motivational_messages.dart';
+import '../../../../core/notifications/notification_service.dart';
 import '../../domain/progression_rules.dart';
 
 part 'workout_session_logic.dart';
@@ -63,6 +64,8 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
     });
     _loadRestPref();
     _initControllers();
+    // Retoma un descanso que quedó en curso (p. ej. se cerró la app).
+    _resumeRestIfAny();
     // Guardar al entrar para que exista en historial / mini player
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _persist();
@@ -233,6 +236,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
                 remaining: _restRemaining!,
                 primary: primary,
                 onSkip: _skipRest,
+                onAdjust: _adjustRest,
               ),
             Padding(
               padding: const EdgeInsets.fromLTRB(13, 8, 20, 4),

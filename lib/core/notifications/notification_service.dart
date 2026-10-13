@@ -246,6 +246,72 @@ class NotificationService {
     return scheduled;
   }
 
+  /// Id del aviso de fin de descanso (cancelable desde [cancelRestTimer]).
+static const int kRestDoneId = 9110;
+static const int kRestTimerId = 9111;
+
+  /// Avisa de que el descanso terminó. Se dispara aunque la app esté en
+  /// segundo plano, para no perder el aviso al tener la pantalla apagada.
+  ///
+  /// Las notificaciones del descanso son un extra: si el plugin no está
+  /// disponible (permisos denegados, sin plataforma de notificaciones) el
+  /// entrenamiento debe seguir funcionando igual.
+  Future<void> showRestDone() async {
+    try {
+      if (!_ready) await init();
+      await _plugin.show(
+        kRestDoneId,
+        'Descanso terminado ⏱️',
+        'Puedes con la siguiente serie.',
+        _details(),
+      );
+    } catch (e) {
+      debugPrint('notifications: no se pudo avisar del fin de descanso: $e');
+    }
+  }
+
+  /// Programa (o reprograma) el aviso de fin de descanso en [seconds].
+  Future<void> showRestTimer(int seconds) async {
+    try {
+      if (!_ready) await init();
+      await _plugin.cancel(kRestDoneId);
+      await _plugin.zonedSchedule(
+        kRestDoneId,
+        'Descanso en curso ⏱️',
+        'Termina en ${_humanSeconds(seconds)}.',
+        tz.TZDateTime.from(
+          DateTime.now().add(Duration(seconds: seconds)),
+          tz.local,
+        ),
+        _details(),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    } catch (e) {
+      debugPrint('notifications: no se pudo programar el descanso: $e');
+    }
+  }
+
+  /// Cancela el aviso de descanso (el usuario lo salteó).
+  Future<void> cancelRestTimer() async {
+    try {
+      if (!_ready) await init();
+      await _plugin.cancel(kRestDoneId);
+    } catch (_) {
+      // Sin plugin: no hay nada que cancelar.
+    }
+  }
+
+  static String _humanSeconds(int s) {
+    if (s >= 60) {
+      final m = s ~/ 60;
+      final r = s % 60;
+      return r == 0 ? '$m min' : '$m min $r s';
+    }
+    return '$s s';
+  }
+
   Future<void> showInactivity(String body) async {
     if (!_ready) await init();
     await _plugin.show(

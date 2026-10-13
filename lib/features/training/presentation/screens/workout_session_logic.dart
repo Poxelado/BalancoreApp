@@ -314,33 +314,112 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
     }
   }
 
-  void _startRest() {
+  /// El descanso se guarda como instante de fin (`restEndsAt`), no como
+  /// contador: así sobrevive a cerrar la app y el tiempo restante se recalcula
+  /// al volver.
+  void _startRest([int? seconds]) {
     _restTimer?.cancel();
     // Usa el descanso configurado en la rutina para ESTE ejercicio
     final exerciseRest = _session.exercises.isNotEmpty
         ? _session.exercises[_exerciseIndex].restSeconds
         : 60;
-    final seconds = exerciseRest > 0 ? exerciseRest : 60;
-    setState(() => _restRemaining = seconds);
+    final total = seconds ?? (exerciseRest > 0 ? exerciseRest : 60);
+    if (total <= 0) {
+      _clearRest();
+      return;
+    }
+    final ends = DateTime.now().add(Duration(seconds: total));
+    setState(() {
+      _session = _session.copyWith(restEndsAt: ends);
+      _restRemaining = total;
+    });
+    _persist(silent: true);
+    _scheduleRestNotification(ends);
+    _runRestTicker();
+  }
+
+  /// Un solo ticker para arranque y reanudación: en cada tick se recalcula el
+  /// tiempo restante desde `restEndsAt` (no se resta de a uno, así no se
+  /// desvía si el proceso quedó en segundo plano).
+  void _runRestTicker() {
+    _restTimer?.cancel();
     _restTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) return;
-      if (_restRemaining == null) {
+      if (!mounted) {
         t.cancel();
         return;
       }
-      if (_restRemaining! <= 1) {
+      final left = _session.restRemaining();
+      if (left <= 0) {
         t.cancel();
-        setState(() => _restRemaining = null);
+        setState(() {
+          _session = _session.copyWith(clearRest: true);
+          _restRemaining = null;
+        });
+        _persist(silent: true);
         HapticFeedback.mediumImpact();
+        _notifyRestDone();
       } else {
-        setState(() => _restRemaining = _restRemaining! - 1);
+        setState(() => _restRemaining = left);
       }
     });
   }
 
-  void _skipRest() {
+  /// Añade o quita segundos al descanso en curso (±15s).
+  Future<void> _adjustRest(int delta) async {
+    final ends = _session.restEndsAt;
+    if (ends == null) return;
+    var target = ends.add(Duration(seconds: delta));
+    final now = DateTime.now();
+    if (target.isBefore(now)) target = now.add(const Duration(seconds: 1));
+    setState(() {
+      _session = _session.copyWith(restEndsAt: target);
+      _restRemaining = _session.restRemaining();
+    });
+    await _persist(silent: true);
+    _scheduleRestNotification(target);
+  }
+
+  void _clearRest() {
     _restTimer?.cancel();
-    setState(() => _restRemaining = null);
+    if (!mounted) return;
+    setState(() {
+      _session = _session.copyWith(clearRest: true);
+      _restRemaining = null;
+    });
+    _persist(silent: true);
+  }
+
+  void _skipRest() => _clearRest();
+
+  /// Al reabrir una sesión con un descanso en curso, se retoma desde el
+  /// tiempo que realmente queda (o se cierra si ya venció).
+  void _resumeRestIfAny() {
+    final ends = _session.restEndsAt;
+    if (ends == null) return;
+    final left = _session.restRemaining();
+    if (left <= 0) {
+      _session = _session.copyWith(clearRest: true);
+      _persist(silent: true);
+      return;
+    }
+    setState(() => _restRemaining = left);
+    _runRestTicker();
+  }
+
+  void _scheduleRestNotification(DateTime ends) {
+    final secs = ends.difference(DateTime.now()).inSeconds;
+    if (secs <= 0 || secs > 3600) return;
+    NotificationService.instance.showRestTimer(secs);
+  }
+
+  void _notifyRestDone() {
+    // Si la app está en primer plano la vibración ya avisa; la notificación
+    // local cubre el caso de tener la pantalla apagada.
+    try {
+      NotificationService.instance.showRestDone();
+    } catch (_) {
+      // Sin permisos de notificación: solo queda la vibración.
+    }
   }
 
   /// Solo afecta la sesión actual, NO la plantilla de rutina.

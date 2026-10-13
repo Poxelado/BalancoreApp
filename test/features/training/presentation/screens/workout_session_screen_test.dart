@@ -13,6 +13,7 @@ import 'package:balancore/features/profile/domain/user_profile.dart';
 import 'package:balancore/features/profile/presentation/providers/profile_provider.dart';
 import 'package:balancore/features/training/presentation/screens/workout_session_screen.dart';
 import 'package:balancore/features/training/presentation/widgets/session_plates_sheet.dart';
+import 'package:balancore/features/training/presentation/widgets/session_widgets.dart';
 
 const _uid = 'u2';
 
@@ -61,6 +62,16 @@ WorkoutSession _previousSession() => WorkoutSession(
           ],
         ),
       ],
+    );
+
+/// Sesión en curso cuyo descanso ya venció hace 10 minutos.
+WorkoutSession _staleRestSession() => WorkoutSession(
+      id: 'prev_rest',
+      dayName: 'Lunes',
+      title: 'Pecho y Hombro',
+      startedAt: DateTime.now().subtract(const Duration(hours: 1)),
+      restEndsAt: DateTime.now().subtract(const Duration(minutes: 10)),
+      exercises: const [],
     );
 
 /// La fuente por defecto de los widget tests es "Ahem" (glifos de ancho fijo),
@@ -216,8 +227,11 @@ void main() {
     expect(s!.exercises.first.sets.first.completed, isTrue);
     expect(s.exercises.first.completedSets, 1);
 
-    // El descanso aparece con el valor por defecto (90s → "1min 30s").
-    expect(find.textContaining('Descanso · '), findsOneWidget);
+    // El descanso aparece con el descanso configurado del ejercicio (60s).
+    expect(find.byType(RestBanner), findsOneWidget);
+    expect(find.text('1min 00s'), findsOneWidget);
+    // Y queda persistido como instante de fin, no como contador.
+    expect((await active())!.restEndsAt, isNotNull);
 
     await _unmount(tester);
   });
@@ -436,6 +450,93 @@ testWidgets('borrar una serie la elimina de la sesión y renumera',
     expect(pecho.sets.map((e) => e.reps), [12, 10]);
     expect(s.exercises[1].sets.every((e) => e.weight == 0), isTrue,
         reason: 'Un ejercicio ausente en la sesión anterior queda intacto');
+
+    await _unmount(tester);
+  });
+
+  testWidgets('el descanso se ajusta con ±15s y se salta limpiando el instante',
+      (WidgetTester tester) async {
+    await _openScreen(tester, container);
+    await _flush(tester);
+
+    await tester.tap(find.byIcon(Icons.check_circle_outline).first);
+    await _flush(tester);
+    final ends = (await active())!.restEndsAt!;
+    expect(ends.difference(DateTime.now()).inSeconds, closeTo(60, 5));
+
+    await tester.tap(find.byTooltip('Quitar 15s'));
+    await _flush(tester);
+    expect(
+      (await active())!.restEndsAt!.difference(DateTime.now()).inSeconds,
+      closeTo(45, 5),
+    );
+    expect(ends.difference((await active())!.restEndsAt!).inSeconds, 15,
+        reason: 'Quitar 15s acorta el descanso 15 segundos');
+
+    await tester.tap(find.byTooltip('Añadir 15s'));
+    await _flush(tester);
+    expect(
+      (await active())!.restEndsAt!.difference(DateTime.now()).inSeconds,
+      closeTo(60, 5),
+    );
+
+    await tester.tap(find.text('Saltar'));
+    await _flush(tester);
+    expect(find.byType(RestBanner), findsNothing);
+    expect((await active())!.restEndsAt, isNull);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('al reabrir la sesión se retoma el descanso en curso',
+      (WidgetTester tester) async {
+    await _openScreen(tester, container);
+    await _flush(tester);
+    await tester.tap(find.byIcon(Icons.check_circle_outline).first);
+    await _flush(tester);
+    await _unmount(tester);
+
+    // Reabre la sesión persistida (como si la app se hubiera cerrado).
+    final saved = (await active())!;
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          home: Scaffold(body: Center(child: Text('HOME'))),
+        ),
+      ),
+    );
+    final nav = tester.state<NavigatorState>(find.byType(Navigator));
+    nav.push(
+      MaterialPageRoute(
+        builder: (_) => WorkoutSessionScreen(
+          routine: _routine(),
+          existing: saved,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    // El descanso sigue vivo: se recalcula desde restEndsAt (no desde un
+    // contador que quedó congelado al cerrar la app).
+    expect(find.byType(RestBanner), findsOneWidget);
+    final left = (await active())!.restRemaining();
+    expect(left, greaterThan(0));
+    expect(left, lessThan(60), reason: 'El tiempo restante debe haber corrido');
+    expect(find.text(fmtRest(left)), findsOneWidget);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('un descanso ya vencido no se retoma', (WidgetTester tester) async {
+    await repo.saveWorkoutSession(_uid, _staleRestSession());
+
+    await _openScreen(tester, container);
+    await _flush(tester);
+
+    expect(find.byType(RestBanner), findsNothing);
+    expect((await active())!.restEndsAt, isNull);
 
     await _unmount(tester);
   });

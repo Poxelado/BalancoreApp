@@ -316,5 +316,60 @@ void main() {
       final id = WorkoutSession.newSessionId(DateTime(2026, 10, 5, 9, 8, 7));
       expect(id, startsWith('2026-10-05_090807_'));
     });
+
+    test('restEndsAt sobrevive al viaje por el mapa', () {
+      final ends = DateTime(2026, 10, 5, 9, 9, 30);
+      final s = WorkoutSession(
+        id: 'x',
+        dayName: 'Lunes',
+        title: 'Pecho',
+        startedAt: DateTime(2026, 10, 5, 9),
+        restEndsAt: ends,
+      );
+      final back = WorkoutSession.fromMap(s.toMap());
+      expect(back.restEndsAt, ends);
+    });
+
+    test('una sesión antigua sin restEndsAt carga sin descanso', () {
+      final s = WorkoutSession.fromMap({
+        'id': 'x',
+        'dayName': 'Lunes',
+        'title': 'Pecho',
+        'startedAt': '2026-10-05T09:00:00.000',
+      });
+      expect(s.restEndsAt, isNull);
+      expect(s.restRemaining(), 0);
+    });
+
+    test('restRemaining descuenta lo ya transcurrido y nunca va bajo cero', () {
+      final now = DateTime(2026, 10, 5, 9, 10);
+      final s = WorkoutSession(
+        id: 'x',
+        dayName: 'Lunes',
+        title: 'Pecho',
+        startedAt: now,
+        restEndsAt: now.add(const Duration(seconds: 90)),
+      );
+      expect(s.restRemaining(now.add(const Duration(seconds: 30))), 60);
+      expect(s.restRemaining(now.add(const Duration(minutes: 5))), 0);
+    });
+
+    test('copyWith(clearRest) borra el descanso sin tocar el resto', () {
+      final now = DateTime(2026, 10, 5, 9, 10);
+      final s = WorkoutSession(
+        id: 'x',
+        dayName: 'Lunes',
+        title: 'Pecho',
+        startedAt: now,
+        restEndsAt: now.add(const Duration(seconds: 60)),
+      );
+      expect(s.copyWith(clearRest: true).restEndsAt, isNull);
+      // clearRest manda sobre el valor pasado explícitamente.
+      expect(
+        s.copyWith(restEndsAt: now, clearRest: true).restEndsAt,
+        isNull,
+      );
+      expect(s.copyWith(isPaused: true).restEndsAt, isNotNull);
+    });
   });
 }

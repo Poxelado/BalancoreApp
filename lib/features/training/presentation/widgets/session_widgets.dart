@@ -437,12 +437,14 @@ class RestBanner extends StatelessWidget {
   final int remaining;
   final Color primary;
   final VoidCallback onSkip;
+  final ValueChanged<int> onAdjust;
 
   const RestBanner({
     super.key,
     required this.remaining,
     required this.primary,
     required this.onSkip,
+    required this.onAdjust,
   });
 
   @override
@@ -450,21 +452,31 @@ class RestBanner extends StatelessWidget {
     return Material(
       color: primary.withValues(alpha: 0.15),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           children: [
             Icon(Icons.hourglass_bottom, color: primary),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Descanso · ${fmtRest(remaining)}',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: primary,
-                  fontSize: 16,
-                ),
+            const SizedBox(width: 8),
+            Text(
+              fmtRest(remaining),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: primary,
+                fontSize: 16,
               ),
             ),
+            const Spacer(),
+            IconButton(
+              tooltip: 'Quitar 15s',
+              onPressed: () => onAdjust(-15),
+              icon: Icon(Icons.remove_circle_outline, color: primary, size: 22),
+            ),
+            IconButton(
+              tooltip: 'Añadir 15s',
+              onPressed: () => onAdjust(15),
+              icon: Icon(Icons.add_circle_outline, color: primary, size: 22),
+            ),
+            const SizedBox(width: 4),
             TextButton(onPressed: onSkip, child: const Text('Saltar')),
           ],
         ),

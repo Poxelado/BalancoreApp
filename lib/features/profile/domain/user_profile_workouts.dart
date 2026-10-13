@@ -262,6 +262,10 @@ class WorkoutSession {
   final int elapsedSeconds;
   final String notes;
   final List<WorkoutExerciseLog> exercises;
+  /// Instante en que termina el descanso en curso. Permite que el descanso
+  /// sobreviva al cierre de la app (al reabrir se recalcula el tiempo que
+  /// queda) y usarlo para programar la notificación.
+  final DateTime? restEndsAt;
 
   const WorkoutSession({
     required this.id,
@@ -274,6 +278,7 @@ class WorkoutSession {
     this.elapsedSeconds = 0,
     this.notes = '',
     this.exercises = const [],
+    this.restEndsAt,
   });
 
   static String dateKey([DateTime? d]) {
@@ -365,6 +370,7 @@ class WorkoutSession {
     'isPaused': isPaused,
     'elapsedSeconds': elapsedSeconds,
     'notes': notes,
+    'restEndsAt': restEndsAt?.toIso8601String(),
     'exercises': exercises.map((e) => e.toMap()).toList(),
   };
 
@@ -393,6 +399,10 @@ class WorkoutSession {
       elapsedSeconds: map['elapsedSeconds'] ?? 0,
       notes: _str(map['notes']),
       exercises: exercises,
+      // Ausente en sesiones antiguas → null (sin descanso en curso).
+      restEndsAt: map['restEndsAt'] != null
+          ? _parseDate(map['restEndsAt'])
+          : null,
     );
   }
 
@@ -403,6 +413,8 @@ class WorkoutSession {
     int? elapsedSeconds,
     String? notes,
     List<WorkoutExerciseLog>? exercises,
+    DateTime? restEndsAt,
+    bool clearRest = false,
   }) {
     return WorkoutSession(
       id: id,
@@ -415,7 +427,17 @@ class WorkoutSession {
       elapsedSeconds: elapsedSeconds ?? this.elapsedSeconds,
       notes: notes ?? this.notes,
       exercises: exercises ?? this.exercises,
+      restEndsAt: clearRest ? null : (restEndsAt ?? this.restEndsAt),
     );
+  }
+
+  /// Segundos que quedan de descanso ahora mismo (0 si no hay o ya venció).
+  int restRemaining([DateTime? now]) {
+    final ends = restEndsAt;
+    if (ends == null) return 0;
+    final n = now ?? DateTime.now();
+    final left = ends.difference(n).inSeconds;
+    return left > 0 ? left : 0;
   }
 
   int get totalSets =>
