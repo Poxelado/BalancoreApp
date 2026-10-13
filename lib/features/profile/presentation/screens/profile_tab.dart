@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/preferences/units_provider.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
@@ -199,6 +200,7 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(userProfileProvider);
     final historyAsync = ref.watch(workoutHistoryProvider(_periodDays));
+    final units = ref.watch(unitsProvider);
     final primary = Theme.of(context).colorScheme.primary;
 
     return profileAsync.when(
@@ -255,8 +257,10 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
                             label: 'Entrenos',
                           ),
                           StatColumn(
-                            value: profile.currentWeight.toStringAsFixed(0),
-                            label: 'kg',
+                            value: units
+                                .weightToDisplay(profile.currentWeight)
+                                .toStringAsFixed(0),
+                            label: units.weightUnit,
                           ),
                           StatColumn(
                             value: '${profile.targetCalories}',
@@ -298,7 +302,7 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
                     ],
                     const SizedBox(height: 6),
                     Text(
-                      '${profile.sex} · ${profile.height.toStringAsFixed(0)} cm · ${profile.activityLevel}',
+                      '${profile.sex} · ${units.formatHeight(profile.height)} · ${profile.activityLevel}',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey.shade600,

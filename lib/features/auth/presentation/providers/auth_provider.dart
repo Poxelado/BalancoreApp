@@ -143,6 +143,86 @@ class AuthService {
     }
   }
 
+  /// true si la cuenta usa correo/contraseña (y por tanto puede cambiarla).
+  bool get hasPasswordProvider =>
+      _auth.currentUser?.providerData
+          .any((p) => p.providerId == 'password') ??
+      false;
+
+  String? get currentEmail => _auth.currentUser?.email;
+
+  /// Reautentica con la contraseña actual. Requerido por Firebase antes de
+  /// operaciones sensibles (cambiar contraseña o correo).
+  Future<void> _reauthenticate(String currentPassword) async {
+    final user = _auth.currentUser;
+    if (user == null) throw const AuthException('No hay usuario autenticado');
+    final email = user.email;
+    if (email == null || email.isEmpty) {
+      throw const AuthException('Tu cuenta no tiene un correo asociado.');
+    }
+    final credential = EmailAuthProvider.credential(
+      email: email,
+      password: currentPassword,
+    );
+    await user.reauthenticateWithCredential(credential);
+  }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await _reauthenticate(currentPassword);
+      await _auth.currentUser?.updatePassword(newPassword);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        throw const AuthException('La contraseña actual no es correcta.');
+      }
+      if (e.code == 'weak-password') {
+        throw const AuthException(
+            'La nueva contraseña es muy débil (mínimo 6 caracteres).');
+      }
+      if (e.code == 'requires-recent-login') {
+        throw const AuthException(
+            'Por seguridad, vuelve a iniciar sesión e intenta de nuevo.');
+      }
+      throw AuthException(_handleAuthException(e));
+    }
+  }
+
+  Future<void> changeEmail({
+    required String currentPassword,
+    required String newEmail,
+  }) async {
+    final trimmed = newEmail.trim();
+    if (trimmed == _auth.currentUser?.email) {
+      throw const AuthException('Ese ya es tu correo actual.');
+    }
+    try {
+      await _reauthenticate(currentPassword);
+      final user = _auth.currentUser;
+      if (user == null) throw const AuthException('No hay usuario autenticado');
+      // verifyBeforeUpdateEmail envía un enlace de verificación al correo nuevo;
+      // el cambio se aplica cuando el usuario lo confirma.
+      await user.verifyBeforeUpdateEmail(trimmed);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        throw const AuthException('La contraseña actual no es correcta.');
+      }
+      if (e.code == 'email-already-in-use') {
+        throw const AuthException('Ese correo ya está en uso por otra cuenta.');
+      }
+      if (e.code == 'invalid-email') {
+        throw const AuthException('El correo no es válido.');
+      }
+      if (e.code == 'requires-recent-login') {
+        throw const AuthException(
+            'Por seguridad, vuelve a iniciar sesión e intenta de nuevo.');
+      }
+      throw AuthException(_handleAuthException(e));
+    }
+  }
+
   Future<void> signOut() async {
     await Future.wait([
       _auth.signOut(),

@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import '../../../../core/preferences/units_provider.dart';
 import '../../../../core/widgets/empty_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/profile_provider.dart';
@@ -23,14 +24,16 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
   }
 
   Future<void> _addWeight() async {
+    final units = ref.read(unitsProvider);
     final text = _weightController.text.trim();
-    final weight = double.tryParse(text);
-    if (weight == null || weight <= 0) {
+    final value = double.tryParse(text);
+    if (value == null || value <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Ingresa un peso válido'), backgroundColor: Colors.red),
       );
       return;
     }
+    final weight = units.weightToKg(value);
 
     setState(() => _isSaving = true);
     try {
@@ -64,6 +67,7 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
+        final unit = ref.read(unitsProvider).weightUnit;
         return Padding(
           padding: EdgeInsets.only(
             left: 24,
@@ -83,10 +87,10 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
               TextField(
                 controller: _weightController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'Peso (kg)',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.monitor_weight_outlined),
+                decoration: InputDecoration(
+                  labelText: 'Peso ($unit)',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.monitor_weight_outlined),
                 ),
                 autofocus: true,
               ),
@@ -115,6 +119,7 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final historyAsync = ref.watch(weightHistoryProvider);
+    final units = ref.watch(unitsProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -141,9 +146,13 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
 
           // Orden cronológico para el gráfico (más antiguo → más reciente)
           final chronological = entries.reversed.toList();
-          final weights = chronological.map((e) => e.weight).toList();
-          final minW = weights.reduce((a, b) => a < b ? a : b);
-          final maxW = weights.reduce((a, b) => a > b ? a : b);
+          final minKg = entries.map((e) => e.weight).reduce((a, b) => a < b ? a : b);
+          final maxKg = entries.map((e) => e.weight).reduce((a, b) => a > b ? a : b);
+          final displayWeights =
+              chronological.map((e) => units.weightToDisplay(e.weight)).toList();
+          final minD = displayWeights.reduce((a, b) => a < b ? a : b);
+          final maxD = displayWeights.reduce((a, b) => a > b ? a : b);
+          final pad = (maxD - minD) * 0.2 + 1;
 
           return Column(
             children: [
@@ -155,8 +164,8 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
                   label: 'Evolución del peso corporal',
                   child: LineChart(
                     LineChartData(
-                    minY: minW - 2,
-                    maxY: maxW + 2,
+                    minY: minD - pad,
+                    maxY: maxD + pad,
                     gridData:
                         const FlGridData(show: true, drawVerticalLine: false),
                     titlesData: FlTitlesData(
@@ -180,7 +189,8 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
                         spots: chronological
                             .asMap()
                             .entries
-                            .map((e) => FlSpot(e.key.toDouble(), e.value.weight))
+                            .map((e) =>
+                                FlSpot(e.key.toDouble(), units.weightToDisplay(e.value.weight)))
                             .toList(),
                         isCurved: true,
                         color: Theme.of(context).colorScheme.primary,
@@ -205,7 +215,7 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
                     Expanded(
                       child: _StatCard(
                         label: 'Mínimo',
-                        value: '${minW.toStringAsFixed(1)} kg',
+                        value: units.formatWeight(minKg, decimals: 1),
                         color: Colors.blue,
                       ),
                     ),
@@ -213,7 +223,7 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
                     Expanded(
                       child: _StatCard(
                         label: 'Máximo',
-                        value: '${maxW.toStringAsFixed(1)} kg',
+                        value: units.formatWeight(maxKg, decimals: 1),
                         color: Colors.orange,
                       ),
                     ),
@@ -238,7 +248,7 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
                         child: Icon(Icons.monitor_weight, color: Theme.of(context).colorScheme.primary, size: 20),
                       ),
                       title: Text(
-                        '${entry.weight.toStringAsFixed(1)} kg',
+                        units.formatWeight(entry.weight, decimals: 1),
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       subtitle: Text(dateStr),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/preferences/units_provider.dart';
 import '../../domain/user_profile.dart';
 import '../../../../core/errors/app_exception.dart';
 import '../providers/profile_provider.dart';
@@ -32,18 +33,20 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   bool _isLoading = false;
   bool _manualCalories = false;
+  late final UnitSystem _units;
 
   @override
   void initState() {
     super.initState();
+    _units = ref.read(unitsProvider);
     final p = widget.profile;
     _nameController = TextEditingController(text: p.displayName ?? '');
     _usernameController = TextEditingController(text: p.username ?? '');
     _bioController = TextEditingController(text: p.bio ?? '');
-    _weightController =
-        TextEditingController(text: p.currentWeight.toStringAsFixed(1));
-    _heightController =
-        TextEditingController(text: p.height.toStringAsFixed(0));
+    _weightController = TextEditingController(
+        text: _units.weightToDisplay(p.currentWeight).toStringAsFixed(1));
+    _heightController = TextEditingController(
+        text: _units.heightToDisplay(p.height).toStringAsFixed(0));
     _ageController = TextEditingController(text: '${p.age}');
     _sex = p.sex;
     _activityLevel = UserProfile.activityLevels.contains(p.activityLevel)
@@ -74,11 +77,21 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     super.dispose();
   }
 
+  /// Peso del formulario convertido a kg (unidad interna de cálculo).
+  double _weightKg() {
+    final v = double.tryParse(_weightController.text);
+    return v == null ? widget.profile.currentWeight : _units.weightToKg(v);
+  }
+
+  /// Altura del formulario convertida a cm (unidad interna de cálculo).
+  double _heightCm() {
+    final v = double.tryParse(_heightController.text);
+    return v == null ? widget.profile.height : _units.heightToCm(v);
+  }
+
   void _recalculate({bool silent = false}) {
-    final weight = double.tryParse(_weightController.text) ??
-        widget.profile.currentWeight;
-    final height =
-        double.tryParse(_heightController.text) ?? widget.profile.height;
+    final weight = _weightKg();
+    final height = _heightCm();
     final age = int.tryParse(_ageController.text) ?? widget.profile.age;
 
     final cal = UserProfile.calculateTMB(
@@ -116,11 +129,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 
   Future<void> _save() async {
-    final weight = double.tryParse(_weightController.text);
-    final height = double.tryParse(_heightController.text);
+    final rawWeight = double.tryParse(_weightController.text);
+    final rawHeight = double.tryParse(_heightController.text);
     final age = int.tryParse(_ageController.text);
 
-    if (weight == null || height == null || age == null) {
+    if (rawWeight == null || rawHeight == null || age == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Revisa peso, altura y edad'),
@@ -129,6 +142,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       );
       return;
     }
+    final weight = _units.weightToKg(rawWeight);
+    final height = _units.heightToCm(rawHeight);
 
     setState(() => _isLoading = true);
     try {
@@ -329,9 +344,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   controller: _weightController,
                   keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Peso (kg)',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: 'Peso (${_units.weightUnit})',
+                    border: const OutlineInputBorder(),
                   ),
                   onChanged: (_) {
                     if (!_manualCalories) _recalculate(silent: true);
@@ -344,9 +359,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   controller: _heightController,
                   keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Altura (cm)',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: 'Altura (${_units.heightUnit})',
+                    border: const OutlineInputBorder(),
                   ),
                   onChanged: (_) {
                     if (!_manualCalories) _recalculate(silent: true);
@@ -377,9 +392,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           const SizedBox(height: 12),
           Builder(
             builder: (context) {
-              final weight = double.tryParse(_weightController.text) ??
-                  widget.profile.currentWeight;
-              final ml = UserProfile.calculateWaterMl(weightKg: weight);
+              final ml = UserProfile.calculateWaterMl(weightKg: _weightKg());
               final glasses = UserProfile.waterGlassesFromMl(ml);
               return InputDecorator(
                 decoration: const InputDecoration(
@@ -441,13 +454,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 setState(() {
                   _targetCalories = n;
                   _manualCalories = true;
-                  final weight = double.tryParse(_weightController.text) ??
-                      widget.profile.currentWeight;
-                  final height = double.tryParse(_heightController.text) ??
-                      widget.profile.height;
                   final macros = UserProfile.calculateMacros(
-                    weight: weight,
-                    height: height,
+                    weight: _weightKg(),
+                    height: _heightCm(),
                     calories: n,
                     goal: _goal,
                   );
