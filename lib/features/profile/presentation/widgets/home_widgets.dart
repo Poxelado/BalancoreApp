@@ -545,19 +545,19 @@ class MotivationBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    final accent = accentOf(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: primary.withValues(alpha: 0.1),
+        color: accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: primary.withValues(alpha: 0.25)),
+        border: Border.all(color: accent.withValues(alpha: 0.35)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.auto_awesome, size: 18, color: accentOf(context)),
+          Icon(Icons.auto_awesome, size: 18, color: accent),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

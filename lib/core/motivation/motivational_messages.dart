@@ -32,6 +32,7 @@ class MotivationContext {
     streakReadyToday,
     trainedToday,
     isRestDay,
+    firstWorkoutEver,
     weekGoalMet,
     workoutsThisWeek,
     mealsToday,
@@ -63,6 +64,11 @@ class MotivationalMessages {
     'Llevas {streak} días. Un hábito más y la racha sigue viva.',
   ];
 
+  static const _longStreak = [
+    '{streak} días de racha. Esto ya es parte de tu rutina.',
+    'Más de una semana con la racha viva. Así se cambia un hábito.',
+  ];
+
   static const _streakReady = [
     'Hoy ya sumaste a la racha. Orgullo bien ganado.',
     '3 de 4 hábitos: racha segura por hoy. Buen trabajo.',
@@ -74,9 +80,19 @@ class MotivationalMessages {
     'Descanso activo: camina, estira, duerme bien.',
   ];
 
+  static const _trainedToday = [
+    'Entreno hecho. Ahora la comida y el agua cierran el día.',
+    'Ya entrenaste. Suma agua y sueño para una racha completa.',
+  ];
+
   static const _weekDone = [
     'Semana sólida: {week} entrenos. Así se construye.',
     '{week} sesiones esta semana. Cierra con comida y sueño.',
+  ];
+
+  static const _weekInProgress = [
+    'Llevas {week} entreno(s) esta semana. Sigue sumando.',
+    'Buen arranque: {week} hecho(s). No cortes el ritmo.',
   ];
 
   static const _emptyDay = [
@@ -85,13 +101,18 @@ class MotivationalMessages {
     'Pequeños registros diarios vencen a la motivación de un día.',
   ];
 
+  static const _hydration = [
+    'No olvides el agua: un vaso más y el día avanza.',
+    'La hidratación también cuenta. Suma un vaso.',
+  ];
+
   static const _generic = [
     'Constancia > motivación. Un paso más hoy.',
     'Tu yo de mañana agradece lo que haces ahora.',
     'No busques el día perfecto: busca el día hecho.',
     'Agua, sueño o un bite: elige uno y marca el día.',
     'Hoy cuenta aunque sea mínimo. Registra y sigue.',
-    'El progreso es aburrido y constante. Eso está bien.',
+    'El progreso es aburrido y constante, y así está bien.',
   ];
 
   /// Siguiente frase del pool (persiste el índice entre reinicios).
@@ -135,11 +156,22 @@ class MotivationalMessages {
       ]);
     }
     if (ctx.streakReadyToday) pool.addAll(_streakReady);
-    if (ctx.streakDays >= 3) pool.addAll(_streak);
+    if (ctx.streakDays >= 7) {
+      pool.addAll(_longStreak);
+    } else if (ctx.streakDays >= 3) {
+      pool.addAll(_streak);
+    }
+    if (ctx.trainedToday) pool.addAll(_trainedToday);
     if (ctx.isRestDay && !ctx.trainedToday) pool.addAll(_restDay);
-    if (ctx.weekGoalMet) pool.addAll(_weekDone);
+    if (ctx.weekGoalMet) {
+      pool.addAll(_weekDone);
+    } else if (ctx.workoutsThisWeek >= 1) {
+      pool.addAll(_weekInProgress);
+    }
     if (ctx.mealsToday == 0 && ctx.waterGlasses == 0 && !ctx.trainedToday) {
       pool.addAll(_emptyDay);
+    } else if (ctx.waterGlasses == 0 && ctx.mealsToday > 0) {
+      pool.addAll(_hydration);
     }
 
     return pool;

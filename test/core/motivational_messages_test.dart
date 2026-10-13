@@ -73,6 +73,43 @@ void main() {
         );
       }
     });
+
+    List<String> messagesFor(MotivationContext ctx) => [
+          for (var seed = 0; seed < 40; seed++)
+            MotivationalMessages.pickSync(ctx, seed: seed),
+        ];
+
+    test('racha larga (>=7) incluye mensaje de hábito', () {
+      const ctx = MotivationContext(streakDays: 10);
+      expect(
+        messagesFor(ctx),
+        contains('10 días de racha. Esto ya es parte de tu rutina.'),
+      );
+    });
+
+    test('entrenado hoy incluye cierre de día', () {
+      const ctx = MotivationContext(trainedToday: true, streakDays: 0);
+      expect(
+        messagesFor(ctx),
+        contains('Entreno hecho. Ahora la comida y el agua cierran el día.'),
+      );
+    });
+
+    test('semana en curso incluye avance parcial', () {
+      const ctx = MotivationContext(workoutsThisWeek: 2);
+      expect(
+        messagesFor(ctx),
+        contains('Llevas 2 entreno(s) esta semana. Sigue sumando.'),
+      );
+    });
+
+    test('sin agua pero con comida sugiere hidratarse', () {
+      const ctx = MotivationContext(mealsToday: 1, waterGlasses: 0);
+      expect(
+        messagesFor(ctx),
+        contains('No olvides el agua: un vaso más y el día avanza.'),
+      );
+    });
   });
 
   group('isRestDayFromRoutines', () {
