@@ -49,24 +49,24 @@ class SettingsScreen extends ConsumerWidget {
     );
     if (ok != true || !context.mounted) return;
 
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final errorColor = Theme.of(context).colorScheme.error;
     try {
       final user = ref.read(authServiceProvider).currentUser;
       if (user == null) return;
       await ref.read(profileRepositoryProvider).deleteUserData(user.uid);
       await ref.read(authServiceProvider).deleteAccount();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cuenta eliminada. Puedes registrarte de nuevo si quieres.'),
-          ),
-        );
-      }
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Cuenta eliminada. Puedes registrarte de nuevo si quieres.'),
+        ),
+      );
+      navigator.popUntil((route) => route.isFirst);
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e'), backgroundColor: Theme.of(context).colorScheme.error),
-        );
-      }
+      messenger.showSnackBar(
+        SnackBar(content: Text('$e'), backgroundColor: errorColor),
+      );
     }
   }
 
@@ -193,7 +193,9 @@ class SettingsScreen extends ConsumerWidget {
                 title: 'Cerrar sesión',
                 color: Theme.of(context).colorScheme.error,
                 onTap: () async {
+                  final navigator = Navigator.of(context);
                   await ref.read(authServiceProvider).signOut();
+                  navigator.popUntil((route) => route.isFirst);
                 },
               ),
               SettingsTile(
