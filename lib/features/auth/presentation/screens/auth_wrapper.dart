@@ -6,6 +6,7 @@ import 'onboarding_screen.dart';
 import 'verify_email_screen.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
+import '../../../../core/achievements/achievement_watcher.dart';
 
 class AuthWrapper extends ConsumerWidget {
   const AuthWrapper({super.key});
@@ -34,7 +35,7 @@ class AuthWrapper extends ConsumerWidget {
             if (profile == null || !profile.onboardingCompleted) {
               return const OnboardingScreen();
             }
-            return const ProfileScreen();
+            return const AchievementWatcher(child: ProfileScreen());
           },
           loading: () => Scaffold(
             body: Center(

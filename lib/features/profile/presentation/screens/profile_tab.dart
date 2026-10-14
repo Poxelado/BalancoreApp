@@ -11,6 +11,7 @@ import '../../../training/presentation/screens/edit_workout_history_screen.dart'
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../training/presentation/screens/exercise_detail_screen.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/achievements/achievements_screen.dart';
 
 class ProfileTab extends ConsumerStatefulWidget {
   const ProfileTab({super.key});
@@ -322,14 +323,15 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Próximamente'),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AchievementsScreen(),
                             ),
                           );
                         },
-                        icon: const Icon(Icons.schedule, size: 18),
-                        label: const Text('Próximamente'),
+                        icon: const Icon(Icons.emoji_events_outlined, size: 18),
+                        label: const Text('Logros'),
                       ),
                     ),
                     const SizedBox(width: 10),
