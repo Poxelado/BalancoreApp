@@ -31,7 +31,8 @@ extension ProfileNutrition on ProfileRepository {
         .doc(uid)
         .collection('dailyLogs')
         .doc(dateKey)
-        .get();
+        .get()
+        .timeout(const Duration(seconds: 8));
     if (!doc.exists || doc.data() == null) return DailyLog(date: dateKey);
     return DailyLog.fromMap(Map<String, dynamic>.from(doc.data() as Map));
   }

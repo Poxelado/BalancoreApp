@@ -26,6 +26,10 @@ class RoutineTab extends ConsumerStatefulWidget {
 }
 
 class _RoutineTabState extends ConsumerState<RoutineTab> {
+  /// Evita abrir varias sesiones si se toca "empezar" dos veces seguidas
+  /// (p. ej. cuando no hay conexión y el toque tarda en responder).
+  bool _starting = false;
+
   @override
   void initState() {
     super.initState();
@@ -35,157 +39,170 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
   }
 
   Future<void> _startWorkout(RoutineDay day) async {
-    if (day.isRestDay) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Este día es de descanso')),
-      );
-      return;
-    }
-    if (day.exercises.isEmpty) {
-      final go = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(day.day),
-          content: const Text(
-            'Este día no tiene ejercicios.\n¿Quieres editarlo ahora?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Editar'),
-            ),
-          ],
-        ),
-      );
-      if (go == true && mounted) {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => EditRoutineDayScreen(day: day)),
+    if (_starting) return;
+    _starting = true;
+    try {
+      if (day.isRestDay) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Este día es de descanso')),
         );
-        ref.invalidate(routinesProvider);
+        return;
       }
-      return;
-    }
+      if (day.exercises.isEmpty) {
+        final go = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(day.day),
+            content: const Text(
+              'Este día no tiene ejercicios.\n¿Quieres editarlo ahora?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Editar'),
+              ),
+            ],
+          ),
+        );
+        if (go == true && mounted) {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => EditRoutineDayScreen(day: day)),
+          );
+          ref.invalidate(routinesProvider);
+        }
+        return;
+      }
 
-    final sessionDate = WorkoutSession.dateOfWeekday(day.day);
-    final user = ref.read(authServiceProvider).currentUser;
-    WorkoutSession? existing;
-    if (user != null) {
-      // Solo reanuda si hay una sesión INCOMPLETA de esta misma rutina
-      existing = await ref
-          .read(profileRepositoryProvider)
-          .findIncompleteSessionForRoutine(
-        user.uid,
-        dayName: day.day,
-        title: day.title,
-      );
-    }
+      final sessionDate = WorkoutSession.dateOfWeekday(day.day);
+      final user = ref.read(authServiceProvider).currentUser;
+      WorkoutSession? existing;
+      if (user != null) {
+        // Solo reanuda si hay una sesión INCOMPLETA de esta misma rutina
+        existing = await ref
+            .read(profileRepositoryProvider)
+            .findIncompleteSessionForRoutine(
+          user.uid,
+          dayName: day.day,
+          title: day.title,
+        );
+      }
 
-    if (!mounted) return;
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => WorkoutSessionScreen(
-          routine: day,
-          existing: existing,
-          sessionDate: sessionDate,
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => WorkoutSessionScreen(
+            routine: day,
+            existing: existing,
+            sessionDate: sessionDate,
+          ),
         ),
-      ),
-    );
-    ref.invalidate(todayWorkoutSessionProvider);
-    ref.invalidate(activeWorkoutSessionProvider);
-    ref.invalidate(workoutHistoryProvider);
+      );
+      ref.invalidate(todayWorkoutSessionProvider);
+      ref.invalidate(activeWorkoutSessionProvider);
+      ref.invalidate(workoutHistoryProvider);
+    } finally {
+      _starting = false;
+    }
   }
 
   /// Entrenamiento libre: pregunta si empezar vacío o eligiendo ejercicios.
   Future<void> _startFreeWorkout() async {
-    final primary = Theme.of(context).colorScheme.primary;
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
-              child: Text(
-                'Entrenamiento libre',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: accentOf(context),
+    if (_starting) return;
+    _starting = true;
+    try {
+      final primary = Theme.of(context).colorScheme.primary;
+      final choice = await showModalBottomSheet<String>(
+        context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (ctx) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+                child: Text(
+                  'Entrenamiento libre',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: accentOf(context),
+                  ),
                 ),
               ),
-            ),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
-              child: Text(
-                'Elige cómo quieres empezar tu sesión.',
-                style: TextStyle(color: Colors.grey),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Text(
+                  'Elige cómo quieres empezar tu sesión.',
+                  style: TextStyle(color: Colors.grey),
+                ),
               ),
-            ),
-            ListTile(
-              leading: CircleAvatar(
-                backgroundColor: primary.withValues(alpha: 0.12),
-                child: Icon(Icons.play_circle_outline, color: accentOf(context)),
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: primary.withValues(alpha: 0.12),
+                  child:
+                      Icon(Icons.play_circle_outline, color: accentOf(context)),
+                ),
+                title: const Text('Empezar vacío'),
+                subtitle: const Text(
+                  'Arranca sin ejercicios y añádelos a medida que entrenas.',
+                ),
+                onTap: () => Navigator.pop(ctx, 'empty'),
               ),
-              title: const Text('Empezar vacío'),
-              subtitle: const Text(
-                'Arranca sin ejercicios y añádelos a medida que entrenas.',
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: primary.withValues(alpha: 0.12),
+                  child: Icon(Icons.checklist_rtl, color: accentOf(context)),
+                ),
+                title: const Text('Elegir ejercicios antes de empezar'),
+                subtitle: const Text(
+                  'Selecciona los ejercicios ahora y la sesión arranca con ellos.',
+                ),
+                onTap: () => Navigator.pop(ctx, 'pick'),
               ),
-              onTap: () => Navigator.pop(ctx, 'empty'),
-            ),
-            ListTile(
-              leading: CircleAvatar(
-                backgroundColor: primary.withValues(alpha: 0.12),
-                child: Icon(Icons.checklist_rtl, color: accentOf(context)),
-              ),
-              title: const Text('Elegir ejercicios antes de empezar'),
-              subtitle: const Text(
-                'Selecciona los ejercicios ahora y la sesión arranca con ellos.',
-              ),
-              onTap: () => Navigator.pop(ctx, 'pick'),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-    if (choice == null || !mounted) return;
-
-    if (choice == 'empty') {
-      await _pushFreeSession(initialExercises: const []);
-      return;
-    }
-
-    final picked = await Navigator.push<List<Exercise>>(
-      context,
-      MaterialPageRoute(builder: (_) => const PickExerciseScreen()),
-    );
-    if (picked == null || picked.isEmpty || !mounted) return;
-
-    final user = ref.read(authServiceProvider).currentUser;
-    final repo = ref.read(profileRepositoryProvider);
-    final logs = <WorkoutExerciseLog>[];
-    for (final exercise in picked) {
-      logs.add(
-        await buildWorkoutExerciseLog(
-          repo: repo,
-          exercise: exercise,
-          uid: user?.uid,
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       );
+      if (choice == null || !mounted) return;
+
+      if (choice == 'empty') {
+        await _pushFreeSession(initialExercises: const []);
+        return;
+      }
+
+      final picked = await Navigator.push<List<Exercise>>(
+        context,
+        MaterialPageRoute(builder: (_) => const PickExerciseScreen()),
+      );
+      if (picked == null || picked.isEmpty || !mounted) return;
+
+      final user = ref.read(authServiceProvider).currentUser;
+      final repo = ref.read(profileRepositoryProvider);
+      final logs = <WorkoutExerciseLog>[];
+      for (final exercise in picked) {
+        logs.add(
+          await buildWorkoutExerciseLog(
+            repo: repo,
+            exercise: exercise,
+            uid: user?.uid,
+          ),
+        );
+      }
+      if (!mounted) return;
+      await _pushFreeSession(initialExercises: logs);
+    } finally {
+      _starting = false;
     }
-    if (!mounted) return;
-    await _pushFreeSession(initialExercises: logs);
   }
 
   Future<void> _pushFreeSession({
@@ -210,63 +227,69 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
     CustomRoutine routine,
     CustomWorkout workout,
   ) async {
-    if (workout.exercises.isEmpty) {
-      final edit = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(workout.name.isEmpty ? routine.name : workout.name),
-          content: const Text(
-            'Este entrenamiento todavía no tiene ejercicios.\n¿Quieres editarlo ahora?',
+    if (_starting) return;
+    _starting = true;
+    try {
+      if (workout.exercises.isEmpty) {
+        final edit = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(workout.name.isEmpty ? routine.name : workout.name),
+            content: const Text(
+              'Este entrenamiento todavía no tiene ejercicios.\n¿Quieres editarlo ahora?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Editar'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Editar'),
-            ),
-          ],
-        ),
-      );
-      if (edit == true && mounted) {
-        await _editCustomRoutine(routine);
+        );
+        if (edit == true && mounted) {
+          await _editCustomRoutine(routine);
+        }
+        return;
       }
-      return;
-    }
 
-    final title = workout.name.isEmpty ? routine.name : workout.name;
-    final day = RoutineDay(
-      day: WorkoutSession.weekdayName(),
-      title: title,
-      exercises: workout.exercises,
-    );
-    final user = ref.read(authServiceProvider).currentUser;
-    WorkoutSession? existing;
-    if (user != null) {
-      existing = await ref
-          .read(profileRepositoryProvider)
-          .findIncompleteSessionForRoutine(
-        user.uid,
-        dayName: day.day,
+      final title = workout.name.isEmpty ? routine.name : workout.name;
+      final day = RoutineDay(
+        day: WorkoutSession.weekdayName(),
         title: title,
+        exercises: workout.exercises,
       );
-    }
-    if (!mounted) return;
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => WorkoutSessionScreen(
-          routine: day,
-          existing: existing,
-          allowAddExercises: true,
+      final user = ref.read(authServiceProvider).currentUser;
+      WorkoutSession? existing;
+      if (user != null) {
+        existing = await ref
+            .read(profileRepositoryProvider)
+            .findIncompleteSessionForRoutine(
+          user.uid,
+          dayName: day.day,
+          title: title,
+        );
+      }
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => WorkoutSessionScreen(
+            routine: day,
+            existing: existing,
+            allowAddExercises: true,
+          ),
         ),
-      ),
-    );
-    ref.invalidate(todayWorkoutSessionProvider);
-    ref.invalidate(activeWorkoutSessionProvider);
-    ref.invalidate(workoutHistoryProvider);
+      );
+      ref.invalidate(todayWorkoutSessionProvider);
+      ref.invalidate(activeWorkoutSessionProvider);
+      ref.invalidate(workoutHistoryProvider);
+    } finally {
+      _starting = false;
+    }
   }
 
   Future<void> _createCustomRoutine() async {

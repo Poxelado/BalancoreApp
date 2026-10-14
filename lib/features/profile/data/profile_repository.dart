@@ -36,7 +36,10 @@ class ProfileRepository {
   // ─── Perfil ─────────────────────────────────────────────
   Future<UserProfile?> getProfile(String uid) async {
     try {
-      final doc = await _userDoc(uid).doc(uid).get();
+      final doc = await _userDoc(uid)
+          .doc(uid)
+          .get()
+          .timeout(const Duration(seconds: 8));
       if (!doc.exists || doc.data() == null) return null;
       final profile = UserProfile.fromMap(doc.data() as Map<String, dynamic>);
       unawaited(_cache.save('profile:$uid', profile.toMap()));

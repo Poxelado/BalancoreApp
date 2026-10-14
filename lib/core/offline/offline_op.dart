@@ -3,6 +3,9 @@ enum OfflineOpType {
   /// Guardar/actualizar una sesión de entrenamiento completa (doc id = session.id).
   workoutSession,
 
+  /// Borrado de una sesión de entrenamiento.
+  workoutDelete,
+
   /// Alta o edición de una comida de un día (idempotente por id de comida).
   mealUpsert,
 

@@ -28,6 +28,8 @@ extension ProfileOffline on ProfileRepository {
     switch (op.type) {
       case OfflineOpType.workoutSession:
         await _writeSession(op.uid, WorkoutSession.fromMap(op.payload));
+      case OfflineOpType.workoutDelete:
+        await _sessionRef(op.uid, op.payload['id']?.toString() ?? '').delete();
       case OfflineOpType.mealUpsert:
         await _applyMealUpsert(
           op.uid,
@@ -51,6 +53,13 @@ extension ProfileOffline on ProfileRepository {
       .map((o) => WorkoutSession.fromMap(o.payload))
       .toList();
 
+  /// Ids de sesiones de [uid] con borrado pendiente de subir.
+  Set<String> _pendingSessionDeletes(String uid) => _offline.ops
+      .where((o) => o.type == OfflineOpType.workoutDelete && o.uid == uid)
+      .map((o) => o.payload['id']?.toString() ?? '')
+      .where((id) => id.isNotEmpty)
+      .toSet();
+
   /// Lee una lista de Firestore y guarda copia local; si la lectura falla
   /// (sin conexión), devuelve la última copia buena.
   Future<List<T>> _cachedList<T>(
@@ -60,7 +69,7 @@ extension ProfileOffline on ProfileRepository {
     required T Function(Map<String, dynamic>) decode,
   }) async {
     try {
-      final list = await fetch();
+      final list = await fetch().timeout(const Duration(seconds: 8));
       unawaited(_cache.save(key, list.map(encode).toList()));
       return list;
     } catch (e) {

@@ -47,7 +47,16 @@ extension ProfileWorkouts on ProfileRepository {
   }
 
   Future<void> deleteWorkoutSession(String uid, String sessionId) async {
-    await _sessionRef(uid, sessionId).delete();
+    await _runOrQueue(
+      OfflineOp(
+        type: OfflineOpType.workoutDelete,
+        uid: uid,
+        dedupeKey: 'ws:$sessionId',
+        payload: {'id': sessionId},
+        createdAt: DateTime.now().toIso8601String(),
+      ),
+      () => _sessionRef(uid, sessionId).delete(),
+    );
   }
 
   Future<WorkoutSession?> getActiveWorkoutSession(String uid) async {
@@ -58,7 +67,8 @@ extension ProfileWorkouts on ProfileRepository {
           .collection('workoutSessions')
           .where('completed', isEqualTo: false)
           .limit(20)
-          .get();
+          .get()
+          .timeout(const Duration(seconds: 8));
       list = snap.docs.map(_sessionFromDoc).toList();
     } catch (e) {
       list = [];
@@ -69,6 +79,9 @@ extension ProfileWorkouts on ProfileRepository {
     }
     if (list.isEmpty) return null;
     final byId = {for (final s in list) s.id: s};
+    for (final id in _pendingSessionDeletes(uid)) {
+      byId.remove(id);
+    }
     final merged = byId.values.toList()
       ..sort((a, b) => b.startedAt.compareTo(a.startedAt));
     return merged.first;
@@ -80,14 +93,24 @@ extension ProfileWorkouts on ProfileRepository {
         required String dayName,
         String? title,
       }) async {
-    final snap = await _userDoc(uid)
-        .doc(uid)
-        .collection('workoutSessions')
-        .where('completed', isEqualTo: false)
-        .limit(20)
-        .get();
-    if (snap.docs.isEmpty) return null;
-    final list = snap.docs.map(_sessionFromDoc).toList();
+    final list = <WorkoutSession>[];
+    try {
+      final snap = await _userDoc(uid)
+          .doc(uid)
+          .collection('workoutSessions')
+          .where('completed', isEqualTo: false)
+          .limit(20)
+          .get()
+          .timeout(const Duration(seconds: 8));
+      list.addAll(snap.docs.map(_sessionFromDoc));
+    } catch (e) {
+      debugPrint('offline: no se pudo buscar sesión incompleta: $e');
+    }
+    final deleted = _pendingSessionDeletes(uid);
+    for (final p in _pendingSessions(uid)) {
+      if (!p.completed && !deleted.contains(p.id)) list.add(p);
+    }
+    if (list.isEmpty) return null;
     list.sort((a, b) => b.startedAt.compareTo(a.startedAt));
     for (final s in list) {
       if (s.dayName == dayName) {
@@ -122,6 +145,9 @@ extension ProfileWorkouts on ProfileRepository {
     final byId = {for (final s in list) s.id: s};
     for (final p in _pendingSessions(uid)) {
       byId[p.id] = p;
+    }
+    for (final id in _pendingSessionDeletes(uid)) {
+      byId.remove(id);
     }
     final merged = byId.values.toList()
       ..sort((a, b) => b.startedAt.compareTo(a.startedAt));
