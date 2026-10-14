@@ -23,6 +23,15 @@ class ProfileTab extends ConsumerStatefulWidget {
 class _ProfileTabState extends ConsumerState<ProfileTab> {
   int _periodDays = 30;
 
+  static const _monthAbbr = [
+    '', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+    'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
+  ];
+  static const _monthFull = [
+    '', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+  ];
+
   String _initials(UserProfile profile) {
     final name =
         profile.displayName ?? profile.username ?? profile.email ?? 'U';
@@ -49,6 +58,15 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
     }
     if (d.inMinutes < 1) return '${d.inSeconds}s';
     return '${d.inMinutes}m';
+  }
+
+  String _setsLabel(WorkoutSession s) {
+    final done = s.exercises.fold<int>(
+      0,
+      (a, e) => a + e.sets.where((x) => x.completed).length,
+    );
+    final total = s.exercises.fold<int>(0, (a, e) => a + e.sets.length);
+    return '$done/$total series';
   }
 
   void _showSessionDetail(WorkoutSession s) {
@@ -214,6 +232,14 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
 
         final sessions = historyAsync.valueOrNull ?? [];
         final completedCount = sessions.where((s) => s.completed).length;
+
+        final groups = <String, List<WorkoutSession>>{};
+        for (final s in sessions) {
+          final key =
+              '${s.startedAt.year}-${s.startedAt.month.toString().padLeft(2, '0')}';
+          groups.putIfAbsent(key, () => []).add(s);
+        }
+        final groupKeys = groups.keys.toList()..sort((a, b) => b.compareTo(a));
 
         return CustomScrollView(
           slivers: [
@@ -423,28 +449,35 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
               )
             else
               SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                sliver: SliverGrid(
-                  gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                    childAspectRatio: 0.72,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                      final s = sessions[index];
-                      return WorkoutCard(
-                        date: _fmtDate(s.startedAt),
-                        duration: _fmtDuration(s),
-                        completed: s.completed,
-                        title: s.title.isEmpty ? s.dayName : s.title,
-                        onTap: () => _showSessionDetail(s),
-                      );
-                    },
-                    childCount: sessions.length,
-                  ),
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    for (final key in groupKeys) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(6, 10, 6, 6),
+                        child: Text(
+                          '${_monthFull[int.parse(key.split('-')[1])]} '
+                          '${key.split('-')[0]}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.3,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                      for (final s in groups[key]!)
+                        SessionHistoryTile(
+                          day: s.startedAt.day.toString().padLeft(2, '0'),
+                          month: _monthAbbr[s.startedAt.month],
+                          title: s.title.isEmpty ? s.dayName : s.title,
+                          subtitle: '${_fmtDate(s.startedAt)} · '
+                              '${_fmtDuration(s)} · ${_setsLabel(s)}',
+                          completed: s.completed,
+                          onTap: () => _showSessionDetail(s),
+                        ),
+                    ],
+                  ]),
                 ),
               ),
 

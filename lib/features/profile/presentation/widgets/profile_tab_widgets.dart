@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_theme.dart';
+
 class StatColumn extends StatelessWidget {
   final String value;
   final String label;
@@ -137,6 +139,127 @@ class WorkoutCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Fila del historial de entrenamientos para el Perfil: insignia con el día,
+/// título, detalle y estado. Más legible que la antigua rejilla de iconos.
+class SessionHistoryTile extends StatelessWidget {
+  final String day;
+  final String month;
+  final String title;
+  final String subtitle;
+  final bool completed;
+  final VoidCallback onTap;
+
+  const SessionHistoryTile({
+    super.key,
+    required this.day,
+    required this.month,
+    required this.title,
+    required this.subtitle,
+    required this.completed,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = Theme.of(context).colorScheme.primary;
+    final accent = accentOf(context);
+    final success = AppSemanticColors.of(context).success;
+    final badge = completed ? success : primary;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: isDark
+            ? Theme.of(context).colorScheme.surfaceContainerHighest
+            : primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: badge.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        day,
+                        style: TextStyle(
+                          fontSize: 18,
+                          height: 1,
+                          fontWeight: FontWeight.bold,
+                          color: badge,
+                        ),
+                      ),
+                      Text(
+                        month,
+                        style: TextStyle(
+                          fontSize: 10,
+                          height: 1.3,
+                          fontWeight: FontWeight.w600,
+                          color: badge,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  completed ? Icons.check_circle : Icons.timelapse,
+                  size: 18,
+                  color: completed ? success : accent,
+                ),
+                const SizedBox(width: 2),
+                Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: Colors.grey.shade400,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
