@@ -15,6 +15,7 @@ class _NotifId {
   static const inactivity = 1200;
   static const restDone = 1300;
   static const restTimer = 1301;
+  static const steps = 1400;
   /// 9900+ avisos de prueba (nunca colisionan con los reales)
   static const testBase = 9900;
 }
@@ -361,6 +362,23 @@ class NotificationService {
       body,
       _details(_Channel.general),
     );
+  }
+
+  /// Confirma que el contador de pasos quedó activo. Es un aviso informativo:
+  /// recuerda que funciona en 2do plano y puede consumir algo de batería.
+  Future<void> showStepCounterActive() async {
+    try {
+      if (!_ready) await init();
+      await _plugin.show(
+        _NotifId.steps,
+        'Contador de pasos activado 🚶',
+        'Seguirá contando quedándose en 2do plano y sumará tus pasos como kcal '
+            'del día. Puede usar algo de batería; puedes apagarlo en Ajustes.',
+        _details(_Channel.general),
+      );
+    } catch (e) {
+      debugPrint('notifications: no se pudo avisar del podómetro: $e');
+    }
   }
 
   Future<void> showTest() async {

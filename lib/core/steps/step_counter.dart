@@ -58,13 +58,14 @@ class StepCounterState {
     bool? ready,
     bool? permissionDenied,
     String? error,
+    bool clearError = false,
   }) {
     return StepCounterState(
       enabled: enabled ?? this.enabled,
       steps: steps ?? this.steps,
       ready: ready ?? this.ready,
       permissionDenied: permissionDenied ?? this.permissionDenied,
-      error: error ?? this.error,
+      error: clearError ? null : (error ?? this.error),
     );
   }
 }
@@ -125,6 +126,7 @@ class StepCounterNotifier extends StateNotifier<StepCounterState> {
 
   Future<void> _start() async {
     await _sub?.cancel();
+    state = state.copyWith(clearError: true);
     try {
       _sub = Pedometer.stepCountStream.listen(
         _onStep,
@@ -138,18 +140,23 @@ class StepCounterNotifier extends StateNotifier<StepCounterState> {
 
   Future<void> _onStep(StepCount event) async {
     final prefs = await SharedPreferences.getInstance();
+    await _applyCumulative(prefs, event.steps);
+  }
+
+  Future<void> _applyCumulative(
+      SharedPreferences prefs, int cumulative) async {
     final today = _todayKey();
     final storedDate = prefs.getString(_kDateKey);
     if (storedDate != today) {
       // Nuevo día (o primer arranque): reinicia la base de conteo.
       await prefs.setString(_kDateKey, today);
-      await prefs.setInt(_kBaselineKey, event.steps);
+      await prefs.setInt(_kBaselineKey, cumulative);
       await prefs.setInt(_kTotalKey, 0);
-      state = state.copyWith(steps: 0);
+      if (state.steps != 0) state = state.copyWith(steps: 0);
       return;
     }
-    final baseline = prefs.getInt(_kBaselineKey) ?? event.steps;
-    final total = event.steps - baseline;
+    final baseline = prefs.getInt(_kBaselineKey) ?? cumulative;
+    final total = cumulative - baseline;
     final safe = total < 0 ? 0 : total;
     if (safe == state.steps) return;
     state = state.copyWith(steps: safe);
@@ -157,15 +164,32 @@ class StepCounterNotifier extends StateNotifier<StepCounterState> {
     _schedulePersist();
   }
 
+  /// Fuerza una lectura del sensor y guarda los pasos de hoy. Funciona también
+  /// con el contador apagado (lectura puntual del día). Devuelve los pasos del
+  /// día, o null si el sensor no está disponible.
+  Future<int?> recollect() async {
+    final wasEnabled = state.enabled;
+    await _start();
+    // Da tiempo a que el sensor emita el valor acumulado actual.
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    if (!wasEnabled) {
+      await _sub?.cancel();
+      _sub = null;
+    }
+    if (state.error != null) return null;
+    await _persistNow(force: true);
+    return state.steps;
+  }
+
   void _schedulePersist() {
     _persistTimer?.cancel();
     _persistTimer = Timer(const Duration(minutes: 2), _persistNow);
   }
 
-  Future<void> _persistNow() async {
+  Future<void> _persistNow({bool force = false}) async {
     final user = _ref.read(authServiceProvider).currentUser;
     if (user == null) return;
-    if (state.steps == _lastPersisted) return;
+    if (!force && state.steps == _lastPersisted) return;
     _lastPersisted = state.steps;
     try {
       await _ref

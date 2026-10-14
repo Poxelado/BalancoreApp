@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../../core/notifications/notification_service.dart';
 import '../../../../core/steps/step_counter.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/profile_provider.dart';
@@ -46,7 +47,8 @@ class StepCounterSettingsScreen extends ConsumerWidget {
     if (ok != true) return;
 
     final activated = await notifier.enable();
-    if (!activated && context.mounted) {
+    if (!context.mounted) return;
+    if (!activated) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -58,7 +60,39 @@ class StepCounterSettingsScreen extends ConsumerWidget {
           ),
         ),
       );
+      return;
     }
+
+    // Aviso dentro de la app.
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Contador de pasos activado. Se sumarán a tus kcal del día.'),
+      ),
+    );
+    // Aviso del sistema (best-effort; no bloquea la activación).
+    try {
+      final granted = await NotificationService.instance.requestPermission();
+      if (granted) {
+        await NotificationService.instance.showStepCounterActive();
+      }
+    } catch (_) {
+      // Sin permiso de notificaciones: el aviso en la app ya se mostró.
+    }
+  }
+
+  /// Lee los pasos recibidos por el sensor y los guarda en el día.
+  Future<void> _recollect(BuildContext context, WidgetRef ref) async {
+    final steps = await ref.read(stepCounterProvider.notifier).recollect();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          steps == null
+              ? 'No se pudo leer el sensor de pasos.'
+              : 'Listo: $steps pasos guardados en el día.',
+        ),
+      ),
+    );
   }
 
   @override
@@ -112,6 +146,26 @@ class StepCounterSettingsScreen extends ConsumerWidget {
               kcal > 0
                   ? '≈ $kcal kcal quemadas'
                   : 'Aún sin gasto estimado',
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: OutlinedButton.icon(
+              onPressed: () => _recollect(context, ref),
+              icon: const Icon(Icons.sync, size: 18),
+              label: const Text('Recolectar pasos ahora'),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Text(
+              'Fuerza una lectura del sensor y guarda los pasos de hoy. Útil si '
+              'crees que faltan pasos por registrar o acabas de activar el '
+              'contador.',
+              style: TextStyle(
+                  fontSize: 12,
+                  height: 1.35,
+                  color: Theme.of(context).hintColor),
             ),
           ),
           Padding(
