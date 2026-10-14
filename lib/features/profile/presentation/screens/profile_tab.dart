@@ -7,11 +7,28 @@ import '../providers/profile_provider.dart';
 import 'weight_history_screen.dart';
 import 'edit_profile_screen.dart';
 import '../widgets/profile_tab_widgets.dart';
+import '../../../training/domain/workout_share_metrics.dart';
 import '../../../training/presentation/screens/edit_workout_history_screen.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../training/presentation/screens/exercise_detail_screen.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/achievements/achievements_screen.dart';
+
+/// Sección del historial: puede ser una hoja (con sus sesiones) o una rama
+/// que agrupa subsecciones (p. ej. un mes con sus semanas).
+class _HistoryGroup {
+  final String title;
+  final List<WorkoutSession> sessions;
+  final List<_HistoryGroup> children;
+
+  const _HistoryGroup.leaf(this.title, this.sessions) : children = const [];
+  const _HistoryGroup.branch(this.title, this.children) : sessions = const [];
+
+  bool get isLeaf => children.isEmpty;
+
+  int get count =>
+      isLeaf ? sessions.length : children.fold(0, (a, c) => a + c.count);
+}
 
 class ProfileTab extends ConsumerStatefulWidget {
   const ProfileTab({super.key});
@@ -23,9 +40,16 @@ class ProfileTab extends ConsumerStatefulWidget {
 class _ProfileTabState extends ConsumerState<ProfileTab> {
   int _periodDays = 30;
 
-  static const _monthAbbr = [
-    '', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
-    'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
+  static const _periods = <(int, String)>[
+    (7, '1 semana'),
+    (30, '1 mes'),
+    (90, '3 meses'),
+    (180, '6 meses'),
+    (365, '1 año'),
+  ];
+
+  static const _weekdays = [
+    '', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo',
   ];
   static const _monthFull = [
     '', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -60,17 +84,86 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
     return '${d.inMinutes}m';
   }
 
-  String _setsLabel(WorkoutSession s) {
-    final done = s.exercises.fold<int>(
-      0,
-      (a, e) => a + e.sets.where((x) => x.completed).length,
-    );
-    final total = s.exercises.fold<int>(0, (a, e) => a + e.sets.length);
-    return '$done/$total series';
+  /// Peso máximo levantado en series efectivas (sin calentamiento).
+  double _maxWeight(WorkoutExerciseLog e) {
+    var max = 0.0;
+    for (final s in e.sets) {
+      if (s.completed && !s.isWarmup && s.weight > max) max = s.weight;
+    }
+    return max;
   }
+
+  // --- Agrupación -----------------------------------------------------------
+
+  String _dayKey(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}'
+      '-${d.day.toString().padLeft(2, '0')}';
+
+  DateTime _mondayOf(DateTime d) =>
+      DateTime(d.year, d.month, d.day)
+          .subtract(Duration(days: d.weekday - 1));
+
+  String _weekTitle(DateTime monday) {
+    final sunday = monday.add(const Duration(days: 6));
+    return 'Semana ${monday.day}/${monday.month} – ${sunday.day}/${sunday.month}';
+  }
+
+  List<_HistoryGroup> _weekGroups(List<WorkoutSession> sessions) {
+    final map = <String, List<WorkoutSession>>{};
+    for (final s in sessions) {
+      map.putIfAbsent(_dayKey(_mondayOf(s.startedAt)), () => []).add(s);
+    }
+    final keys = map.keys.toList()..sort((a, b) => b.compareTo(a));
+    return [
+      for (final k in keys)
+        _HistoryGroup.leaf(_weekTitle(DateTime.parse(k)), map[k]!),
+    ];
+  }
+
+  List<_HistoryGroup> _buildGroups(List<WorkoutSession> sessions) {
+    final sorted = [...sessions]
+      ..sort((a, b) => b.startedAt.compareTo(a.startedAt));
+
+    if (_periodDays <= 7) {
+      final map = <String, List<WorkoutSession>>{};
+      for (final s in sorted) {
+        map.putIfAbsent(_dayKey(s.startedAt), () => []).add(s);
+      }
+      final keys = map.keys.toList()..sort((a, b) => b.compareTo(a));
+      return [
+        for (final k in keys)
+          _HistoryGroup.leaf(
+            '${_weekdays[map[k]!.first.startedAt.weekday]} '
+            '${map[k]!.first.startedAt.day}/${map[k]!.first.startedAt.month}',
+            map[k]!,
+          ),
+      ];
+    }
+
+    if (_periodDays <= 30) return _weekGroups(sorted);
+
+    final byMonth = <String, List<WorkoutSession>>{};
+    for (final s in sorted) {
+      byMonth.putIfAbsent(
+        '${s.startedAt.year}-${s.startedAt.month.toString().padLeft(2, '0')}',
+        () => [],
+      ).add(s);
+    }
+    final keys = byMonth.keys.toList()..sort((a, b) => b.compareTo(a));
+    return [
+      for (final k in keys)
+        _HistoryGroup.branch(
+          '${_monthFull[int.parse(k.split('-')[1])]} ${k.split('-')[0]}',
+          _weekGroups(byMonth[k]!),
+        ),
+    ];
+  }
+
+  // --- Detalle --------------------------------------------------------------
 
   void _showSessionDetail(WorkoutSession s) {
     final primary = Theme.of(context).colorScheme.primary;
+    final units = ref.read(unitsProvider);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -160,10 +253,29 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Align(
                     alignment: Alignment.centerLeft,
-                    child: Text(
-                      '${_fmtDate(s.startedAt)} · ${_fmtDuration(s)}'
-                          '${s.completed ? ' · completado' : ''}',
-                      style: TextStyle(color: Colors.grey.shade600),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 2,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        _DetailChip(
+                          icon: Icons.event,
+                          text: _fmtDate(s.startedAt),
+                        ),
+                        _DetailChip(
+                          icon: Icons.timer_outlined,
+                          text: _fmtDuration(s),
+                        ),
+                        _DetailChip(
+                          icon: s.completed
+                              ? Icons.check_circle
+                              : Icons.hourglass_empty,
+                          text: s.completed ? 'Completado' : 'En curso',
+                          color: s.completed
+                              ? AppSemanticColors.of(context).success
+                              : null,
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -176,13 +288,21 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
                       final e = s.exercises[i];
                       final done =
                           e.sets.where((set) => set.completed).length;
+                      final max = _maxWeight(e);
+                      final parts = <String>[
+                        e.muscleGroup.isEmpty ? 'Sin sector' : e.muscleGroup,
+                        '$done/${e.sets.length} series',
+                        if (max > 0)
+                          'Máx ${units.formatWeight(max, decimals: max == max.roundToDouble() ? 0 : 1)}',
+                      ];
                       return ListTile(
                         title: Text(e.exerciseName),
                         subtitle: Text(
                           e.notes.isNotEmpty
-                              ? '📝 ${e.notes}'
-                              : '${e.muscleGroup.isEmpty ? 'Ejercicio' : e.muscleGroup} · $done/${e.sets.length} series',
+                              ? '${parts.join(' · ')}\n📝 ${e.notes}'
+                              : parts.join(' · '),
                         ),
+                        isThreeLine: e.notes.isNotEmpty,
                         trailing: Icon(
                           done == e.sets.length && e.sets.isNotEmpty
                               ? Icons.check_circle
@@ -232,14 +352,7 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
 
         final sessions = historyAsync.valueOrNull ?? [];
         final completedCount = sessions.where((s) => s.completed).length;
-
-        final groups = <String, List<WorkoutSession>>{};
-        for (final s in sessions) {
-          final key =
-              '${s.startedAt.year}-${s.startedAt.month.toString().padLeft(2, '0')}';
-          groups.putIfAbsent(key, () => []).add(s);
-        }
-        final groupKeys = groups.keys.toList()..sort((a, b) => b.compareTo(a));
+        final groups = _buildGroups(sessions);
 
         return CustomScrollView(
           slivers: [
@@ -380,7 +493,7 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
               ),
             ),
 
-            // Historial header + periodos
+            // Historial header + rango
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -394,25 +507,13 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
                       ),
                     ),
                     const Spacer(),
-                    PeriodChip(
-                      label: '1M',
-                      selected: _periodDays == 30,
-                      onTap: () => setState(() => _periodDays = 30),
-                    ),
-                    PeriodChip(
-                      label: '3M',
-                      selected: _periodDays == 90,
-                      onTap: () => setState(() => _periodDays = 90),
-                    ),
-                    PeriodChip(
-                      label: '6M',
-                      selected: _periodDays == 180,
-                      onTap: () => setState(() => _periodDays = 180),
-                    ),
-                    PeriodChip(
-                      label: '1A',
-                      selected: _periodDays == 365,
-                      onTap: () => setState(() => _periodDays = 365),
+                    _RangeSelector(
+                      label: _periods
+                          .firstWhere((p) => p.$1 == _periodDays)
+                          .$2,
+                      periods: _periods,
+                      selected: _periodDays,
+                      onSelected: (v) => setState(() => _periodDays = v),
                     ),
                   ],
                 ),
@@ -451,33 +552,19 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
                 sliver: SliverList(
-                  delegate: SliverChildListDelegate([
-                    for (final key in groupKeys) ...[
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(6, 10, 6, 6),
-                        child: Text(
-                          '${_monthFull[int.parse(key.split('-')[1])]} '
-                          '${key.split('-')[0]}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.3,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, i) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _HistoryGroupTile(
+                        group: groups[i],
+                        initiallyExpanded: i == 0,
+                        fmtDate: _fmtDate,
+                        fmtDuration: _fmtDuration,
+                        onTapSession: _showSessionDetail,
                       ),
-                      for (final s in groups[key]!)
-                        SessionHistoryTile(
-                          day: s.startedAt.day.toString().padLeft(2, '0'),
-                          month: _monthAbbr[s.startedAt.month],
-                          title: s.title.isEmpty ? s.dayName : s.title,
-                          subtitle: '${_fmtDate(s.startedAt)} · '
-                              '${_fmtDuration(s)} · ${_setsLabel(s)}',
-                          completed: s.completed,
-                          onTap: () => _showSessionDetail(s),
-                        ),
-                    ],
-                  ]),
+                    ),
+                    childCount: groups.length,
+                  ),
                 ),
               ),
 
@@ -489,5 +576,174 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
   }
 }
 
+/// Chip pequeño con icono + texto para la cabecera del detalle.
+class _DetailChip extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final Color? color;
 
+  const _DetailChip({required this.icon, required this.text, this.color});
 
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? Colors.grey.shade600;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: c),
+        const SizedBox(width: 4),
+        Text(text, style: TextStyle(fontSize: 12, color: c)),
+      ],
+    );
+  }
+}
+
+/// Selector de rango desplegable (1 semana … 1 año).
+class _RangeSelector extends StatelessWidget {
+  final String label;
+  final List<(int, String)> periods;
+  final int selected;
+  final ValueChanged<int> onSelected;
+
+  const _RangeSelector({
+    required this.label,
+    required this.periods,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return PopupMenuButton<int>(
+      tooltip: 'Rango',
+      onSelected: onSelected,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      itemBuilder: (_) => [
+        for (final p in periods)
+          PopupMenuItem(
+            value: p.$1,
+            child: Row(
+              children: [
+                Icon(
+                  p.$1 == selected ? Icons.check : null,
+                  size: 18,
+                  color: primary,
+                ),
+                const SizedBox(width: 8),
+                Text(p.$2),
+              ],
+            ),
+          ),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: primary.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: primary,
+              ),
+            ),
+            Icon(Icons.expand_more, size: 16, color: primary),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Sección desplegable del historial con su rejilla de tarjetas o, si es una
+/// rama, con sus subsecciones (semanas dentro de un mes).
+class _HistoryGroupTile extends StatelessWidget {
+  final _HistoryGroup group;
+  final bool initiallyExpanded;
+  final String Function(DateTime) fmtDate;
+  final String Function(WorkoutSession) fmtDuration;
+  final void Function(WorkoutSession) onTapSession;
+
+  const _HistoryGroupTile({
+    required this.group,
+    required this.initiallyExpanded,
+    required this.fmtDate,
+    required this.fmtDuration,
+    required this.onTapSession,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark
+            ? Theme.of(context).colorScheme.surfaceContainerHighest
+                .withValues(alpha: 0.5)
+            : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: initiallyExpanded,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14),
+          childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+          title: Text(
+            group.title,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            group.count == 1 ? '1 sesión' : '${group.count} sesiones',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
+          children: [
+            if (group.isLeaf)
+              _sessionGrid(group.sessions)
+            else
+              for (final child in group.children)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _HistoryGroupTile(
+                    group: child,
+                    initiallyExpanded: false,
+                    fmtDate: fmtDate,
+                    fmtDuration: fmtDuration,
+                    onTapSession: onTapSession,
+                  ),
+                ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sessionGrid(List<WorkoutSession> sessions) {
+    return GridView.count(
+      crossAxisCount: 3,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 8,
+      crossAxisSpacing: 8,
+      childAspectRatio: 0.72,
+      children: [
+        for (final s in sessions)
+          WorkoutCard(
+            date: fmtDate(s.startedAt),
+            duration: fmtDuration(s),
+            completed: s.completed,
+            title: s.title.isEmpty ? s.dayName : s.title,
+            intensity: buildWorkoutShareData(s).bodyIntensity,
+            onTap: () => onTapSession(s),
+          ),
+      ],
+    );
+  }
+}
