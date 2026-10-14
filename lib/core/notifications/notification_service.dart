@@ -316,37 +316,70 @@ class NotificationService {
   }
 
   /// Programa el aviso de fin de descanso en [seconds] y muestra un contador
-  /// en vivo (cronómetro descendente de Android) mientras dura. El aviso de fin
-  /// se calendariza para que llegue aunque la app quede en segundo plano.
+  /// en vivo (cronómetro descendente de Android) mientras dura.
+  ///
+  /// El aviso de fin se agenda como alarma exacta (si el sistema lo permite)
+  /// para que suene aunque la app quede en segundo plano. El contador en vivo
+  /// se autodestruye al llegar a cero (`timeoutAfter`), así no queda en
+  /// números negativos.
   Future<void> showRestTimer(int seconds) async {
     try {
       if (!_ready) await init();
       final ends = DateTime.now().add(Duration(seconds: seconds));
       await _plugin.cancel(kRestDoneId);
-      await _plugin.zonedSchedule(
-        kRestDoneId,
-        'Descanso terminado ⏱️',
-        'Puedes con la siguiente serie.',
-        tz.TZDateTime.from(ends, tz.local),
-        _details(_Channel.rest,
-            importance: Importance.high, priority: Priority.high),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-      );
+      await _scheduleRestDone(ends);
       await _plugin.show(
         kRestTimerId,
-        'Descanso en curso',
-        'Termina en ${_humanSeconds(seconds)}',
-        _countdownDetails(ends),
+        'Descanso',
+        'Descansando… vuelve con la siguiente serie.',
+        _countdownDetails(ends, seconds),
       );
     } catch (e) {
       debugPrint('notifications: no se pudo programar el descanso: $e');
     }
   }
 
-  /// Contador en vivo: Android muestra un cronómetro descendente desde [ends].
-  NotificationDetails _countdownDetails(DateTime ends) {
+  /// Agenda el aviso de fin de descanso. Usa alarma exacta cuando el sistema
+  /// la permite (Android 13+ con USE_EXACT_ALARM); si no, cae a inexacta.
+  Future<void> _scheduleRestDone(DateTime ends) async {
+    final details = _details(_Channel.rest,
+        importance: Importance.high, priority: Priority.high);
+    final when = tz.TZDateTime.from(ends, tz.local);
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    final canExact = await android?.canScheduleExactNotifications() ?? false;
+    try {
+      await _plugin.zonedSchedule(
+        kRestDoneId,
+        'Descanso terminado ⏱️',
+        'Puedes con la siguiente serie.',
+        when,
+        details,
+        androidScheduleMode: canExact
+            ? AndroidScheduleMode.exactAllowWhileIdle
+            : AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    } catch (e) {
+      // Algunos equipos rechazan la alarma exacta: reintenta con inexacta.
+      debugPrint('notifications: alarma exacta no disponible ($e)');
+      await _plugin.zonedSchedule(
+        kRestDoneId,
+        'Descanso terminado ⏱️',
+        'Puedes con la siguiente serie.',
+        when,
+        details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    }
+  }
+
+  /// Contador en vivo: Android muestra un cronómetro descendente desde [ends]
+  /// y autodestruye la notificación al llegar a cero.
+  NotificationDetails _countdownDetails(DateTime ends, int seconds) {
     final (id, name) = _Channel.restCountdown;
     return NotificationDetails(
       android: AndroidNotificationDetails(
@@ -363,6 +396,7 @@ class NotificationService {
         usesChronometer: true,
         chronometerCountDown: true,
         when: ends.millisecondsSinceEpoch,
+        timeoutAfter: seconds * 1000,
       ),
       iOS: const DarwinNotificationDetails(),
     );
@@ -377,15 +411,6 @@ class NotificationService {
     } catch (_) {
       // Sin plugin: no hay nada que cancelar.
     }
-  }
-
-  static String _humanSeconds(int s) {
-    if (s >= 60) {
-      final m = s ~/ 60;
-      final r = s % 60;
-      return r == 0 ? '$m min' : '$m min $r s';
-    }
-    return '$s s';
   }
 
   Future<void> showInactivity(String body) async {
