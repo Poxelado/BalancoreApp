@@ -7,7 +7,14 @@ extension ProfileCustomRoutines on ProfileRepository {
   CollectionReference _customRoutines(String uid) =>
       _userDoc(uid).doc(uid).collection('customRoutines');
 
-  Future<List<CustomRoutine>> getCustomRoutines(String uid) async {
+  Future<List<CustomRoutine>> getCustomRoutines(String uid) => _cachedList(
+        'customRoutines:$uid',
+        fetch: () => _fetchCustomRoutines(uid),
+        encode: (r) => r.toMap(),
+        decode: CustomRoutine.fromMap,
+      );
+
+  Future<List<CustomRoutine>> _fetchCustomRoutines(String uid) async {
     final snap = await _customRoutines(uid).get();
     final list = <CustomRoutine>[];
     for (final d in snap.docs) {

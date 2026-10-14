@@ -2,7 +2,14 @@ part of 'profile_repository.dart';
 
 extension ProfileRoutines on ProfileRepository {
   // ─── Rutinas ────────────────────────────────────────────
-  Future<List<RoutineDay>> getRoutines(String uid) async {
+  Future<List<RoutineDay>> getRoutines(String uid) => _cachedList(
+        'routines:$uid',
+        fetch: () => _fetchRoutines(uid),
+        encode: (r) => r.toMap(),
+        decode: RoutineDay.fromMap,
+      );
+
+  Future<List<RoutineDay>> _fetchRoutines(String uid) async {
     final snap = await _userDoc(uid).doc(uid).collection('routines').get();
     if (snap.docs.isEmpty) {
       // Crear rutina por defecto (Lun-Dom)

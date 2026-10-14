@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../../../core/errors/app_exception.dart';
+import '../../../core/offline/local_cache.dart';
 import '../../../core/offline/offline_op.dart';
 import '../../../core/offline/offline_store.dart';
 import '../domain/user_profile.dart';
@@ -16,22 +19,35 @@ class ProfileRepository {
   ProfileRepository({
     FirebaseFirestore? db,
     OfflineStore? offline,
+    LocalCache? cache,
     bool Function()? isOnline,
   })  : _db = db ?? FirebaseFirestore.instance,
         _offline = offline ?? OfflineStore(),
+        _cache = cache ?? LocalCache(),
         _isOnline = isOnline;
 
   final FirebaseFirestore _db;
   final OfflineStore _offline;
+  final LocalCache _cache;
   final bool Function()? _isOnline;
 
   CollectionReference _userDoc(String uid) => _db.collection('users');
 
   // ─── Perfil ─────────────────────────────────────────────
   Future<UserProfile?> getProfile(String uid) async {
-    final doc = await _userDoc(uid).doc(uid).get();
-    if (!doc.exists || doc.data() == null) return null;
-    return UserProfile.fromMap(doc.data() as Map<String, dynamic>);
+    try {
+      final doc = await _userDoc(uid).doc(uid).get();
+      if (!doc.exists || doc.data() == null) return null;
+      final profile = UserProfile.fromMap(doc.data() as Map<String, dynamic>);
+      unawaited(_cache.save('profile:$uid', profile.toMap()));
+      return profile;
+    } catch (e) {
+      final cached = await _cache.read('profile:$uid');
+      if (cached is Map) {
+        return UserProfile.fromMap(Map<String, dynamic>.from(cached));
+      }
+      rethrow;
+    }
   }
 
   Future<void> saveProfile(UserProfile profile) async {

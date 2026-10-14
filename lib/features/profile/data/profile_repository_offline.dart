@@ -50,4 +50,36 @@ extension ProfileOffline on ProfileRepository {
       .where((o) => o.type == OfflineOpType.workoutSession && o.uid == uid)
       .map((o) => WorkoutSession.fromMap(o.payload))
       .toList();
+
+  /// Lee una lista de Firestore y guarda copia local; si la lectura falla
+  /// (sin conexión), devuelve la última copia buena.
+  Future<List<T>> _cachedList<T>(
+    String key, {
+    required Future<List<T>> Function() fetch,
+    required Map<String, dynamic> Function(T) encode,
+    required T Function(Map<String, dynamic>) decode,
+  }) async {
+    try {
+      final list = await fetch();
+      unawaited(_cache.save(key, list.map(encode).toList()));
+      return list;
+    } catch (e) {
+      final cached = await _cache.read(key);
+      if (cached is List) {
+        final out = <T>[];
+        for (final item in cached) {
+          if (item is Map) {
+            try {
+              out.add(decode(Map<String, dynamic>.from(item)));
+            } catch (_) {}
+          }
+        }
+        if (out.isNotEmpty || cached.isEmpty) {
+          debugPrint('cache: usando $key (${out.length})');
+          return out;
+        }
+      }
+      rethrow;
+    }
+  }
 }

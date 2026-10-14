@@ -51,13 +51,18 @@ extension ProfileWorkouts on ProfileRepository {
   }
 
   Future<WorkoutSession?> getActiveWorkoutSession(String uid) async {
-    final snap = await _userDoc(uid)
-        .doc(uid)
-        .collection('workoutSessions')
-        .where('completed', isEqualTo: false)
-        .limit(20)
-        .get();
-    final list = snap.docs.map(_sessionFromDoc).toList();
+    List<WorkoutSession> list;
+    try {
+      final snap = await _userDoc(uid)
+          .doc(uid)
+          .collection('workoutSessions')
+          .where('completed', isEqualTo: false)
+          .limit(20)
+          .get();
+      list = snap.docs.map(_sessionFromDoc).toList();
+    } catch (e) {
+      list = [];
+    }
     // Sumar las que están en la cola local sin subir.
     for (final p in _pendingSessions(uid)) {
       if (!p.completed) list.add(p);
@@ -108,13 +113,12 @@ extension ProfileWorkouts on ProfileRepository {
 
   Future<List<WorkoutSession>> getWorkoutHistory(String uid,
       {int limit = 30}) async {
-    final snap = await _userDoc(uid)
-        .doc(uid)
-        .collection('workoutSessions')
-        .orderBy('startedAt', descending: true)
-        .limit(limit)
-        .get();
-    final list = snap.docs.map(_sessionFromDoc).toList();
+    final list = await _cachedList(
+      'workoutHistory:$uid:$limit',
+      fetch: () => _fetchWorkoutHistory(uid, limit: limit),
+      encode: (s) => s.toMap(),
+      decode: WorkoutSession.fromMap,
+    );
     final byId = {for (final s in list) s.id: s};
     for (final p in _pendingSessions(uid)) {
       byId[p.id] = p;
@@ -125,6 +129,17 @@ extension ProfileWorkouts on ProfileRepository {
       return merged.sublist(0, limit);
     }
     return merged;
+  }
+
+  Future<List<WorkoutSession>> _fetchWorkoutHistory(String uid,
+      {int limit = 30}) async {
+    final snap = await _userDoc(uid)
+        .doc(uid)
+        .collection('workoutSessions')
+        .orderBy('startedAt', descending: true)
+        .limit(limit)
+        .get();
+    return snap.docs.map(_sessionFromDoc).toList();
   }
 
   /// Ajusta el nivel de actividad según los entrenos completados en los últimos

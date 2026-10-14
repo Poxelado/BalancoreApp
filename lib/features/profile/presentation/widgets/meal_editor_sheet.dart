@@ -421,21 +421,26 @@ Future<void> openMealEditor(
                           );
                         }
                         if (alsoSaveFood) {
-                          await repo.saveFood(
-                            user.uid,
-                            SavedFood(
-                              id: '',
-                              name: meal.name,
-                              calories: meal.calories,
-                              proteinGrams: meal.proteinGrams,
-                              carbsGrams: meal.carbsGrams,
-                              fatGrams: meal.fatGrams,
-                              portionGrams: meal.grams,
-                              servingLabel: meal.servingLabel,
-                              defaultMealType: meal.mealType,
-                            ),
-                          );
-                          ref.invalidate(savedFoodsProvider);
+                          try {
+                            await repo.saveFood(
+                              user.uid,
+                              SavedFood(
+                                id: '',
+                                name: meal.name,
+                                calories: meal.calories,
+                                proteinGrams: meal.proteinGrams,
+                                carbsGrams: meal.carbsGrams,
+                                fatGrams: meal.fatGrams,
+                                portionGrams: meal.grams,
+                                servingLabel: meal.servingLabel,
+                                defaultMealType: meal.mealType,
+                              ),
+                            );
+                            ref.invalidate(savedFoodsProvider);
+                          } catch (e) {
+                            debugPrint(
+                                'offline: alimento no guardado en biblioteca: $e');
+                          }
                         }
                       }
 

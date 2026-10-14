@@ -13,7 +13,16 @@ extension ProfileNutrition on ProfileRepository {
 
   Future<DailyLog> getTodayLog(String uid) async {
     final key = _todayKey();
-    final log = await _fetchLog(uid, key);
+    DailyLog log;
+    try {
+      log = await _fetchLog(uid, key);
+      unawaited(_cache.save('dailyLog:$uid:$key', log.toMap()));
+    } catch (e) {
+      final cached = await _cache.read('dailyLog:$uid:$key');
+      log = cached is Map
+          ? DailyLog.fromMap(Map<String, dynamic>.from(cached))
+          : DailyLog(date: key);
+    }
     return _overlayMeals(uid, key, log);
   }
 
@@ -222,7 +231,16 @@ extension ProfileNutrition on ProfileRepository {
   }
 
   /// Historial de los últimos N días (más reciente primero)
-  Future<List<DailyLog>> getDailyLogsHistory(String uid, {int days = 30}) async {
+  Future<List<DailyLog>> getDailyLogsHistory(String uid, {int days = 30}) =>
+      _cachedList(
+        'dailyLogsHistory:$uid:$days',
+        fetch: () => _fetchDailyLogsHistory(uid, days: days),
+        encode: (l) => l.toMap(),
+        decode: DailyLog.fromMap,
+      );
+
+  Future<List<DailyLog>> _fetchDailyLogsHistory(String uid,
+      {int days = 30}) async {
     final snap = await _userDoc(uid)
         .doc(uid)
         .collection('dailyLogs')
@@ -248,7 +266,14 @@ extension ProfileNutrition on ProfileRepository {
   CollectionReference _savedFoods(String uid) =>
       _userDoc(uid).doc(uid).collection('savedFoods');
 
-  Future<List<SavedFood>> getSavedFoods(String uid) async {
+  Future<List<SavedFood>> getSavedFoods(String uid) => _cachedList(
+        'savedFoods:$uid',
+        fetch: () => _fetchSavedFoods(uid),
+        encode: (f) => {...f.toMap(), 'id': f.id},
+        decode: (m) => SavedFood.fromMap(m['id']?.toString() ?? '', m),
+      );
+
+  Future<List<SavedFood>> _fetchSavedFoods(String uid) async {
     final snap = await _savedFoods(uid).get();
     final list = snap.docs
         .map((d) => SavedFood.fromMap(d.id, d.data() as Map<String, dynamic>))
@@ -303,7 +328,14 @@ extension ProfileNutrition on ProfileRepository {
   CollectionReference _savedRecipes(String uid) =>
       _userDoc(uid).doc(uid).collection('savedRecipes');
 
-  Future<List<SavedRecipe>> getSavedRecipes(String uid) async {
+  Future<List<SavedRecipe>> getSavedRecipes(String uid) => _cachedList(
+        'savedRecipes:$uid',
+        fetch: () => _fetchSavedRecipes(uid),
+        encode: (r) => {...r.toMap(), 'id': r.id},
+        decode: (m) => SavedRecipe.fromMap(m['id']?.toString() ?? '', m),
+      );
+
+  Future<List<SavedRecipe>> _fetchSavedRecipes(String uid) async {
     final snap = await _savedRecipes(uid).get();
     final list = snap.docs
         .map((d) => SavedRecipe.fromMap(
