@@ -13,6 +13,7 @@ import 'package:balancore/features/profile/domain/user_profile.dart';
 import 'package:balancore/features/profile/presentation/providers/profile_provider.dart';
 import 'package:balancore/features/training/presentation/screens/workout_session_screen.dart';
 import 'package:balancore/features/training/presentation/screens/workout_summary_screen.dart';
+import 'package:balancore/features/training/domain/session_stats.dart';
 import 'package:balancore/features/training/presentation/widgets/session_plates_sheet.dart';
 import 'package:balancore/features/training/presentation/widgets/session_widgets.dart';
 
@@ -668,7 +669,7 @@ testWidgets('borrar una serie la elimina de la sesión y renumera',
     await _unmount(tester);
   });
 
-  testWidgets('el resumen desglosa los ejercicios y sus series',
+  testWidgets('el resumen muestra el carrusel de tarjetas para compartir',
       (WidgetTester tester) async {
     await _openScreen(tester, container);
     await _flush(tester);
@@ -694,12 +695,54 @@ testWidgets('borrar una serie la elimina de la sesión y renumera',
     await tester.pump(const Duration(milliseconds: 400));
     await _flush(tester);
 
-    // El resumen lista el desglose por ejercicio con sus series.
-    expect(find.text('Ejercicios'), findsOneWidget);
+    // Primer cuadro: mapa de músculos y lista de ejercicios "N× nombre".
+    expect(find.byType(WorkoutSummaryScreen), findsOneWidget);
+    expect(find.text('Resumen'), findsOneWidget);
+    expect(find.text('Músculos trabajados'), findsOneWidget);
     expect(find.text('Press Banca'), findsWidgets);
-    expect(find.textContaining('80 kg'), findsWidgets);
-    expect(find.byIcon(Icons.check_circle), findsWidgets);
+    expect(find.text('1×'), findsWidgets);
+
+    // Opciones de compartir/estilo debajo del carrusel.
+    expect(find.text('Estilo'), findsOneWidget);
+    expect(find.text('Compartir'), findsOneWidget);
+    expect(find.byTooltip('Guardar en galería'), findsOneWidget);
+
+    // Deslizar al segundo cuadro (rutina + métricas).
+    await tester.drag(find.byType(PageView), const Offset(-500, 0));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('RUTINA'), findsOneWidget);
+    expect(find.text('Lunes'), findsWidgets);
+
     expect(find.text('Listo'), findsOneWidget);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('el carrusel se desliza por los seis cuadros sin desbordar',
+      (WidgetTester tester) async {
+    final session = _previousSession();
+    await _openWidget(
+      tester,
+      container,
+      WorkoutSummaryScreen(
+        stats: computeSessionStats(session, const []),
+        session: session,
+      ),
+    );
+    await _flush(tester);
+
+    expect(find.text('Músculos trabajados'), findsOneWidget);
+    for (var i = 0; i < 5; i++) {
+      await tester.drag(find.byType(PageView), const Offset(-500, 0));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
+    // Último cuadro: métricas + ejercicios con número de series.
+    expect(find.text('Ejercicios'), findsOneWidget);
+    expect(find.text('2 series'), findsWidgets);
+    expect(tester.takeException(), isNull);
 
     await _unmount(tester);
   });

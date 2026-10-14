@@ -1,22 +1,110 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gal/gal.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../domain/personal_records.dart';
 import '../../domain/session_stats.dart';
+import '../../domain/workout_share_metrics.dart';
 import '../../../profile/domain/user_profile.dart';
-import '../widgets/exercise_list_widgets.dart';
+import '../../../profile/presentation/providers/profile_provider.dart';
+import '../widgets/muscle_body_map.dart';
+import '../../../../core/preferences/units_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 
-/// Resumen de una sesión recién terminada: qué se hizo (con el detalle de
-/// series por ejercicio), cómo se comparó con la sesión anterior y qué
-/// récords se batieron.
-class WorkoutSummaryScreen extends StatelessWidget {
+/// Estilo (marco/fondo) de una tarjeta para compartir.
+class ShareCardStyle {
+  final String name;
+  final List<Color> colors;
+  final Color on;
+  final Color muted;
+  final Color accent;
+  final Color chip;
+
+  const ShareCardStyle({
+    required this.name,
+    required this.colors,
+    required this.on,
+    required this.muted,
+    required this.accent,
+    required this.chip,
+  });
+}
+
+const shareCardStyles = <ShareCardStyle>[
+  ShareCardStyle(
+    name: 'Aurora',
+    colors: [Color(0xFF1F1147), Color(0xFF4527A0), Color(0xFF7C4DFF)],
+    on: Colors.white,
+    muted: Color(0xB3FFFFFF),
+    accent: Color(0xFFB388FF),
+    chip: Color(0x1FFFFFFF),
+  ),
+  ShareCardStyle(
+    name: 'Fuego',
+    colors: [Color(0xFF3E1103), Color(0xFFB71C1C), Color(0xFFFF6D00)],
+    on: Colors.white,
+    muted: Color(0xB3FFFFFF),
+    accent: Color(0xFFFFD54F),
+    chip: Color(0x1FFFFFFF),
+  ),
+  ShareCardStyle(
+    name: 'Océano',
+    colors: [Color(0xFF041C3B), Color(0xFF0D47A1), Color(0xFF00BCD4)],
+    on: Colors.white,
+    muted: Color(0xB3FFFFFF),
+    accent: Color(0xFF4DD0E1),
+    chip: Color(0x1FFFFFFF),
+  ),
+  ShareCardStyle(
+    name: 'Menta',
+    colors: [Color(0xFF06251C), Color(0xFF00695C), Color(0xFF26A69A)],
+    on: Colors.white,
+    muted: Color(0xB3FFFFFF),
+    accent: Color(0xFF80CBC4),
+    chip: Color(0x1FFFFFFF),
+  ),
+  ShareCardStyle(
+    name: 'Atardecer',
+    colors: [Color(0xFF3A0B2E), Color(0xFFAD1457), Color(0xFFFF8A65)],
+    on: Colors.white,
+    muted: Color(0xB3FFFFFF),
+    accent: Color(0xFFFFAB91),
+    chip: Color(0x1FFFFFFF),
+  ),
+  ShareCardStyle(
+    name: 'Noche',
+    colors: [Color(0xFF0B0B0F), Color(0xFF1C1C24), Color(0xFF2A2A38)],
+    on: Colors.white,
+    muted: Color(0xB3FFFFFF),
+    accent: Color(0xFF90CAF9),
+    chip: Color(0x1FFFFFFF),
+  ),
+  ShareCardStyle(
+    name: 'Claro',
+    colors: [Color(0xFFF6F7FB), Color(0xFFE7EAF4), Color(0xFFD5DAEC)],
+    on: Color(0xFF14161C),
+    muted: Color(0x99000000),
+    accent: Color(0xFF5C6BC0),
+    chip: Color(0x0F000000),
+  ),
+];
+
+/// Resumen de una sesión recién terminada, en formato carrusel tipo Hevy: seis
+/// tarjetas para compartir (mapa de músculos, radar, métricas, dato divertido)
+/// con opciones de estilo, compartir y guardar.
+class WorkoutSummaryScreen extends ConsumerStatefulWidget {
   final SessionStats stats;
   final List<PersonalRecord> records;
   final String title;
   final int calories;
-
-  /// Sesión completada, para el desglose ejercicio por ejercicio. Opcional.
   final WorkoutSession? session;
 
   const WorkoutSummaryScreen({
@@ -28,45 +116,749 @@ class WorkoutSummaryScreen extends StatelessWidget {
     this.session,
   });
 
-  static const _weekdays = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
-  static const _months = [
-    'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-    'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
-  ];
+  @override
+  ConsumerState<WorkoutSummaryScreen> createState() =>
+      _WorkoutSummaryScreenState();
+}
 
-  static String _fmtDate(DateTime d) {
-    final wd = _weekdays[d.weekday - 1];
-    final mo = _months[d.month - 1];
-    final hh = d.hour.toString().padLeft(2, '0');
-    final mm = d.minute.toString().padLeft(2, '0');
-    return '$wd ${d.day} $mo · $hh:$mm';
+class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
+  static const _cardCount = 6;
+
+  final _pageController = PageController();
+  final _cardKeys = List.generate(_cardCount, (_) => GlobalKey());
+  int _page = 0;
+  int _styleIndex = 0;
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
-  Color _colorFor(BuildContext context, int i) {
-    final s = Theme.of(context).colorScheme;
-    final sem = AppSemanticColors.of(context);
-    final palette = [
-      s.primary,
-      sem.info,
-      sem.success,
-      sem.warning,
-      s.secondary,
-      sem.rest,
-      s.tertiary,
-      s.primaryContainer,
+  WorkoutShareData get _data =>
+      buildWorkoutShareData(widget.session ?? _emptySession());
+
+  WorkoutSession _emptySession() => WorkoutSession(
+        id: 'empty',
+        dayName: '',
+        title: '',
+        startedAt: DateTime.now(),
+        exercises: const [],
+      );
+
+  ShareCardStyle get _style => shareCardStyles[_styleIndex];
+
+  String get _username {
+    final profile = ref.watch(userProfileProvider).value;
+    final name = profile?.username?.trim();
+    if (name != null && name.isNotEmpty) return name;
+    return 'atleta';
+  }
+
+  Future<void> _captureAndShare() async {
+    final bytes = await _captureCurrent();
+    if (bytes == null) return;
+    try {
+      final dir = await getTemporaryDirectory();
+      final file = File(
+          '${dir.path}/balancore_${DateTime.now().millisecondsSinceEpoch}.png');
+      await file.writeAsBytes(bytes);
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'mira mi entrenamiento en balancore',
+      );
+    } catch (e) {
+      _snack('No se pudo compartir: $e');
+    }
+  }
+
+  Future<void> _captureAndSave() async {
+    setState(() => _busy = true);
+    try {
+      final bytes = await _captureCurrent();
+      if (bytes == null) return;
+      if (!await Gal.hasAccess()) await Gal.requestAccess();
+      await Gal.putImageBytes(
+        bytes,
+        name: 'balancore_${DateTime.now().millisecondsSinceEpoch}',
+      );
+      _snack('Imagen guardada en tu galería');
+    } catch (e) {
+      _snack('No se pudo guardar: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<Uint8List?> _captureCurrent() async {
+    final ctx = _cardKeys[_page].currentContext;
+    final boundary = ctx?.findRenderObject() as RenderRepaintBoundary?;
+    if (boundary == null) return null;
+    final image = await boundary.toImage(pixelRatio: 3.0);
+    final data = await image.toByteData(format: ui.ImageByteFormat.png);
+    return data?.buffer.asUint8List();
+  }
+
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  void _openStyles() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Marco y color',
+                  style:
+                      TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  for (var i = 0; i < shareCardStyles.length; i++)
+                    GestureDetector(
+                      onTap: () {
+                        setState(() => _styleIndex = i);
+                        setSheet(() {});
+                      },
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: shareCardStyles[i].colors,
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: i == _styleIndex
+                                    ? accentOf(context)
+                                    : Colors.transparent,
+                                width: 3,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(shareCardStyles[i].name,
+                              style: const TextStyle(fontSize: 11)),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final data = _data;
+    final style = _style;
+    final units = ref.watch(unitsProvider);
+    final profile = ref.watch(userProfileProvider).value;
+    final bodyWeight = profile?.currentWeight ?? 0;
+    final username = _username;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Resumen')),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                onPageChanged: (i) => setState(() => _page = i),
+                children: [
+                  _card(0, _musclesCard(data, style, username)),
+                  _card(1, _radarCard(data, style, username, units)),
+                  _card(2, _routineCard(data, style, username, units)),
+                  _card(3, _funCard(data, style, username, units, bodyWeight)),
+                  _card(4, _bigMetricsCard(data, style, username, units)),
+                  _card(5, _metricsExercisesCard(data, style, username, units)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            _dots(),
+            const SizedBox(height: 10),
+            _actions(context),
+          ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+          child: FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Listo'),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _card(int i, Widget child) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        child: Center(
+          child: RepaintBoundary(
+            key: _cardKeys[i],
+            child: AspectRatio(
+              aspectRatio: 4 / 5,
+              child: child,
+            ),
+          ),
+        ),
+      );
+
+  Widget _dots() => Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (var i = 0; i < _cardCount; i++)
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: i == _page ? 20 : 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: i == _page
+                    ? accentOf(context)
+                    : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+        ],
+      );
+
+  Widget _actions(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: [
+            OutlinedButton.icon(
+              onPressed: _openStyles,
+              icon: const Icon(Icons.palette_outlined, size: 18),
+              label: const Text('Estilo'),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: _busy ? null : _captureAndShare,
+                icon: const Icon(Icons.ios_share, size: 18),
+                label: const Text('Compartir'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton.filledTonal(
+              onPressed: _busy ? null : _captureAndSave,
+              tooltip: 'Guardar en galería',
+              icon: _busy
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.download_outlined, size: 20),
+            ),
+          ],
+        ),
+      );
+
+  // ---------------------------------------------------------------------------
+  // Tarjetas
+  // ---------------------------------------------------------------------------
+
+  Widget _musclesCard(WorkoutShareData data, ShareCardStyle style, String user) {
+    return _frame(
+      style,
+      user,
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _cardTitle('Músculos trabajados', style),
+          const SizedBox(height: 12),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 4,
+                  child: MuscleBodyMap(
+                    intensity: data.bodyIntensity,
+                    base: style.on.withValues(alpha: 0.12),
+                    trained: style.accent,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 5,
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final line in data.exerciseLines)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${line.sets}×',
+                                  style: TextStyle(
+                                    color: style.accent,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    line.name,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: style.on,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _radarCard(
+      WorkoutShareData data, ShareCardStyle style, String user, UnitSystem units) {
+    return _frame(
+      style,
+      user,
+      Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _metric(style, Icons.timer_outlined, 'Tiempo',
+                    _fmtDuration(data.durationSeconds)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _metric(style, Icons.fitness_center, 'Volumen',
+                    _fmtVolume(data.volumeKg, units)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _metric(style, Icons.check_circle_outline, 'Series',
+                    '${data.completedSets}/${data.totalSets}'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Expanded(child: _radar(data, style)),
+        ],
+      ),
+    );
+  }
+
+  Widget _radar(WorkoutShareData data, ShareCardStyle style) {
+    final values = [
+      for (final g in radarGroups) (data.volumeByGroup[g] ?? 0),
     ];
-    return palette[i % palette.length];
+    final maxV = values.fold<double>(0, (a, b) => a > b ? a : b);
+    final normalized =
+        maxV <= 0 ? List<double>.filled(radarGroups.length, 0) : [
+      for (final v in values) (v / maxV).clamp(0.08, 1.0),
+    ];
+
+    return RadarChart(
+      RadarChartData(
+        radarShape: RadarShape.polygon,
+        radarBackgroundColor: Colors.transparent,
+        borderData: FlBorderData(show: false),
+        radarBorderData: BorderSide(color: style.on.withValues(alpha: 0.25)),
+        gridBorderData:
+            BorderSide(color: style.on.withValues(alpha: 0.15), width: 1),
+        tickBorderData:
+            BorderSide(color: style.on.withValues(alpha: 0.12), width: 1),
+        ticksTextStyle: const TextStyle(color: Colors.transparent, fontSize: 0),
+        tickCount: 4,
+        titleTextStyle:
+            TextStyle(color: style.on, fontSize: 11, fontWeight: FontWeight.w600),
+        titlePositionPercentageOffset: 0.14,
+        getTitle: (index, angle) =>
+            RadarChartTitle(text: radarGroups[index], angle: 0),
+        dataSets: [
+          RadarDataSet(
+            fillColor: style.accent.withValues(alpha: 0.28),
+            borderColor: style.accent,
+            borderWidth: 2,
+            entryRadius: 3,
+            dataEntries: [
+              for (final v in normalized) RadarEntry(value: v),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
-  static Color _setColor(BuildContext context, SetType type) {
-    final s = Theme.of(context).colorScheme;
-    final sem = AppSemanticColors.of(context);
-    return switch (type) {
-      SetType.normal => s.primary,
-      SetType.warmup => sem.info,
-      SetType.dropset => sem.warning,
-      SetType.failure => s.error,
-    };
+  Widget _routineCard(
+      WorkoutShareData data, ShareCardStyle style, String user, UnitSystem units) {
+    final routine = data.session.dayName.trim().isNotEmpty
+        ? data.session.dayName.trim()
+        : data.session.title.trim();
+    return _frame(
+      style,
+      user,
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text('RUTINA',
+              style: TextStyle(
+                color: style.accent,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2,
+              )),
+          const SizedBox(height: 6),
+          Text(
+            routine.isEmpty ? 'Entrenamiento libre' : routine,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: style.on,
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: _metric(style, Icons.timer_outlined, 'Duración',
+                    _fmtDuration(data.durationSeconds)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _metric(style, Icons.fitness_center, 'Volumen',
+                    _fmtVolume(data.volumeKg, units)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _metric(style, Icons.list_alt, 'Ejercicios',
+                    '${data.exerciseCount}'),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _metric(style, Icons.check_circle_outline, 'Series',
+                    '${data.completedSets}/${data.totalSets}'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _funCard(WorkoutShareData data, ShareCardStyle style, String user,
+      UnitSystem units, double bodyWeight) {
+    final eq = equivalenceFor(data.volumeKg);
+    final count = eq.count.round();
+    final comparison = '${count > 1 ? '$count× ' : ''}${eq.item}';
+    return _frame(
+      style,
+      user,
+      Center(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.6, end: 1.25),
+                duration: const Duration(milliseconds: 700),
+                curve: Curves.elasticOut,
+                builder: (_, s, child) =>
+                    Transform.scale(scale: s, child: child),
+                child: Text(eq.emoji, style: const TextStyle(fontSize: 64)),
+              ),
+              const SizedBox(height: 10),
+              Text('Has levantado',
+                  style: TextStyle(color: style.muted, fontSize: 15)),
+              const SizedBox(height: 2),
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: data.volumeValue),
+                duration: const Duration(milliseconds: 900),
+                curve: Curves.easeOutCubic,
+                builder: (_, v, __) => Text(
+                  data.volumeKg > 0 ? _fmtVolume(v, units) : '${v.round()}',
+                  style: TextStyle(
+                    color: style.on,
+                    fontSize: 40,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text('el equivalente a',
+                  style: TextStyle(color: style.muted, fontSize: 15)),
+              Text(
+                comparison,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: style.accent,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (bodyWeight > 0 && data.volumeKg > 0) ...[
+                const SizedBox(height: 14),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: style.chip,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '= ${(data.volumeKg / bodyWeight).toStringAsFixed(0)}× tu peso corporal',
+                    style: TextStyle(color: style.on, fontSize: 13),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _bigMetricsCard(
+      WorkoutShareData data, ShareCardStyle style, String user, UnitSystem units) {
+    return _frame(
+      style,
+      user,
+      Center(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _bigMetric(style, Icons.timer_outlined, 'Duración',
+                  _fmtDuration(data.durationSeconds)),
+              const SizedBox(height: 22),
+              _bigMetric(style, Icons.fitness_center, 'Volumen',
+                  _fmtVolume(data.volumeKg, units)),
+              const SizedBox(height: 22),
+              _bigMetric(style, Icons.check_circle_outline, 'Series',
+                  '${data.completedSets}/${data.totalSets}'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _metricsExercisesCard(
+      WorkoutShareData data, ShareCardStyle style, String user, UnitSystem units) {
+    return _frame(
+      style,
+      user,
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _metric(style, Icons.timer_outlined, 'Duración',
+                    _fmtDuration(data.durationSeconds)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _metric(style, Icons.fitness_center, 'Volumen',
+                    _fmtVolume(data.volumeKg, units)),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _metric(style, Icons.check_circle_outline, 'Series',
+                    '${data.completedSets}/${data.totalSets}'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.only(left: 2, bottom: 8),
+            child: Text('Ejercicios',
+                style: TextStyle(
+                  color: style.on,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                )),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                children: [
+                  for (final line in data.exerciseLines)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              line.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: style.on, fontSize: 14),
+                            ),
+                          ),
+                          Text('${line.sets} series',
+                              style: TextStyle(
+                                color: style.accent,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              )),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Piezas compartidas
+  // ---------------------------------------------------------------------------
+
+  Widget _frame(ShareCardStyle style, String username, Widget child) => Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: style.colors,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(28),
+        ),
+        padding: const EdgeInsets.fromLTRB(22, 22, 22, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: child),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.fitness_center, size: 16, color: style.accent),
+                const SizedBox(width: 6),
+                Text('Balancore',
+                    style: TextStyle(
+                      color: style.on,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    )),
+                const Spacer(),
+                Text('@$username',
+                    style: TextStyle(color: style.muted, fontSize: 13)),
+              ],
+            ),
+          ],
+        ),
+      );
+
+  Widget _cardTitle(String text, ShareCardStyle style) => Text(
+        text,
+        style: TextStyle(
+          color: style.on,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+
+  Widget _metric(
+      ShareCardStyle style, IconData icon, String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      decoration: BoxDecoration(
+        color: style.chip,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 18, color: style.accent),
+          const SizedBox(height: 4),
+          FittedBox(
+            child: Text(value,
+                style: TextStyle(
+                  color: style.on,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                )),
+          ),
+          Text(label,
+              style: TextStyle(color: style.muted, fontSize: 10)),
+        ],
+      ),
+    );
+  }
+
+  Widget _bigMetric(
+      ShareCardStyle style, IconData icon, String label, String value) {
+    return Column(
+      children: [
+        Icon(icon, size: 30, color: style.accent),
+        const SizedBox(height: 8),
+        FittedBox(
+          child: Text(value,
+              style: TextStyle(
+                color: style.on,
+                fontSize: 44,
+                fontWeight: FontWeight.bold,
+              )),
+        ),
+        Text(label,
+            style: TextStyle(
+              color: style.muted,
+              fontSize: 14,
+              letterSpacing: 1,
+            )),
+      ],
+    );
   }
 
   static String _fmtDuration(int sec) {
@@ -78,560 +870,13 @@ class WorkoutSummaryScreen extends StatelessWidget {
     return '${s}s';
   }
 
-  static String _fmtKg(double v) {
-    if (v >= 1000) return '${(v / 1000).toStringAsFixed(1)} t';
-    if (v == v.roundToDouble()) return '${v.toInt()}';
-    return v.toStringAsFixed(1);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final accent = accentOf(context);
-    final session = this.session;
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Resumen')),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          children: [
-            _header(context),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: _stat(
-                    icon: Icons.timer_outlined,
-                    label: 'Duración',
-                    value: _fmtDuration(stats.durationSeconds),
-                    primary: accent,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _stat(
-                    icon: Icons.check_circle_outline,
-                    label: 'Series',
-                    value: '${stats.completedSets}/${stats.totalSets}',
-                    primary: accent,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _stat(
-                    icon: Icons.fitness_center,
-                    label: 'Volumen',
-                    value: '${_fmtKg(stats.totalVolume)} kg',
-                    primary: accent,
-                  ),
-                ),
-              ],
-            ),
-            if (stats.hasPrevious) ...[
-              const SizedBox(height: 10),
-              _comparison(context, accent),
-            ],
-            if (calories > 0) ...[
-              const SizedBox(height: 10),
-              _caloriesCard(),
-            ],
-            if (session != null && session.exercises.isNotEmpty) ...[
-              const SizedBox(height: 18),
-              _sectionTitle('Ejercicios', Icons.list_alt, accent),
-              const SizedBox(height: 8),
-              for (final ex in session.exercises) _exerciseCard(context, ex),
-            ],
-            if (records.isNotEmpty) ...[
-              const SizedBox(height: 18),
-              _sectionTitle('Récords personales', Icons.emoji_events, accent),
-              const SizedBox(height: 8),
-              for (final r in records) _recordRow(r),
-            ],
-            if (stats.volumeByMuscle.isNotEmpty) ...[
-              const SizedBox(height: 18),
-              _sectionTitle(
-                  'Distribución por músculo', Icons.donut_large, accent),
-              const SizedBox(height: 8),
-              _muscleDonut(context),
-            ],
-          ],
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: FilledButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Listo'),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _header(BuildContext context) {
-    final accent = accentOf(context);
-    final started = session?.startedAt;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: accent.withValues(alpha: 0.25)),
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.emoji_events_rounded, size: 42, color: accent),
-          const SizedBox(height: 10),
-          Text(
-            '¡$title! 🎉',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-              color: accent,
-            ),
-          ),
-          if (started != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              _fmtDate(started),
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _caloriesCard() => Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppDataColors.calories.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: AppDataColors.calories.withValues(alpha: 0.35),
-          ),
-        ),
-        child: Row(
-          children: [
-            const CircleAvatar(
-              backgroundColor: Color(0x22FF9800),
-              child: Icon(
-                Icons.local_fire_department,
-                color: AppDataColors.calories,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Gasto estimado',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppDataColors.calories,
-                    ),
-                  ),
-                  Text(
-                    '≈ $calories kcal',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    'Sumado a tu gasto de hoy',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-
-  Widget _exerciseCard(BuildContext context, WorkoutExerciseLog ex) {
-    final key = ex.exerciseId.isNotEmpty ? ex.exerciseId : ex.exerciseName;
-    final recCount = records
-        .where((r) =>
-            (r.exerciseId.isNotEmpty ? r.exerciseId : r.exerciseName) == key)
-        .length;
-    final doneSets = ex.sets.where((s) => s.completed).length;
-    final meta = [
-      if (ex.muscleGroup.trim().isNotEmpty) ex.muscleGroup.trim(),
-      '$doneSets/${ex.sets.length} series',
-      if (ex.rpe != null) 'RPE ${ex.rpe}',
-    ].join(' · ');
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.25)),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
-            child: Row(
-              children: [
-                ExerciseThumb(
-                    exerciseId: ex.exerciseId, size: 40, circular: true),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        ex.exerciseName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        meta,
-                        style: TextStyle(
-                            fontSize: 11, color: Colors.grey.shade600),
-                      ),
-                    ],
-                  ),
-                ),
-                if (recCount > 0)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppDataColors.gold.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.emoji_events,
-                            size: 13, color: AppDataColors.gold),
-                        const SizedBox(width: 4),
-                        Text(
-                          '$recCount',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: AppDataColors.gold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Divider(height: 1, color: Colors.grey.withValues(alpha: 0.2)),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-            child: Column(
-              children: [for (final s in ex.sets) _setRow(context, s)],
-            ),
-          ),
-          if (ex.notes.trim().isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.sticky_note_2_outlined,
-                      size: 15, color: Colors.grey.shade500),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      ex.notes.trim(),
-                      style: TextStyle(
-                          fontSize: 12, color: Colors.grey.shade700),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _setRow(BuildContext context, WorkoutSetLog s) {
-    final color = _setColor(context, s.type);
-    final sem = AppSemanticColors.of(context);
-    final grey = Colors.grey.shade600;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Container(
-            width: 24,
-            height: 24,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              '${s.setNumber}',
-              style: TextStyle(
-                  fontSize: 11, fontWeight: FontWeight.bold, color: color),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 4,
-              runSpacing: 2,
-              children: [
-                Text(
-                  s.weight > 0 ? '${_fmtKg(s.weight)} kg' : 'Corporal',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: s.completed ? null : grey,
-                  ),
-                ),
-                if (s.reps > 0) ...[
-                  Text('×', style: TextStyle(color: grey)),
-                  Text(
-                    '${s.reps}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: s.completed ? null : grey,
-                    ),
-                  ),
-                  Text('reps', style: TextStyle(fontSize: 11, color: grey)),
-                ],
-                if (s.type != SetType.normal)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      s.type.label,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: color,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          if (s.note.trim().isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: Icon(Icons.sticky_note_2_outlined,
-                  size: 15, color: Colors.grey.shade500),
-            ),
-          Icon(
-            s.completed ? Icons.check_circle : Icons.radio_button_unchecked,
-            size: 18,
-            color: s.completed ? sem.success : Colors.grey.shade400,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _recordRow(PersonalRecord r) => Container(
-        margin: const EdgeInsets.only(bottom: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppDataColors.gold.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppDataColors.gold.withValues(alpha: 0.5)),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.emoji_events, color: AppDataColors.gold, size: 18),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                '${r.exerciseName} · ${r.label}',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-            Text(
-              _fmtKg(r.value),
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: AppDataColors.gold,
-              ),
-            ),
-          ],
-        ),
-      );
-
-  Widget _sectionTitle(String text, IconData icon, Color primary) => Row(
-        children: [
-          Icon(icon, size: 18, color: primary),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
-          ),
-        ],
-      );
-
-  Widget _stat({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color primary,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.25)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 20, color: primary),
-          const SizedBox(height: 6),
-          FittedBox(
-            child: Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(label,
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-        ],
-      ),
-    );
-  }
-
-  Widget _comparison(BuildContext context, Color primary) {
-    final delta = stats.volumeDelta ?? 0;
-    final up = stats.volumeImproved;
-    final pct = stats.volumeDeltaPercent;
-    final sem = AppSemanticColors.of(context);
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: (up ? sem.success : sem.warning).withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            up ? Icons.trending_up : Icons.trending_down,
-            color: up ? sem.success : sem.warning,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              up
-                  ? 'Mejor que la sesión anterior'
-                  : 'Por debajo de la sesión anterior',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
-          Text(
-            '${up ? '+' : ''}${_fmtKg(delta.abs())} kg'
-            '${pct == null ? '' : ' (${pct.abs().toStringAsFixed(0)}%)'}',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: up ? sem.success : sem.warning,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _muscleDonut(BuildContext context) {
-    final entries = stats.volumeByMuscle.entries.toList();
-    // Con muchos grupos, el donut se vuelve ilegible: se agrupa la cola.
-    final shown = entries.take(5).toList();
-    final restTotal = entries.length > 5
-        ? entries.skip(5).fold<double>(0, (s, e) => s + e.value)
-        : 0.0;
-    final slices = <({String label, double value, Color color})>[
-      for (var i = 0; i < shown.length; i++)
-        (label: shown[i].key, value: shown[i].value, color: _colorFor(context, i)),
-      if (restTotal > 0)
-        (label: 'Otros', value: restTotal, color: _colorFor(context, shown.length)),
-    ];
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 130,
-            height: 130,
-            child: Semantics(
-              label: 'Distribución de series por grupo muscular',
-              child: PieChart(
-                PieChartData(
-                  sectionsSpace: 2,
-                  centerSpaceRadius: 34,
-                  sections: [
-                    for (final s in slices)
-                      PieChartSectionData(
-                        value: s.value,
-                        color: s.color,
-                        radius: 34,
-                        showTitle: false,
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final s in slices)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            color: s.color,
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(s.label,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 12)),
-                        ),
-                        Text('${_fmtKg(s.value)} kg',
-                            style: const TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+  static String _fmtVolume(double kg, UnitSystem units) {
+    final v = units.weightToDisplay(kg);
+    final rounded = v.round();
+    final s = rounded.toString().replaceAllMapped(
+          RegExp(r'(\d)(?=(\d{3})+$)'),
+          (m) => '${m[1]}.',
+        );
+    return '$s ${units.weightUnit}';
   }
 }
