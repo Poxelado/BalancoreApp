@@ -27,6 +27,7 @@ dependencies:
   google_sign_in: ^6.2.2
   cloud_firestore: ^5.5.1
   audioplayers: ^6.8.1
+  pedometer: ^4.2.0
 
 dev_dependencies:
   flutter_test:

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/preferences/units_provider.dart';
+import '../../../../core/steps/step_counter.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../domain/user_profile.dart';
@@ -16,6 +17,7 @@ import 'edit_profile_screen.dart';
 import 'help_screen.dart';
 import 'legal_screen.dart';
 import 'notification_settings_screen.dart';
+import 'step_counter_settings_screen.dart';
 import 'theme_settings_screen.dart';
 import 'units_settings_screen.dart';
 
@@ -150,6 +152,14 @@ class SettingsScreen extends ConsumerWidget {
                 title: 'Unidades',
                 subtitle: '${units.label} · ${units.shortLabel}',
                 onTap: () => push(const UnitsSettingsScreen()),
+              ),
+              SettingsTile(
+                icon: Icons.directions_walk,
+                title: 'Contador de pasos',
+                subtitle: ref.watch(stepCounterProvider).enabled
+                    ? 'Activado · suma kcal al día'
+                    : 'Desactivado · opcional',
+                onTap: () => push(const StepCounterSettingsScreen()),
               ),
               SettingsTile(
                 icon: Icons.auto_awesome_outlined,

@@ -277,6 +277,45 @@ void main() {
       expect(log.meals.length, 2);
     });
 
+    test('conserva exerciseCalories y steps en toMap/fromMap', () {
+      final log = DailyLog(
+        date: '2026-10-10',
+        exerciseCalories: 320,
+        steps: 8450,
+      );
+      final restored = DailyLog.fromMap(log.toMap());
+      expect(restored.exerciseCalories, 320);
+      expect(restored.steps, 8450);
+    });
+
+    test('exerciseCalories y steps por defecto son 0 (retrocompatible)', () {
+      final restored = DailyLog.fromMap({'date': '2026-10-10'});
+      expect(restored.exerciseCalories, 0);
+      expect(restored.steps, 0);
+    });
+
+    test('recalcula totales desde comidas y conserva extras', () {
+      final restored = DailyLog.fromMap({
+        'date': '2026-10-10',
+        'exerciseCalories': 250,
+        'steps': 3000,
+        'meals': [
+          {
+            'id': 'm1',
+            'name': 'Avena',
+            'mealType': 'Desayuno',
+            'calories': 300,
+            'proteinGrams': 15,
+            'carbsGrams': 40,
+            'fatGrams': 8,
+          },
+        ],
+      });
+      expect(restored.consumedCalories, 300);
+      expect(restored.exerciseCalories, 250);
+      expect(restored.steps, 3000);
+    });
+
     test('caloriesOfType suma solo el tipo indicado', () {
       final log = DailyLog(
         date: '2026-10-10',

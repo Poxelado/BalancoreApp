@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/steps/step_counter_scope.dart';
 import 'core/theme/theme_provider.dart';
 import 'features/auth/presentation/screens/auth_wrapper.dart';
 
@@ -20,7 +21,7 @@ class BalancoreApp extends ConsumerWidget {
       theme: lightTheme,
       darkTheme: darkTheme,
       themeMode: prefs.themeMode,
-      home: const AuthWrapper(),
+      home: const StepCounterScope(child: AuthWrapper()),
     );
   }
 }

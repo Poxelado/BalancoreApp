@@ -28,6 +28,8 @@ extension ProfileNutrition on ProfileRepository {
         int? proteinGrams,
         int? carbsGrams,
         int? fatGrams,
+        int? exerciseCalories,
+        int? steps,
       }) async {
     final key = _todayKey();
     final data = <String, dynamic>{'date': key};
@@ -37,7 +39,33 @@ extension ProfileNutrition on ProfileRepository {
     if (proteinGrams != null) data['proteinGrams'] = proteinGrams;
     if (carbsGrams != null) data['carbsGrams'] = carbsGrams;
     if (fatGrams != null) data['fatGrams'] = fatGrams;
+    if (exerciseCalories != null) data['exerciseCalories'] = exerciseCalories;
+    if (steps != null) data['steps'] = steps;
     await _todayLogRef(uid).set(data, SetOptions(merge: true));
+  }
+
+  /// Suma kcal de entrenamiento al día indicado (o a hoy). Acumula si hay
+  /// varios entrenos en el mismo día.
+  Future<void> addExerciseCalories(
+      String uid, int kcal, {
+        String? dateKey,
+      }) async {
+    if (kcal <= 0) return;
+    final key = dateKey ?? _todayKey();
+    await _userDoc(uid).doc(uid).collection('dailyLogs').doc(key).set({
+      'date': key,
+      'exerciseCalories': FieldValue.increment(kcal),
+      'updatedAt': DateTime.now().toIso8601String(),
+    }, SetOptions(merge: true));
+  }
+
+  /// Guarda los pasos del podómetro para hoy (valor absoluto del día).
+  Future<void> setTodaySteps(String uid, int steps) async {
+    final key = _todayKey();
+    await _todayLogRef(uid).set({
+      'date': key,
+      'steps': steps < 0 ? 0 : steps,
+    }, SetOptions(merge: true));
   }
 
   Future<void> _saveLogWithMeals(String uid, List<MealEntry> meals) async {
@@ -86,6 +114,8 @@ extension ProfileNutrition on ProfileRepository {
         int? proteinGrams,
         int? carbsGrams,
         int? fatGrams,
+        int? exerciseCalories,
+        int? steps,
       }) async {
     final ref = _userDoc(uid).doc(uid).collection('dailyLogs').doc(dateKey);
     final data = <String, dynamic>{
@@ -98,6 +128,8 @@ extension ProfileNutrition on ProfileRepository {
     if (proteinGrams != null) data['proteinGrams'] = proteinGrams;
     if (carbsGrams != null) data['carbsGrams'] = carbsGrams;
     if (fatGrams != null) data['fatGrams'] = fatGrams;
+    if (exerciseCalories != null) data['exerciseCalories'] = exerciseCalories;
+    if (steps != null) data['steps'] = steps;
     await ref.set(data, SetOptions(merge: true));
   }
 

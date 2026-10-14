@@ -204,6 +204,7 @@ class AppDataColors {
   static const Color training = Color(0xFFE91E63);
   static const Color streak = Color(0xFFFF6D00);
   static const Color gold = Color(0xFFFFC107);
+  static const Color steps = Color(0xFF00897B);
 }
 
 class AppTheme {

@@ -898,6 +898,25 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
     await _persist(silent: true);
   }
 
+  /// Suma al día las kcal quemadas en el entreno (estimadas por MET y peso).
+  Future<void> _applyWorkoutCalories() async {
+    try {
+      final user = ref.read(authServiceProvider).currentUser;
+      if (user == null) return;
+      final weight = ref.read(userProfileProvider).value?.currentWeight ?? 0;
+      final kcal = estimateWorkoutCalories(_session, weightKg: weight);
+      if (kcal <= 0) return;
+      await ref.read(profileRepositoryProvider).addExerciseCalories(
+            user.uid,
+            kcal,
+            dateKey: WorkoutSession.dateKey(_session.startedAt),
+          );
+      invalidateProgressData(ref);
+    } catch (e) {
+      debugPrint('No se pudieron sumar las kcal del entreno: $e');
+    }
+  }
+
   Future<void> _finish() async {
     if (_session.exercises.isEmpty) {
       _toast('Añade al menos un ejercicio antes de terminar');
@@ -935,6 +954,7 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
       _restTimer?.cancel();
       _restRemaining = null;
       await _persist();
+      await _applyWorkoutCalories();
       if (!mounted) return;
       final history = await ref.read(workoutHistoryProvider(120).future);
       if (!mounted) return;

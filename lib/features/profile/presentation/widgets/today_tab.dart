@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/widgets/empty_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/steps/step_counter.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import 'macro_bar.dart';
@@ -30,8 +31,15 @@ class TodayTab extends ConsumerWidget {
     final consumed = log.consumedCalories;
     final progress =
     targetCal > 0 ? (consumed / targetCal).clamp(0.0, 1.5) : 0.0;
-    final remaining = targetCal - consumed;
     final pct = targetCal > 0 ? ((consumed / targetCal) * 100).round() : 0;
+
+    // Gasto extra del día: kcal de entrenos completados + kcal por pasos.
+    final weightKg = profile?.currentWeight ?? 0;
+    final stepKcal =
+        stepCalories(ref.watch(stepCounterProvider).steps, weightKg);
+    final exerciseKcal = log.exerciseCalories;
+    final extraBurned = exerciseKcal + stepKcal;
+    final remaining = targetCal - consumed + extraBurned;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -139,6 +147,23 @@ class TodayTab extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 12),
+
+        // Gasto extra: entreno y pasos
+        if (extraBurned > 0) ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (exerciseKcal > 0)
+                _burnChip(context, Icons.fitness_center,
+                    'Entreno +$exerciseKcal kcal', AppDataColors.training),
+              if (stepKcal > 0)
+                _burnChip(context, Icons.directions_walk,
+                    'Pasos +$stepKcal kcal', AppDataColors.steps),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ],
 
         // Agua rápida
         WaterRow(glasses: log.waterGlasses),
@@ -257,6 +282,30 @@ class TodayTab extends ConsumerWidget {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _burnChip(
+      BuildContext context, IconData icon, String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w600, color: color),
+          ),
+        ],
+      ),
     );
   }
 }

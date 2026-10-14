@@ -10,6 +10,12 @@ class DailyLog {
   final int fatGrams;
   final List<MealEntry> meals;
 
+  /// Kcal extra quemadas en entrenamientos completados hoy.
+  final int exerciseCalories;
+
+  /// Pasos registrados hoy por el podómetro (0 si está desactivado).
+  final int steps;
+
   DailyLog({
     required this.date,
     this.waterGlasses = 0,
@@ -19,6 +25,8 @@ class DailyLog {
     this.carbsGrams = 0,
     this.fatGrams = 0,
     this.meals = const [],
+    this.exerciseCalories = 0,
+    this.steps = 0,
   });
 
   Map<String, dynamic> toMap() => {
@@ -30,6 +38,8 @@ class DailyLog {
     'carbsGrams': carbsGrams,
     'fatGrams': fatGrams,
     'meals': meals.map((m) => m.toMap()).toList(),
+    'exerciseCalories': exerciseCalories,
+    'steps': steps,
   };
 
   factory DailyLog.fromMap(Map<String, dynamic> map) {
@@ -42,6 +52,9 @@ class DailyLog {
         }
       }
     }
+
+    final exerciseCalories = (map['exerciseCalories'] as num?)?.toInt() ?? 0;
+    final steps = (map['steps'] as num?)?.toInt() ?? 0;
 
     // Si hay comidas, los totales salen de la suma (fuente de verdad)
     if (meals.isNotEmpty) {
@@ -58,6 +71,8 @@ class DailyLog {
         carbsGrams: c,
         fatGrams: f,
         meals: meals,
+        exerciseCalories: exerciseCalories,
+        steps: steps,
       );
     }
 
@@ -70,6 +85,8 @@ class DailyLog {
       carbsGrams: map['carbsGrams'] ?? 0,
       fatGrams: map['fatGrams'] ?? 0,
       meals: meals,
+      exerciseCalories: exerciseCalories,
+      steps: steps,
     );
   }
 

@@ -18,6 +18,7 @@ import '../../domain/exercise.dart';
 import '../../domain/progression_rules.dart';
 import '../../domain/personal_records.dart';
 import '../../domain/session_stats.dart';
+import '../../domain/workout_calories.dart';
 import '../workout_builders.dart';
 import 'workout_summary_screen.dart';
 import '../../../../core/theme/app_theme.dart';
