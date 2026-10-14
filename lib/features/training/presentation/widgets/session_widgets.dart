@@ -913,3 +913,152 @@ String fmtRest(int sec) {
   if (m > 0) return '${m}min ${s.toString().padLeft(2, '0')}s';
   return '${s}s';
 }
+
+/// Confirmación al terminar el entrenamiento: resume lo hecho hasta ahora
+/// (tiempo, series, volumen) y avisa si quedan series sin marcar.
+class FinishWorkoutDialog extends StatelessWidget {
+  final int durationSeconds;
+  final int completedSets;
+  final int totalSets;
+  final double volume;
+
+  const FinishWorkoutDialog({
+    super.key,
+    required this.durationSeconds,
+    required this.completedSets,
+    required this.totalSets,
+    required this.volume,
+  });
+
+  static String _duration(int sec) {
+    final h = sec ~/ 3600;
+    final m = (sec % 3600) ~/ 60;
+    final s = sec % 60;
+    if (h > 0) return '${h}h ${m.toString().padLeft(2, '0')}m';
+    if (m > 0) return '${m}min';
+    return '${s}s';
+  }
+
+  static String _kg(double v) {
+    if (v >= 1000) return '${(v / 1000).toStringAsFixed(1)}t';
+    if (v == v.roundToDouble()) return '${v.toInt()}';
+    return v.toStringAsFixed(1);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = accentOf(context);
+    final sem = AppSemanticColors.of(context);
+    final missing = totalSets - completedSets;
+    final allDone = missing <= 0;
+    final tone = allDone ? sem.success : sem.warning;
+
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      titlePadding: const EdgeInsets.fromLTRB(24, 22, 24, 0),
+      contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+      actionsPadding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
+      title: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.flag_rounded, color: accent, size: 30),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Terminar entrenamiento',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: tone.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(allDone ? Icons.check_circle : Icons.error_outline,
+                    size: 18, color: tone),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    allDone
+                        ? 'Completaste todas las series.'
+                        : 'Te quedan $missing ${missing == 1 ? 'serie' : 'series'} sin marcar.',
+                    style: TextStyle(fontWeight: FontWeight.w600, color: tone),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _mini(context, Icons.timer_outlined,
+                    _duration(durationSeconds), 'Tiempo'),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _mini(context, Icons.check_circle_outline,
+                    '$completedSets/$totalSets', 'Series'),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _mini(context, Icons.fitness_center,
+                    '${_kg(volume)} kg', 'Volumen'),
+              ),
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        OutlinedButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Seguir'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: FilledButton.styleFrom(backgroundColor: accent),
+          child: const Text('Finalizar'),
+        ),
+      ],
+    );
+  }
+
+  Widget _mini(
+      BuildContext context, IconData icon, String value, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 18, color: accentOf(context)),
+          const SizedBox(height: 4),
+          FittedBox(
+            child: Text(
+              value,
+              style:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+          ),
+          Text(label,
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+        ],
+      ),
+    );
+  }
+}

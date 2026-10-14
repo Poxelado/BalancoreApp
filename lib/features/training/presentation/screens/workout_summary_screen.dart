@@ -3,15 +3,21 @@ import 'package:fl_chart/fl_chart.dart';
 
 import '../../domain/personal_records.dart';
 import '../../domain/session_stats.dart';
+import '../../../profile/domain/user_profile.dart';
+import '../widgets/exercise_list_widgets.dart';
 import '../../../../core/theme/app_theme.dart';
 
-/// Resumen de una sesión recién terminada: qué se hizo, cómo se comparó con
-/// la sesión anterior y qué récords se batieron.
+/// Resumen de una sesión recién terminada: qué se hizo (con el detalle de
+/// series por ejercicio), cómo se comparó con la sesión anterior y qué
+/// récords se batieron.
 class WorkoutSummaryScreen extends StatelessWidget {
   final SessionStats stats;
   final List<PersonalRecord> records;
   final String title;
   final int calories;
+
+  /// Sesión completada, para el desglose ejercicio por ejercicio. Opcional.
+  final WorkoutSession? session;
 
   const WorkoutSummaryScreen({
     super.key,
@@ -19,7 +25,22 @@ class WorkoutSummaryScreen extends StatelessWidget {
     this.records = const [],
     this.title = 'Entrenamiento completado',
     this.calories = 0,
+    this.session,
   });
+
+  static const _weekdays = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
+  static const _months = [
+    'ene', 'feb', 'mar', 'abr', 'may', 'jun',
+    'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+  ];
+
+  static String _fmtDate(DateTime d) {
+    final wd = _weekdays[d.weekday - 1];
+    final mo = _months[d.month - 1];
+    final hh = d.hour.toString().padLeft(2, '0');
+    final mm = d.minute.toString().padLeft(2, '0');
+    return '$wd ${d.day} $mo · $hh:$mm';
+  }
 
   Color _colorFor(BuildContext context, int i) {
     final s = Theme.of(context).colorScheme;
@@ -35,6 +56,17 @@ class WorkoutSummaryScreen extends StatelessWidget {
       s.primaryContainer,
     ];
     return palette[i % palette.length];
+  }
+
+  static Color _setColor(BuildContext context, SetType type) {
+    final s = Theme.of(context).colorScheme;
+    final sem = AppSemanticColors.of(context);
+    return switch (type) {
+      SetType.normal => s.primary,
+      SetType.warmup => sem.info,
+      SetType.dropset => sem.warning,
+      SetType.failure => s.error,
+    };
   }
 
   static String _fmtDuration(int sec) {
@@ -54,7 +86,8 @@ class WorkoutSummaryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final accent = accentOf(context);
+    final session = this.session;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Resumen')),
@@ -62,15 +95,8 @@ class WorkoutSummaryScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: [
-            Text(
-              '¡$title! 🎉',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: accentOf(context),
-              ),
-            ),
-            const SizedBox(height: 16),
+            _header(context),
+            const SizedBox(height: 14),
             Row(
               children: [
                 Expanded(
@@ -78,7 +104,7 @@ class WorkoutSummaryScreen extends StatelessWidget {
                     icon: Icons.timer_outlined,
                     label: 'Duración',
                     value: _fmtDuration(stats.durationSeconds),
-                    primary: accentOf(context),
+                    primary: accent,
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -87,7 +113,7 @@ class WorkoutSummaryScreen extends StatelessWidget {
                     icon: Icons.check_circle_outline,
                     label: 'Series',
                     value: '${stats.completedSets}/${stats.totalSets}',
-                    primary: accentOf(context),
+                    primary: accent,
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -96,110 +122,35 @@ class WorkoutSummaryScreen extends StatelessWidget {
                     icon: Icons.fitness_center,
                     label: 'Volumen',
                     value: '${_fmtKg(stats.totalVolume)} kg',
-                    primary: accentOf(context),
+                    primary: accent,
                   ),
                 ),
               ],
             ),
             if (stats.hasPrevious) ...[
               const SizedBox(height: 10),
-              _comparison(context, accentOf(context)),
+              _comparison(context, accent),
             ],
             if (calories > 0) ...[
               const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppDataColors.calories.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: AppDataColors.calories.withValues(alpha: 0.35),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const CircleAvatar(
-                      backgroundColor: Color(0x22FF9800),
-                      child: Icon(
-                        Icons.local_fire_department,
-                        color: AppDataColors.calories,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Gasto estimado',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppDataColors.calories,
-                            ),
-                          ),
-                          Text(
-                            '≈ $calories kcal',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            'Sumado a tu gasto de hoy',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _caloriesCard(),
+            ],
+            if (session != null && session.exercises.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              _sectionTitle('Ejercicios', Icons.list_alt, accent),
+              const SizedBox(height: 8),
+              for (final ex in session.exercises) _exerciseCard(context, ex),
             ],
             if (records.isNotEmpty) ...[
               const SizedBox(height: 18),
-              _sectionTitle('Récords personales', Icons.emoji_events, accentOf(context)),
+              _sectionTitle('Récords personales', Icons.emoji_events, accent),
               const SizedBox(height: 8),
-              for (final r in records)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 6),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: AppDataColors.gold.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: AppDataColors.gold.withValues(alpha: 0.5)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.emoji_events,
-                          color: AppDataColors.gold, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          '${r.exerciseName} · ${r.label}',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      Text(
-                        _fmtKg(r.value),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppDataColors.gold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              for (final r in records) _recordRow(r),
             ],
             if (stats.volumeByMuscle.isNotEmpty) ...[
               const SizedBox(height: 18),
               _sectionTitle(
-                  'Distribución por músculo', Icons.donut_large, accentOf(context)),
+                  'Distribución por músculo', Icons.donut_large, accent),
               const SizedBox(height: 8),
               _muscleDonut(context),
             ],
@@ -217,6 +168,310 @@ class WorkoutSummaryScreen extends StatelessWidget {
       ),
     );
   }
+
+  Widget _header(BuildContext context) {
+    final accent = accentOf(context);
+    final started = session?.startedAt;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: accent.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.emoji_events_rounded, size: 42, color: accent),
+          const SizedBox(height: 10),
+          Text(
+            '¡$title! 🎉',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+              color: accent,
+            ),
+          ),
+          if (started != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              _fmtDate(started),
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _caloriesCard() => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppDataColors.calories.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: AppDataColors.calories.withValues(alpha: 0.35),
+          ),
+        ),
+        child: Row(
+          children: [
+            const CircleAvatar(
+              backgroundColor: Color(0x22FF9800),
+              child: Icon(
+                Icons.local_fire_department,
+                color: AppDataColors.calories,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Gasto estimado',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppDataColors.calories,
+                    ),
+                  ),
+                  Text(
+                    '≈ $calories kcal',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'Sumado a tu gasto de hoy',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _exerciseCard(BuildContext context, WorkoutExerciseLog ex) {
+    final key = ex.exerciseId.isNotEmpty ? ex.exerciseId : ex.exerciseName;
+    final recCount = records
+        .where((r) =>
+            (r.exerciseId.isNotEmpty ? r.exerciseId : r.exerciseName) == key)
+        .length;
+    final doneSets = ex.sets.where((s) => s.completed).length;
+    final meta = [
+      if (ex.muscleGroup.trim().isNotEmpty) ex.muscleGroup.trim(),
+      '$doneSets/${ex.sets.length} series',
+      if (ex.rpe != null) 'RPE ${ex.rpe}',
+    ].join(' · ');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+            child: Row(
+              children: [
+                ExerciseThumb(
+                    exerciseId: ex.exerciseId, size: 40, circular: true),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        ex.exerciseName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        meta,
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ),
+                if (recCount > 0)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppDataColors.gold.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.emoji_events,
+                            size: 13, color: AppDataColors.gold),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$recCount',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppDataColors.gold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: Colors.grey.withValues(alpha: 0.2)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+            child: Column(
+              children: [for (final s in ex.sets) _setRow(context, s)],
+            ),
+          ),
+          if (ex.notes.trim().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.sticky_note_2_outlined,
+                      size: 15, color: Colors.grey.shade500),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      ex.notes.trim(),
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.grey.shade700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _setRow(BuildContext context, WorkoutSetLog s) {
+    final color = _setColor(context, s.type);
+    final sem = AppSemanticColors.of(context);
+    final grey = Colors.grey.shade600;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              '${s.setNumber}',
+              style: TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.bold, color: color),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 4,
+              runSpacing: 2,
+              children: [
+                Text(
+                  s.weight > 0 ? '${_fmtKg(s.weight)} kg' : 'Corporal',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: s.completed ? null : grey,
+                  ),
+                ),
+                if (s.reps > 0) ...[
+                  Text('×', style: TextStyle(color: grey)),
+                  Text(
+                    '${s.reps}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: s.completed ? null : grey,
+                    ),
+                  ),
+                  Text('reps', style: TextStyle(fontSize: 11, color: grey)),
+                ],
+                if (s.type != SetType.normal)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      s.type.label,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: color,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (s.note.trim().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: Icon(Icons.sticky_note_2_outlined,
+                  size: 15, color: Colors.grey.shade500),
+            ),
+          Icon(
+            s.completed ? Icons.check_circle : Icons.radio_button_unchecked,
+            size: 18,
+            color: s.completed ? sem.success : Colors.grey.shade400,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _recordRow(PersonalRecord r) => Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppDataColors.gold.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppDataColors.gold.withValues(alpha: 0.5)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.emoji_events, color: AppDataColors.gold, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '${r.exerciseName} · ${r.label}',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            Text(
+              _fmtKg(r.value),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppDataColors.gold,
+              ),
+            ),
+          ],
+        ),
+      );
 
   Widget _sectionTitle(String text, IconData icon, Color primary) => Row(
         children: [

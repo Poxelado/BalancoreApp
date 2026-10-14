@@ -668,6 +668,42 @@ testWidgets('borrar una serie la elimina de la sesión y renumera',
     await _unmount(tester);
   });
 
+  testWidgets('el resumen desglosa los ejercicios y sus series',
+      (WidgetTester tester) async {
+    await _openScreen(tester, container);
+    await _flush(tester);
+
+    await tester.enterText(find.byType(TextField).first, '80');
+    await _flush(tester);
+    await _visible(tester, find.byIcon(Icons.check_circle_outline).first);
+    await tester.tap(find.byIcon(Icons.check_circle_outline).first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    await _visible(tester, find.text('Terminar'));
+    await tester.tap(find.text('Terminar'));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    // El diálogo resume lo hecho y avisa de las series sin marcar.
+    expect(find.text('Terminar entrenamiento'), findsOneWidget);
+    expect(find.text('Tiempo'), findsOneWidget);
+    expect(find.text('Volumen'), findsOneWidget);
+    expect(find.textContaining('sin marcar'), findsOneWidget);
+
+    await tester.tap(find.text('Finalizar'));
+    await tester.pump(const Duration(milliseconds: 400));
+    await _flush(tester);
+
+    // El resumen lista el desglose por ejercicio con sus series.
+    expect(find.text('Ejercicios'), findsOneWidget);
+    expect(find.text('Press Banca'), findsWidgets);
+    expect(find.textContaining('80 kg'), findsWidgets);
+    expect(find.byIcon(Icons.check_circle), findsWidgets);
+    expect(find.text('Listo'), findsOneWidget);
+
+    await _unmount(tester);
+  });
+
   testWidgets('el entreno libre vacío invita a añadir y no persiste nada',
       (WidgetTester tester) async {
     await _openWidget(

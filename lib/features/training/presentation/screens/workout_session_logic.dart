@@ -952,23 +952,14 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
       _toast('Añade al menos un ejercicio antes de terminar');
       return;
     }
+    final preview = computeSessionStats(_session, const []);
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Terminar entrenamiento'),
-        content: Text(
-          'Tiempo: ${_fmtElapsed(_elapsedSeconds)}\n'
-              'Series: ${_session.completedSets}/${_session.totalSets}\n\n'
-              '¿Finalizar sesión?',
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Seguir')),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Finalizar')),
-        ],
+      builder: (ctx) => FinishWorkoutDialog(
+        durationSeconds: _elapsedSeconds,
+        completedSets: _session.completedSets,
+        totalSets: _session.totalSets,
+        volume: preview.totalVolume,
       ),
     );
     if (ok != true) return;
@@ -1007,6 +998,7 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
             records: detectPersonalRecords(_session, past),
             calories: kcal,
             title: message,
+            session: _session,
           ),
         ),
       );
