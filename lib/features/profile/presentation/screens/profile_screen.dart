@@ -9,6 +9,7 @@ import 'edit_profile_screen.dart';
 import 'progress_tab.dart';
 import 'settings_screen.dart';
 import 'home_tab.dart';
+import '../widgets/workout_mini_player.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -99,7 +100,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ]
             : null,
       ),
-      body: _buildPage(ref.watch(shellTabProvider)),
+      body: Stack(
+        children: [
+          Positioned.fill(child: _buildPage(ref.watch(shellTabProvider))),
+          const WorkoutMiniPlayer(),
+        ],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: ref.watch(shellTabProvider),

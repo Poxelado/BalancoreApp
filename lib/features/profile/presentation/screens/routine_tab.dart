@@ -360,8 +360,7 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
         ),
         const SizedBox(height: 16),
 
-        // ─── Sesión en curso (mini player) ────────────────
-        const ActiveSessionBanner(),
+        // ─── Sesión en curso: ahora es el mini player flotante del shell ────
         const RestDayBanner(),
         // ═══ 1) RUTINA SEMANAL (arriba de todo) ═══════════
         Row(
