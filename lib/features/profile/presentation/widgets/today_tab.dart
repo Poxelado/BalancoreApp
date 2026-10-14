@@ -3,6 +3,7 @@ import '../../../../core/widgets/empty_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/steps/step_counter.dart';
+import '../../../training/domain/workout_calories.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import 'macro_bar.dart';
@@ -33,13 +34,19 @@ class TodayTab extends ConsumerWidget {
     targetCal > 0 ? (consumed / targetCal).clamp(0.0, 1.5) : 0.0;
     final pct = targetCal > 0 ? ((consumed / targetCal) * 100).round() : 0;
 
-    // Gasto extra del día: kcal de entrenos completados + kcal por pasos.
+    // Gasto del día: kcal de entrenos + kcal por pasos. Es informativo: la meta
+    // ya incluye tu nivel de actividad, así que NO se suma al presupuesto.
     final weightKg = profile?.currentWeight ?? 0;
-    final stepKcal =
-        stepCalories(ref.watch(stepCounterProvider).steps, weightKg);
+    final stepCount = ref.watch(stepCounterProvider).steps;
+    final stepKcal = stepCalories(stepCount, weightKg);
     final exerciseKcal = log.exerciseCalories;
     final extraBurned = exerciseKcal + stepKcal;
-    final remaining = targetCal - consumed + extraBurned;
+    final remaining = targetCal - consumed;
+
+    final session = ref.watch(todayWorkoutSessionProvider).valueOrNull;
+    final workoutMinutes =
+        session == null ? 0 : (session.elapsedSeconds / 60).round();
+    final workoutMet = session == null ? null : estimateWorkoutMet(session);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -116,10 +123,9 @@ class TodayTab extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Meta: $targetCal kcal ($pct%)',
-                          style:
-                          const TextStyle(fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 6),
+                      _ledgerRow(context, 'Meta', targetCal),
+                      _ledgerRow(context, 'Comido', -consumed),
+                      const Divider(height: 14),
                       Text(
                         remaining >= 0
                             ? 'Restan $remaining kcal'
@@ -134,7 +140,7 @@ class TodayTab extends ConsumerWidget {
                       if (profile != null) ...[
                         const SizedBox(height: 4),
                         Text(
-                          profile!.goal,
+                          '${profile!.goal} · $pct% de la meta',
                           style: TextStyle(
                               fontSize: 12, color: Colors.grey.shade600),
                         ),
@@ -148,21 +154,17 @@ class TodayTab extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
 
-        // Gasto extra: entreno y pasos
+        // Gasto del día: informativo (no afecta la meta).
         if (extraBurned > 0) ...[
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              if (exerciseKcal > 0)
-                _burnChip(context, Icons.fitness_center,
-                    'Entreno +$exerciseKcal kcal', AppDataColors.training),
-              if (stepKcal > 0)
-                _burnChip(context, Icons.directions_walk,
-                    'Pasos +$stepKcal kcal', AppDataColors.steps),
-            ],
+          _BurnedCard(
+            exerciseKcal: exerciseKcal,
+            stepKcal: stepKcal,
+            stepCount: stepCount,
+            weightKg: weightKg,
+            workoutMinutes: workoutMinutes,
+            workoutMet: workoutMet,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
         ],
 
         // Agua rápida
@@ -285,27 +287,169 @@ class TodayTab extends ConsumerWidget {
     );
   }
 
-  Widget _burnChip(
-      BuildContext context, IconData icon, String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.35)),
-      ),
+  Widget _ledgerRow(BuildContext context, String label, int value) {
+    final text = value < 0 ? '−${-value}' : '$value';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
+          Text(label,
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+          const Spacer(),
           Text(
             text,
-            style: TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w600, color: color),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Gasto calórico del día (entrenos + pasos). Es informativo: no se descuenta
+/// de la meta, así que se muestra aparte y se expande para explicar el cálculo.
+class _BurnedCard extends StatefulWidget {
+  final int exerciseKcal;
+  final int stepKcal;
+  final int stepCount;
+  final double weightKg;
+  final int workoutMinutes;
+  final double? workoutMet;
+
+  const _BurnedCard({
+    required this.exerciseKcal,
+    required this.stepKcal,
+    required this.stepCount,
+    required this.weightKg,
+    required this.workoutMinutes,
+    required this.workoutMet,
+  });
+
+  @override
+  State<_BurnedCard> createState() => _BurnedCardState();
+}
+
+class _BurnedCardState extends State<_BurnedCard> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = widget.exerciseKcal + widget.stepKcal;
+    final divider = Theme.of(context).dividerColor.withValues(alpha: 0.5);
+    return Container(
+      decoration: BoxDecoration(
+        color: AppDataColors.calories.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(16),
+        border:
+            Border.all(color: AppDataColors.calories.withValues(alpha: 0.30)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => setState(() => _open = !_open),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    const CircleAvatar(
+                      radius: 16,
+                      backgroundColor: Color(0x22FF9800),
+                      child: Icon(Icons.local_fire_department,
+                          size: 18, color: AppDataColors.calories),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Gasto del día · $total kcal',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700)),
+                          Text('Informativo: no se descuenta de tu meta',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600)),
+                        ],
+                      ),
+                    ),
+                    Icon(_open ? Icons.expand_less : Icons.expand_more,
+                        color: Colors.grey.shade600),
+                  ],
+                ),
+                if (_open) ...[
+                  const SizedBox(height: 12),
+                  Divider(height: 1, color: divider),
+                  const SizedBox(height: 12),
+                  if (widget.exerciseKcal > 0)
+                    _detailRow(
+                      Icons.fitness_center,
+                      AppDataColors.training,
+                      'Entreno',
+                      _workoutDetail(),
+                      widget.exerciseKcal,
+                    ),
+                  if (widget.exerciseKcal > 0 && widget.stepKcal > 0)
+                    const SizedBox(height: 10),
+                  if (widget.stepKcal > 0)
+                    _detailRow(
+                      Icons.directions_walk,
+                      AppDataColors.steps,
+                      'Pasos',
+                      '${widget.stepCount} pasos',
+                      widget.stepKcal,
+                    ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Estimación aproximada según tu peso, la duración y el tipo '
+                    'de actividad. No es un valor médico exacto.',
+                    style:
+                        TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _workoutDetail() {
+    final parts = <String>[];
+    if (widget.workoutMet != null) {
+      parts.add('MET ${widget.workoutMet!.toStringAsFixed(1)}');
+    }
+    if (widget.workoutMinutes > 0) parts.add('${widget.workoutMinutes} min');
+    if (widget.weightKg > 0) parts.add('${widget.weightKg.round()} kg');
+    return parts.isEmpty ? 'Según duración y peso' : parts.join(' · ');
+  }
+
+  Widget _detailRow(IconData icon, Color color, String label, String detail,
+      int kcal) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600)),
+              Text(detail,
+                  style:
+                      TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+            ],
+          ),
+        ),
+        Text('$kcal kcal',
+            style: TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w600, color: color)),
+      ],
     );
   }
 }
