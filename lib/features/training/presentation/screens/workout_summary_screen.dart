@@ -157,19 +157,37 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
   }
 
   Future<void> _captureAndShare() async {
-    final bytes = await _captureCurrent();
-    if (bytes == null) return;
+    final box = context.findRenderObject() as RenderBox?;
+    final origin =
+        box != null ? box.localToGlobal(Offset.zero) & box.size : null;
+    setState(() => _busy = true);
     try {
+      final bytes = await _captureCurrent();
+      if (bytes == null) {
+        _snack('No se pudo generar la imagen');
+        return;
+      }
       final dir = await getTemporaryDirectory();
       final file = File(
           '${dir.path}/balancore_${DateTime.now().millisecondsSinceEpoch}.png');
-      await file.writeAsBytes(bytes);
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: 'mira mi entrenamiento en balancore',
+      await file.writeAsBytes(bytes, flush: true);
+
+      final result = await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path, mimeType: 'image/png')],
+          text: 'mira mi entrenamiento en balancore',
+          subject: 'Mi entrenamiento en Balancore',
+          sharePositionOrigin: origin,
+        ),
       );
-    } catch (e) {
+      if (result.status == ShareResultStatus.unavailable) {
+        _snack('No hay aplicaciones para compartir en este dispositivo');
+      }
+    } catch (e, st) {
+      debugPrint('Error al compartir el resumen: $e\n$st');
       _snack('No se pudo compartir: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -392,22 +410,13 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _cardTitle('Músculos trabajados', style),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Expanded(
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
-                  flex: 4,
-                  child: MuscleBodyMap(
-                    intensity: data.bodyIntensity,
-                    base: style.on.withValues(alpha: 0.12),
-                    trained: style.accent,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 5,
+                  flex: 6,
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
                     child: Column(
@@ -415,7 +424,7 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
                       children: [
                         for (final line in data.exerciseLines)
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.only(bottom: 10),
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -425,6 +434,7 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
                                     color: style.accent,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 15,
+                                    shadows: _halo(style),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -437,6 +447,7 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
                                       color: style.on,
                                       fontSize: 14,
                                       fontWeight: FontWeight.w500,
+                                      shadows: _halo(style),
                                     ),
                                   ),
                                 ),
@@ -447,9 +458,53 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(width: 14),
+                Expanded(
+                  flex: 5,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: _bodyFigure(style, data,
+                            front: true, label: 'Frente'),
+                      ),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child: _bodyFigure(style, data,
+                            front: false, label: 'Espalda'),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bodyFigure(ShareCardStyle style, WorkoutShareData data,
+      {required bool front, required String label}) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(6, 8, 6, 4),
+      decoration: BoxDecoration(
+        color: style.chip,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          Expanded(
+            child: MuscleBodyMap(
+              intensity: data.bodyIntensity,
+              base: style.on.withValues(alpha: 0.16),
+              trained: style.accent,
+              outline: style.on.withValues(alpha: 0.28),
+              front: front,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(label,
+              style: TextStyle(color: style.muted, fontSize: 9.5)),
         ],
       ),
     );
@@ -500,18 +555,22 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
     return RadarChart(
       RadarChartData(
         radarShape: RadarShape.polygon,
-        radarBackgroundColor: Colors.transparent,
+        radarBackgroundColor: style.on.withValues(alpha: 0.05),
         borderData: FlBorderData(show: false),
         radarBorderData: BorderSide(color: style.on.withValues(alpha: 0.25)),
         gridBorderData:
-            BorderSide(color: style.on.withValues(alpha: 0.15), width: 1),
+            BorderSide(color: style.on.withValues(alpha: 0.18), width: 1),
         tickBorderData:
-            BorderSide(color: style.on.withValues(alpha: 0.12), width: 1),
+            BorderSide(color: style.on.withValues(alpha: 0.14), width: 1),
         ticksTextStyle: const TextStyle(color: Colors.transparent, fontSize: 0),
         tickCount: 4,
-        titleTextStyle:
-            TextStyle(color: style.on, fontSize: 11, fontWeight: FontWeight.w600),
-        titlePositionPercentageOffset: 0.14,
+        titleTextStyle: TextStyle(
+          color: style.on,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          shadows: _halo(style, blur: 5, alpha: 0.6),
+        ),
+        titlePositionPercentageOffset: 0.12,
         getTitle: (index, angle) =>
             RadarChartTitle(text: radarGroups[index], angle: 0),
         dataSets: [
@@ -537,57 +596,70 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
     return _frame(
       style,
       user,
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text('RUTINA',
-              style: TextStyle(
-                color: style.accent,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
-              )),
-          const SizedBox(height: 6),
-          Text(
-            routine.isEmpty ? 'Entrenamiento libre' : routine,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: style.on,
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-            ),
+      Center(
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+          decoration: BoxDecoration(
+            color: style.on.withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: style.on.withValues(alpha: 0.14)),
           ),
-          const SizedBox(height: 20),
-          Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: _metric(style, Icons.timer_outlined, 'Duración',
-                    _fmtDuration(data.durationSeconds)),
+              Text('RUTINA',
+                  style: TextStyle(
+                    color: style.accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 3,
+                    shadows: _halo(style),
+                  )),
+              const SizedBox(height: 8),
+              Text(
+                routine.isEmpty ? 'Entrenamiento libre' : routine,
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: style.on,
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  shadows: _halo(style),
+                ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _metric(style, Icons.fitness_center, 'Volumen',
-                    _fmtVolume(data.volumeKg, units)),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: _metric(style, Icons.timer_outlined, 'Duración',
+                        _fmtDuration(data.durationSeconds)),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _metric(style, Icons.fitness_center, 'Volumen',
+                        _fmtVolume(data.volumeKg, units)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _metric(style, Icons.list_alt, 'Ejercicios',
+                        '${data.exerciseCount}'),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _metric(style, Icons.check_circle_outline, 'Series',
+                        '${data.completedSets}/${data.totalSets}'),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: _metric(style, Icons.list_alt, 'Ejercicios',
-                    '${data.exerciseCount}'),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _metric(style, Icons.check_circle_outline, 'Series',
-                    '${data.completedSets}/${data.totalSets}'),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -606,18 +678,10 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.6, end: 1.25),
-                duration: const Duration(milliseconds: 700),
-                curve: Curves.elasticOut,
-                builder: (_, s, child) =>
-                    Transform.scale(scale: s, child: child),
-                child: Text(eq.emoji, style: const TextStyle(fontSize: 64)),
-              ),
-              const SizedBox(height: 10),
-              Text('Has levantado',
+              Text('Has levantado un total de',
+                  textAlign: TextAlign.center,
                   style: TextStyle(color: style.muted, fontSize: 15)),
-              const SizedBox(height: 2),
+              const SizedBox(height: 6),
               TweenAnimationBuilder<double>(
                 tween: Tween(begin: 0, end: data.volumeValue),
                 duration: const Duration(milliseconds: 900),
@@ -626,25 +690,14 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
                   data.volumeKg > 0 ? _fmtVolume(v, units) : '${v.round()}',
                   style: TextStyle(
                     color: style.on,
-                    fontSize: 40,
+                    fontSize: 42,
                     fontWeight: FontWeight.bold,
+                    shadows: _halo(style),
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
-              Text('el equivalente a',
-                  style: TextStyle(color: style.muted, fontSize: 15)),
-              Text(
-                comparison,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: style.accent,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
               if (bodyWeight > 0 && data.volumeKg > 0) ...[
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -658,6 +711,30 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
                   ),
                 ),
               ],
+              const SizedBox(height: 16),
+              Text('eso es como levantar',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: style.muted, fontSize: 15)),
+              const SizedBox(height: 2),
+              Text(
+                comparison,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: style.accent,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  shadows: _halo(style),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.6, end: 1.25),
+                duration: const Duration(milliseconds: 700),
+                curve: Curves.elasticOut,
+                builder: (_, s, child) =>
+                    Transform.scale(scale: s, child: child),
+                child: Text(eq.emoji, style: const TextStyle(fontSize: 62)),
+              ),
             ],
           ),
         ),
@@ -725,6 +802,7 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
                   color: style.on,
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
+                  shadows: _halo(style),
                 )),
           ),
           Expanded(
@@ -742,7 +820,11 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
                               line.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: style.on, fontSize: 14),
+                              style: TextStyle(
+                                color: style.on,
+                                fontSize: 14,
+                                shadows: _halo(style),
+                              ),
                             ),
                           ),
                           Text('${line.sets} series',
@@ -776,7 +858,7 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
           ),
           borderRadius: BorderRadius.circular(28),
         ),
-        padding: const EdgeInsets.fromLTRB(22, 22, 22, 16),
+        padding: const EdgeInsets.fromLTRB(26, 26, 26, 18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -807,8 +889,19 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
           color: style.on,
           fontSize: 18,
           fontWeight: FontWeight.bold,
+          shadows: _halo(style),
         ),
       );
+
+  /// Sombra suave de color opuesto al texto, para que cualquier texto sea
+  /// legible aunque caiga sobre una zona clara del fondo.
+  List<Shadow> _halo(ShareCardStyle style, {double blur = 4, double alpha = 0.4}) {
+    final halo = style.on.computeLuminance() > 0.5 ? Colors.black : Colors.white;
+    return [
+      Shadow(color: halo.withValues(alpha: alpha), blurRadius: blur),
+      Shadow(color: halo.withValues(alpha: alpha * 0.7), blurRadius: blur * 0.5),
+    ];
+  }
 
   Widget _metric(
       ShareCardStyle style, IconData icon, String label, String value) {
@@ -828,10 +921,15 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
                   color: style.on,
                   fontWeight: FontWeight.bold,
                   fontSize: 15,
+                  shadows: _halo(style),
                 )),
           ),
           Text(label,
-              style: TextStyle(color: style.muted, fontSize: 10)),
+              style: TextStyle(
+                color: style.muted,
+                fontSize: 10,
+                shadows: _halo(style),
+              )),
         ],
       ),
     );
@@ -849,6 +947,7 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
                 color: style.on,
                 fontSize: 44,
                 fontWeight: FontWeight.bold,
+                shadows: _halo(style),
               )),
         ),
         Text(label,
@@ -856,6 +955,7 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
               color: style.muted,
               fontSize: 14,
               letterSpacing: 1,
+              shadows: _halo(style),
             )),
       ],
     );
