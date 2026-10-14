@@ -4,6 +4,8 @@ import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../training/domain/exercise.dart';
+import '../../../training/domain/workout_share_metrics.dart';
+import '../../../training/presentation/widgets/muscle_body_map.dart';
 import '../../../training/presentation/screens/weekly_routine_screen.dart';
 import '../../../training/presentation/screens/exercise_library_screen.dart';
 import '../../../training/presentation/screens/edit_routine_day_screen.dart';
@@ -609,36 +611,10 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
                     ],
                   ),
                 ),
-                if (!day.isRestDay)
+                if (!day.isRestDay && day.exercises.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        if (day.duration.isNotEmpty) ...[
-                          Icon(Icons.schedule,
-                              size: 16, color: Colors.grey.shade600),
-                          const SizedBox(width: 4),
-                          Text(day.duration,
-                              style: TextStyle(color: Colors.grey.shade600)),
-                          const SizedBox(width: 16),
-                        ],
-                        if (day.calories > 0) ...[
-                          Icon(Icons.local_fire_department,
-                              size: 16, color: Colors.grey.shade600),
-                          const SizedBox(width: 4),
-                          Text('${day.calories} kcal',
-                              style: TextStyle(color: Colors.grey.shade600)),
-                          const SizedBox(width: 16),
-                        ],
-                        Icon(Icons.fitness_center,
-                            size: 16, color: Colors.grey.shade600),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${day.exercises.length} ejercicios',
-                          style: TextStyle(color: Colors.grey.shade600),
-                        ),
-                      ],
-                    ),
+                    child: _RoutineSummary(day: day, primary: primary),
                   ),
                 const SizedBox(height: 8),
                 const Divider(height: 1),
@@ -772,5 +748,150 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
     );
   }
 
+}
+
+/// Resumen de la vista previa de un día: la figura con los músculos que se
+/// trabajarán, junto a duración, calorías y número de ejercicios.
+class _RoutineSummary extends StatelessWidget {
+  final RoutineDay day;
+  final Color primary;
+
+  const _RoutineSummary({required this.day, required this.primary});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final intensity = buildRoutineIntensity(day);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest
+                .withValues(alpha: 0.4)
+            : primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          if (intensity.isNotEmpty) ...[
+            _RoutineBody(
+              intensity: intensity,
+              front: true,
+              primary: primary,
+              isDark: isDark,
+            ),
+            const SizedBox(width: 6),
+            _RoutineBody(
+              intensity: intensity,
+              front: false,
+              primary: primary,
+              isDark: isDark,
+            ),
+            Container(
+              width: 1,
+              height: 76,
+              margin: const EdgeInsets.symmetric(horizontal: 12),
+              color: Colors.grey.withValues(alpha: 0.3),
+            ),
+          ],
+          Expanded(
+            child: Column(
+              children: [
+                if (day.duration.isNotEmpty)
+                  _SummaryRow(
+                    icon: Icons.schedule,
+                    label: 'Duración',
+                    value: day.duration,
+                  ),
+                if (day.calories > 0)
+                  _SummaryRow(
+                    icon: Icons.local_fire_department,
+                    label: 'Calorías',
+                    value: '${day.calories} kcal',
+                  ),
+                _SummaryRow(
+                  icon: Icons.fitness_center,
+                  label: 'Ejercicios',
+                  value: '${day.exercises.length}',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Figura muscular pequeña (frontal o trasera) de la vista previa.
+class _RoutineBody extends StatelessWidget {
+  final Map<BodyRegion, double> intensity;
+  final bool front;
+  final Color primary;
+  final bool isDark;
+
+  const _RoutineBody({
+    required this.intensity,
+    required this.front,
+    required this.primary,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 44,
+      height: 92,
+      child: MuscleBodyMap(
+        intensity: intensity,
+        front: front,
+        base: isDark
+            ? Colors.white.withValues(alpha: 0.14)
+            : Colors.black.withValues(alpha: 0.06),
+        trained: primary,
+        outline: isDark
+            ? Colors.white.withValues(alpha: 0.30)
+            : primary.withValues(alpha: 0.22),
+      ),
+    );
+  }
+}
+
+/// Fila etiqueta/valor del resumen de la vista previa.
+class _SummaryRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _SummaryRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Icon(icon, size: 15, color: Colors.grey.shade500),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
+          const Spacer(),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+    );
+  }
 }
 

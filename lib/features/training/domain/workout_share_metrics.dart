@@ -119,6 +119,33 @@ class WorkoutShareData {
   }
 }
 
+/// Regiones del mapa que trabaja un ejercicio: sus músculos principales si se
+/// conoce en el catálogo o, si no, su grupo muscular grueso.
+Set<BodyRegion> regionsForExercise(String exerciseId, String muscleGroup) {
+  final regions = <BodyRegion>{};
+  final exercise = ExerciseCatalog.byId(exerciseId);
+  if (exercise != null && exercise.primaryMuscles.isNotEmpty) {
+    for (final m in exercise.primaryMuscles) {
+      final r = _fineToRegion[m.toLowerCase()];
+      if (r != null) regions.add(r);
+    }
+  }
+  if (regions.isEmpty) {
+    final r = _groupToRegion[muscleGroup.trim()];
+    if (r != null) regions.add(r);
+  }
+  return regions;
+}
+
+/// Normaliza a 0..1 (con un mínimo visible) para pintar el mapa de músculos.
+Map<BodyRegion, double> _normalizeIntensity(Map<BodyRegion, double> raw) {
+  final max = raw.values.fold<double>(0, (a, b) => a > b ? a : b);
+  if (max <= 0) return const {};
+  return {
+    for (final e in raw.entries) e.key: (e.value / max).clamp(0.2, 1.0),
+  };
+}
+
 WorkoutShareData buildWorkoutShareData(WorkoutSession session) {
   var volume = 0.0;
   final byGroup = <String, double>{};
@@ -142,31 +169,13 @@ WorkoutShareData buildWorkoutShareData(WorkoutSession session) {
     // corporal también resalte).
     final regionWeight =
         exVolume > 0 ? exVolume : done.length.toDouble();
-    final regions = <BodyRegion>{};
-    final exercise = ExerciseCatalog.byId(ex.exerciseId);
-    if (exercise != null && exercise.primaryMuscles.isNotEmpty) {
-      for (final m in exercise.primaryMuscles) {
-        final r = _fineToRegion[m.toLowerCase()];
-        if (r != null) regions.add(r);
-      }
-    }
-    if (regions.isEmpty) {
-      final r = _groupToRegion[group];
-      if (r != null) regions.add(r);
-    }
+    final regions = regionsForExercise(ex.exerciseId, ex.muscleGroup);
     for (final r in regions) {
       intensity[r] = (intensity[r] ?? 0) + regionWeight / regions.length;
     }
   }
 
-  final maxIntensity =
-      intensity.values.fold<double>(0, (a, b) => a > b ? a : b);
-  final normalized = maxIntensity <= 0
-      ? <BodyRegion, double>{}
-      : {
-          for (final e in intensity.entries)
-            e.key: (e.value / maxIntensity).clamp(0.2, 1.0),
-        };
+  final normalized = _normalizeIntensity(intensity);
 
   final lines = <ExerciseShareLine>[
     for (final ex in session.exercises)
@@ -192,6 +201,22 @@ WorkoutShareData buildWorkoutShareData(WorkoutSession session) {
     volumeByGroup: byGroup,
     exerciseLines: lines,
   );
+}
+
+/// Intensidad por región (0..1) de una rutina planificada —para previsualizar
+/// el día antes de entrenar—, pesando cada ejercicio por sus series efectivas.
+Map<BodyRegion, double> buildRoutineIntensity(RoutineDay day) {
+  final intensity = <BodyRegion, double>{};
+  for (final e in day.exercises) {
+    final regions = regionsForExercise(e.exerciseId, e.muscleGroup);
+    if (regions.isEmpty) continue;
+    final sets = e.effectiveSets.length;
+    final weight = sets > 0 ? sets.toDouble() : 1.0;
+    for (final r in regions) {
+      intensity[r] = (intensity[r] ?? 0) + weight / regions.length;
+    }
+  }
+  return _normalizeIntensity(intensity);
 }
 
 /// Comparación divertida del volumen levantado con algo cotidiano.
