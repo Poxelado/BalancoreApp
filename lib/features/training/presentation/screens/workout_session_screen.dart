@@ -179,6 +179,66 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
         : _session.completedSets / _session.totalSets;
     final sug = _sugFor(ex);
 
+    Widget setItem(int i) {
+      if (i == ex.sets.length) {
+        return TextButton.icon(
+          onPressed: () => _addSet(_exerciseIndex),
+          icon: const Icon(Icons.add),
+          label: const Text('Añadir serie'),
+        );
+      }
+      final s = ex.sets[i];
+      final key = _key(ex, s);
+      _weightCtrls.putIfAbsent(
+        key,
+        () => TextEditingController(
+          text: s.weight > 0 ? _fmtWeight(s.weight) : '',
+        ),
+      );
+      _repsCtrls.putIfAbsent(
+        key,
+        () => TextEditingController(text: '${s.reps}'),
+      );
+
+      final String previa = sug != null ? sug.previaLabel(i) : '—';
+      final hintW = sug != null && sug.weightFor(i) > 0
+          ? _fmtWeight(sug.weightFor(i))
+          : (s.weight > 0 ? _fmtWeight(s.weight) : null);
+      final hintR = sug != null && sug.repsFor(i) > 0
+          ? '${sug.repsFor(i)}'
+          : (s.reps > 0 ? '${s.reps}' : null);
+
+      return SetLogRow(
+        dismissKey: '${ex.exerciseId}_${s.setNumber}_$i',
+        s: s,
+        weightCtrl: _weightCtrls[key]!,
+        repsCtrl: _repsCtrls[key]!,
+        previa: previa,
+        hintW: hintW,
+        hintR: hintR,
+        cardBg: cardBg,
+        onWeightChanged: (_) =>
+            _syncFromField(_exerciseIndex, i, isWeight: true),
+        onRepsChanged: (_) =>
+            _syncFromField(_exerciseIndex, i, isWeight: false),
+        onChangeType: (t) => _changeSetType(_exerciseIndex, i, t),
+        onEditNote: () => _editSetNote(_exerciseIndex, i),
+        onLongPress: () => _showSetActions(_exerciseIndex, i),
+        onToggle: () => _toggleComplete(_exerciseIndex, i),
+        prLabel: _prLabelFor(_exerciseIndex, i),
+        onDismissed: () => _deleteSet(_exerciseIndex, i),
+        confirmDismiss: () async {
+          if (ex.sets.length <= 1) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Debe quedar al menos una serie')),
+            );
+            return false;
+          }
+          return true;
+        },
+      );
+    }
+
     return Scaffold(
       backgroundColor: bg,
       body: SafeArea(
@@ -262,6 +322,14 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
                 ),
               ),
             ),
+            Expanded(
+              child: SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
             ExerciseSelectorStrip(
               exercises: _session.exercises,
               selectedIndex: _exerciseIndex,
@@ -321,72 +389,11 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
                 ],
               ),
             ),
-            const Divider(height: 1),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.only(bottom: 16),
-                itemCount: ex.sets.length + 1,
-                itemBuilder: (context, i) {
-                  if (i == ex.sets.length) {
-                    return TextButton.icon(
-                      onPressed: () => _addSet(_exerciseIndex),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Añadir serie'),
-                    );
-                  }
-                  final s = ex.sets[i];
-                  final key = _key(ex, s);
-                  _weightCtrls.putIfAbsent(
-                    key,
-                    () => TextEditingController(
-                      text: s.weight > 0 ? _fmtWeight(s.weight) : '',
-                    ),
-                  );
-                  _repsCtrls.putIfAbsent(
-                    key,
-                    () => TextEditingController(text: '${s.reps}'),
-                  );
-
-                  final String previa = sug != null ? sug.previaLabel(i) : '—';
-                  final hintW = sug != null && sug.weightFor(i) > 0
-                      ? _fmtWeight(sug.weightFor(i))
-                      : (s.weight > 0 ? _fmtWeight(s.weight) : null);
-                  final hintR = sug != null && sug.repsFor(i) > 0
-                      ? '${sug.repsFor(i)}'
-                      : (s.reps > 0 ? '${s.reps}' : null);
-
-                  return SetLogRow(
-                    dismissKey: '${ex.exerciseId}_${s.setNumber}_$i',
-                    s: s,
-                    weightCtrl: _weightCtrls[key]!,
-                    repsCtrl: _repsCtrls[key]!,
-                    previa: previa,
-                    hintW: hintW,
-                    hintR: hintR,
-                    cardBg: cardBg,
-                    onWeightChanged: (_) =>
-                        _syncFromField(_exerciseIndex, i, isWeight: true),
-                    onRepsChanged: (_) =>
-                        _syncFromField(_exerciseIndex, i, isWeight: false),
-                    onChangeType: (t) => _changeSetType(_exerciseIndex, i, t),
-                    onEditNote: () => _editSetNote(_exerciseIndex, i),
-                    onLongPress: () => _showSetActions(_exerciseIndex, i),
-                    onToggle: () => _toggleComplete(_exerciseIndex, i),
-                    prLabel: _prLabelFor(_exerciseIndex, i),
-                    onDismissed: () => _deleteSet(_exerciseIndex, i),
-                    confirmDismiss: () async {
-                      if (ex.sets.length <= 1) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content:
-                                  Text('Debe quedar al menos una serie')),
-                        );
-                        return false;
-                      }
-                      return true;
-                    },
-                  );
-                },
+                    const Divider(height: 1),
+                    for (var i = 0; i < ex.sets.length + 1; i++)
+                      setItem(i),
+                  ],
+                ),
               ),
             ),
             Padding(
