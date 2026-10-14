@@ -12,7 +12,7 @@ rules_version = '2';
 //     users/{uid}/workoutSessions/{id}
 //     users/{uid}/customExercises/{id}
 //     users/{uid}/favoriteExercises/{id}
-//   usernames/{usernameLower}              -> { uid, email, username }
+//   usernames/{usernameLower}              -> { uid, username }
 //
 // NOTA: ya no existe la regla abierta temporal de desarrollo. Los datos sólo
 // son accesibles por su dueño autenticado.
@@ -28,11 +28,12 @@ service cloud.firestore {
     }
 
     // Un doc de `usernames` sólo puede apuntar a la cuenta autenticada: el uid
-    // y el email deben coincidir con el token, y no debe traer campos extra.
+    // debe coincidir con el token y no debe traer campos extra. No guarda el
+    // correo, así que la lectura pública (para comprobar disponibilidad) no
+    // expone datos personales.
     function validUsernameDoc() {
       return request.resource.data.uid == request.auth.uid
-        && request.resource.data.email == request.auth.token.email
-        && request.resource.data.keys().hasOnly(['uid', 'email', 'username', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['uid', 'username', 'updatedAt'])
         && request.resource.data.username is string
         && request.resource.data.username.size() > 0
         && request.resource.data.username.size() <= 30;
@@ -50,21 +51,19 @@ service cloud.firestore {
       }
     }
 
-    // Mapa usuario -> email para permitir el login por nombre de usuario.
-    // El login ocurre ANTES de autenticar, así que la lectura es pública.
-    // TRADE-OFF CONOCIDO: esto expone los emails (enumerables). Si se quiere
-    // cerrar, hay que quitar el login por usuario o moverlo a una Cloud
-    // Function con rate limiting.
+    // Registro de nombres de usuario para garantizar su unicidad. El alta
+    // ocurre antes de tener sesión en algunos casos, así que la lectura es
+    // pública; el doc sólo contiene uid + username (sin correo).
     match /usernames/{username} {
       allow read: if true;
 
-      // create: solo si el doc no existe (implícito) y el uid/email son los
-      // del usuario autenticado.
+      // create: solo si el doc no existe (implícito) y el uid es el del
+      // usuario autenticado.
       allow create: if request.auth != null && validUsernameDoc();
 
       // update: SOLO el dueño actual puede modificarlo. Sin esta comprobación
       // de resource.data.uid, cualquiera podría sobrescribir el username de
-      // otro (set = create-or-update) y secuestrar el login por usuario.
+      // otro (set = create-or-update) y apropiarse del nombre.
       allow update: if request.auth != null
         && resource.data.uid == request.auth.uid
         && validUsernameDoc();

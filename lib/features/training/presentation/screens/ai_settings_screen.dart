@@ -70,6 +70,8 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
+    // IA "de la app": clave incorporada al compilar o un proxy en el servidor.
+    final hasAi = hasEmbeddedAiKey || hasAiProxy;
     return Scaffold(
       appBar: AppBar(title: const Text('IA · Ajustes')),
       body: SafeArea(
@@ -91,7 +93,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    hasEmbeddedAiKey
+                    hasAi
                         ? 'Esta versión de la app ya trae la IA activada: '
                             'puedes generar rutinas con el modelo sin '
                             'configurar nada.\n\n'
@@ -112,7 +114,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
             ),
             const SizedBox(height: 20),
             Text(
-              hasEmbeddedAiKey ? 'Tu clave (opcional)' : 'Clave de API de Gemini',
+              hasAi ? 'Tu clave (opcional)' : 'Clave de API de Gemini',
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 15,
@@ -123,7 +125,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
             Text(
               _loaded && _hasKey
                   ? 'Ya hay una clave personal guardada en este dispositivo.'
-                  : hasEmbeddedAiKey
+                  : hasAi
                       ? 'La app ya funciona sin clave. Esto es solo si quieres '
                           'usar la tuya.'
                       : 'Opcional. Consíguela gratis en Google AI Studio.',

@@ -16,7 +16,6 @@ extension ProfileAccount on ProfileRepository {
   Future<void> claimUsername({
     required String username,
     required String uid,
-    required String email,
   }) async {
     final key = username.trim().toLowerCase().replaceAll('@', '');
     if (key.length < 3) {
@@ -36,7 +35,6 @@ extension ProfileAccount on ProfileRepository {
       }
       tx.set(ref, {
         'uid': uid,
-        'email': email.trim().toLowerCase(),
         'username': key,
         'updatedAt': DateTime.now().toIso8601String(),
       });
@@ -49,16 +47,8 @@ extension ProfileAccount on ProfileRepository {
     await _db.collection('usernames').doc(key).delete();
   }
 
-  Future<String?> resolveUsernameToEmail(String username) async {
-    final key = username.trim().toLowerCase().replaceAll('@', '');
-    final doc = await _db.collection('usernames').doc(key).get();
-    if (!doc.exists || doc.data() == null) return null;
-    return doc.data()!['email'] as String?;
-  }
-
   Future<void> changeUsername({
     required String uid,
-    required String email,
     required String? oldUsername,
     required String newUsername,
   }) async {
@@ -67,7 +57,7 @@ extension ProfileAccount on ProfileRepository {
     if (neu == old) return;
     final ok = await isUsernameAvailable(neu, exceptUid: uid);
     if (!ok) throw const ValidationException('Ese nombre de usuario ya está en uso.');
-    await claimUsername(username: neu, uid: uid, email: email);
+    await claimUsername(username: neu, uid: uid);
     if (old != null && old.isNotEmpty && old != neu) {
       await releaseUsername(old);
     }

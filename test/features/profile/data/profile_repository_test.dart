@@ -311,47 +311,44 @@ void main() {
   });
 
   group('Usernames', () {
-    test('claim/available/resolve/release', () async {
+    test('claim/available/release', () async {
       expect(await repo.isUsernameAvailable('juan'), isTrue);
-      await repo.claimUsername(username: 'juan', uid: 'u1', email: 'a@b.com');
+      await repo.claimUsername(username: 'juan', uid: 'u1');
       expect(await repo.isUsernameAvailable('juan'), isFalse);
-      expect(await repo.resolveUsernameToEmail('juan'), 'a@b.com');
 
       await repo.releaseUsername('juan');
       expect(await repo.isUsernameAvailable('juan'), isTrue);
-      expect(await repo.resolveUsernameToEmail('juan'), isNull);
     });
 
     test('isUsernameAvailable respeta el propio uid', () async {
-      await repo.claimUsername(username: 'juan', uid: 'u1', email: 'a@b.com');
+      await repo.claimUsername(username: 'juan', uid: 'u1');
       expect(await repo.isUsernameAvailable('juan', exceptUid: 'u1'), isTrue);
       expect(await repo.isUsernameAvailable('juan', exceptUid: 'u2'), isFalse);
     });
 
     test('claimUsername rechaza nombres muy cortos', () async {
       expect(
-        () => repo.claimUsername(username: 'ab', uid: 'u1', email: 'a@b.com'),
+        () => repo.claimUsername(username: 'ab', uid: 'u1'),
         throwsA(isA<ValidationException>()),
       );
     });
 
     test('claimUsername rechaza caracteres inválidos', () async {
       expect(
-        () => repo.claimUsername(username: 'juan perez', uid: 'u1', email: 'a@b.com'),
+        () => repo.claimUsername(username: 'juan perez', uid: 'u1'),
         throwsA(isA<ValidationException>()),
       );
     });
 
     test('changeUsername libera el anterior y reclama el nuevo', () async {
-      await repo.claimUsername(username: 'viejo', uid: 'u1', email: 'a@b.com');
+      await repo.claimUsername(username: 'viejo', uid: 'u1');
       await repo.changeUsername(
         uid: 'u1',
-        email: 'a@b.com',
         oldUsername: 'viejo',
         newUsername: 'nuevo',
       );
-      expect(await repo.resolveUsernameToEmail('nuevo'), 'a@b.com');
-      expect(await repo.resolveUsernameToEmail('viejo'), isNull);
+      expect(await repo.isUsernameAvailable('nuevo'), isFalse);
+      expect(await repo.isUsernameAvailable('viejo'), isTrue);
     });
   });
 
@@ -397,7 +394,7 @@ void main() {
   group('deleteUserData', () {
     test('borra perfil, subcolecciones y libera el username', () async {
       await repo.saveProfile(_profile(username: 'juan', onboarding: true));
-      await repo.claimUsername(username: 'juan', uid: 'u1', email: 'a@b.com');
+      await repo.claimUsername(username: 'juan', uid: 'u1');
       await repo.saveRoutine('u1', RoutineDay(day: 'Lunes', title: 'Pecho'));
       await repo.addWeightEntry('u1', 80, DateTime(2026, 10, 1));
 

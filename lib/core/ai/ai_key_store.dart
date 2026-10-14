@@ -12,8 +12,24 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// correcta es una función en la nube que guarde la clave en el servidor.
 const String kEmbeddedGeminiKey = String.fromEnvironment('GEMINI_API_KEY');
 
+/// URL de un proxy propio que guarda la clave de Gemini en el servidor.
+///
+/// Se pasa al compilar con `--dart-define=AI_PROXY_URL=https://...`. Si está
+/// presente, la app usa el proxy y no necesita ninguna clave en el cliente:
+/// el proxy (un Cloudflare Worker o Deno Deploy gratis) guarda el secreto.
+const String kAiProxyUrl = String.fromEnvironment('AI_PROXY_URL');
+
+/// Token compartido opcional que el proxy exige en la cabecera `x-ai-token`.
+///
+/// Se pasa con `--dart-define=AI_PROXY_TOKEN=...`. No es un secreto fuerte
+/// (viaja en el APK), pero frena el abuso casual del endpoint.
+const String kAiProxyToken = String.fromEnvironment('AI_PROXY_TOKEN');
+
 /// true si la app trae una clave de IA incorporada.
 bool get hasEmbeddedAiKey => kEmbeddedGeminiKey.trim().isNotEmpty;
+
+/// true si la app está configurada para usar un proxy de IA.
+bool get hasAiProxy => kAiProxyUrl.trim().isNotEmpty;
 
 /// Elige qué clave usar: la del usuario manda; si no hay, la incorporada.
 String? resolveAiKey({String? userKey, String? embedded}) {
@@ -67,7 +83,8 @@ class AiKeyStore {
 
   static Future<bool> hasKey() async => (await read()) != null;
 
-  /// Hay IA disponible: o el usuario trajo clave, o la app incorpora una.
+  /// Hay IA disponible: o el usuario trajo clave, o la app incorpora una, o
+  /// está configurado un proxy.
   static Future<bool> isConfigured() async =>
-      hasEmbeddedAiKey || await hasKey();
+      hasEmbeddedAiKey || hasAiProxy || await hasKey();
 }

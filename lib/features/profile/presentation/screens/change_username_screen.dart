@@ -52,7 +52,6 @@ class _ChangeUsernameScreenState extends ConsumerState<ChangeUsernameScreen> {
     try {
       await ref.read(profileRepositoryProvider).changeUsername(
             uid: profile.uid,
-            email: profile.email ?? '',
             oldUsername: profile.username,
             newUsername: newUsername,
           );

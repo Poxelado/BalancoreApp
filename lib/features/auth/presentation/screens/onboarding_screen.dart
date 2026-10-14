@@ -160,7 +160,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     await repo.claimUsername(
       username: uname,
       uid: user.uid,
-      email: user.email ?? '',
     );
     return uname;
   }

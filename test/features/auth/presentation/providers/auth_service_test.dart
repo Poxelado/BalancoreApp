@@ -45,37 +45,9 @@ void main() {
       expect(service.currentUser, isNotNull);
     });
 
-    test('loginWithEmailOrUsername resuelve el usuario a correo', () async {
-      await service.registerWithEmail(email: 'a@b.com', password: '123456');
-      await service.signOut();
-
-      final cred = await service.loginWithEmailOrUsername(
-        identifier: 'pedro',
-        password: '123456',
-        resolveUsername: (u) async => 'a@b.com',
-      );
-      expect(cred!.user!.email, 'a@b.com');
-    });
-
-    test('loginWithEmailOrUsername lanza si el usuario no existe', () async {
+    test('loginWithEmail lanza si el correo está vacío', () async {
       expect(
-        () => service.loginWithEmailOrUsername(
-          identifier: 'nadie',
-          password: 'x',
-          resolveUsername: (_) async => null,
-        ),
-        throwsA(isA<AuthException>()),
-      );
-    });
-
-    test('loginWithEmailOrUsername lanza si el identificador está vacío',
-        () async {
-      expect(
-        () => service.loginWithEmailOrUsername(
-          identifier: '   ',
-          password: 'x',
-          resolveUsername: (_) async => null,
-        ),
+        () => service.loginWithEmail(email: '   ', password: 'x'),
         throwsA(isA<ValidationException>()),
       );
     });

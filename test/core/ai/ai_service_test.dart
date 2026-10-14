@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -447,6 +449,87 @@ void main() {
       // En los tests no se compila con --dart-define, así que no hay clave.
       expect(service.hasKey, isFalse);
       expect(kEmbeddedGeminiKey, isEmpty);
+    });
+  });
+
+  group('RoutineAiServiceImpl con proxy', () {
+    test('manda el prompt al proxy y parsea la respuesta', () async {
+      Uri? seenUri;
+      Map<String, String>? seenHeaders;
+      String? seenBody;
+      final client = MockClient((req) async {
+        seenUri = req.url;
+        seenHeaders = req.headers;
+        seenBody = req.body;
+        return http.Response(
+          jsonEncode({
+            'candidates': [
+              {
+                'content': {
+                  'parts': [
+                    {
+                      'text': jsonEncode({
+                        'days': [
+                          {
+                            'day': 'Lunes',
+                            'title': 'Pecho',
+                            'exercises': [
+                              {'id': 'a1', 'sets': 3, 'reps': 10},
+                            ],
+                          },
+                        ],
+                      }),
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+          200,
+        );
+      });
+      final service = RoutineAiServiceImpl(
+        client: client,
+        proxyUrl: 'https://proxy.example/generate',
+        proxyToken: 'secret',
+      );
+      // Con proxy configurado hay IA aunque no haya clave local.
+      expect(service.hasKey, isTrue);
+
+      final days = await service.generate(
+        context: const RoutineAiContext(
+          goal: 'Hipertrofia',
+          daysPerWeek: 1,
+          level: 'Principiante',
+        ),
+        allowedExercises: _allowed,
+      );
+
+      expect(seenUri.toString(), 'https://proxy.example/generate');
+      expect(seenHeaders?['x-ai-token'], 'secret');
+      final sent = jsonDecode(seenBody!) as Map<String, dynamic>;
+      expect(sent['prompt'], isA<String>());
+      // El cliente nunca manda la clave ni el formato de Gemini: sólo el prompt.
+      expect(sent.containsKey('contents'), isFalse);
+      expect(days, isNotNull);
+      expect(days!.first.exercises.first.exerciseId, 'a1');
+    });
+
+    test('devuelve null si el proxy responde con error', () async {
+      final client = MockClient((_) async => http.Response('nope', 500));
+      final service = RoutineAiServiceImpl(
+        client: client,
+        proxyUrl: 'https://proxy.example/generate',
+      );
+      final days = await service.generate(
+        context: const RoutineAiContext(
+          goal: 'Hipertrofia',
+          daysPerWeek: 1,
+          level: 'Principiante',
+        ),
+        allowedExercises: _allowed,
+      );
+      expect(days, isNull);
     });
   });
 }

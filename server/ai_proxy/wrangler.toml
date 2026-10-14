@@ -1,0 +1,7 @@
+name = "balancore-ai-proxy"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+# Los secretos NO van aquí. Configúralos tras el login:
+#   wrangler secret put GEMINI_API_KEY
+#   wrangler secret put AI_PROXY_TOKEN   # opcional

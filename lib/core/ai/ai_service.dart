@@ -81,7 +81,12 @@ class AiExercise {
       };
 }
 
-/// Implementación contra la API de Gemini (BYO key).
+/// Implementación contra la API de Gemini.
+///
+/// Modos, en orden de prioridad:
+///  - Proxy: si se compiló con `--dart-define=AI_PROXY_URL=...`, se llama al
+///    proxy y la clave vive en el servidor (nada que configurar en el cliente).
+///  - BYO key: si no hay proxy, se usa la clave del usuario (o la incorporada).
 class RoutineAiServiceImpl implements RoutineAiService {
   final http.Client _client;
 
@@ -90,13 +95,23 @@ class RoutineAiServiceImpl implements RoutineAiService {
   static const _model = 'gemini-2.0-flash';
   static const _endpoint = 'generativelanguage.googleapis.com';
 
-  RoutineAiServiceImpl({http.Client? client})
-      : _client = client ?? http.Client();
+  RoutineAiServiceImpl({
+    http.Client? client,
+    String? proxyUrl,
+    String? proxyToken,
+  })  : _client = client ?? http.Client(),
+        _proxyUrl = (proxyUrl ?? kAiProxyUrl).trim(),
+        _proxyToken = (proxyToken ?? kAiProxyToken).trim();
+
+  final String _proxyUrl;
+  final String _proxyToken;
 
   String? _key;
 
+  bool get _hasProxy => _proxyUrl.isNotEmpty;
+
   @override
-  bool get hasKey => (_key ?? '').isNotEmpty;
+  bool get hasKey => _hasProxy || (_key ?? '').isNotEmpty;
 
   @override
   Future<void> saveKey(String key) async {
@@ -132,6 +147,44 @@ class RoutineAiServiceImpl implements RoutineAiService {
       allowedExercises: allowedExercises,
     );
 
+    final res = _hasProxy
+        ? await _requestProxy(prompt)
+        : await _requestGemini(prompt);
+
+    // null = fallo de red; 429 = cuota agotada; 400 = clave inválida. En todos
+    // los casos se cae al generador de reglas sin error técnico al usuario.
+    if (res == null || res.statusCode != 200) return null;
+
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(res.body);
+    } catch (_) {
+      return null;
+    }
+    final text = extractFirstText(decoded);
+    if (text == null) return null;
+    return parseRoutineJson(text, allowedExercises);
+  }
+
+  /// Llama al proxy: sólo envía el prompt, la clave no sale del servidor.
+  Future<http.Response?> _requestProxy(String prompt) async {
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    if (_proxyToken.isNotEmpty) headers['x-ai-token'] = _proxyToken;
+    try {
+      return await _client
+          .post(
+            Uri.parse(_proxyUrl),
+            headers: headers,
+            body: jsonEncode({'prompt': prompt}),
+          )
+          .timeout(const Duration(seconds: 30));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Llama a Gemini directamente con la clave local (BYO key).
+  Future<http.Response?> _requestGemini(String prompt) async {
     final body = jsonEncode({
       'contents': [
         {
@@ -150,23 +203,17 @@ class RoutineAiServiceImpl implements RoutineAiService {
       'key': _key!,
     });
 
-    final res = await _client
-        .post(
-          uri,
-          headers: {'Content-Type': 'application/json'},
-          body: body,
-        )
-        .timeout(const Duration(seconds: 30));
-
-    if (res.statusCode != 200) {
-      // 429 = cuota agotada, 400 = clave inválida: en ambos casos se cae al
-      // generador de reglas sin molestar al usuario con un error técnico.
+    try {
+      return await _client
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: body,
+          )
+          .timeout(const Duration(seconds: 30));
+    } catch (_) {
       return null;
     }
-    final decoded = jsonDecode(res.body);
-    final text = extractFirstText(decoded);
-    if (text == null) return null;
-    return parseRoutineJson(text, allowedExercises);
   }
 }
 

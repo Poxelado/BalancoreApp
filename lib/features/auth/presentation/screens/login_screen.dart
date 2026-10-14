@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
-import '../../../profile/presentation/providers/profile_provider.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -31,11 +30,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
     try {
-      final repo = ref.read(profileRepositoryProvider);
-      await ref.read(authServiceProvider).loginWithEmailOrUsername(
-        identifier: _emailController.text,
+      await ref.read(authServiceProvider).loginWithEmail(
+        email: _emailController.text,
         password: _passwordController.text,
-        resolveUsername: (u) => repo.resolveUsernameToEmail(u),
       );
     } catch (e) {
       if (mounted) {
@@ -124,7 +121,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           keyboardType: TextInputType.emailAddress,
                           textInputAction: TextInputAction.next,
                           decoration: const InputDecoration(
-                            labelText: 'Correo o usuario',
+                            labelText: 'Correo',
                             prefixIcon: Icon(Icons.email_outlined),
                             border: OutlineInputBorder(),
                           ),

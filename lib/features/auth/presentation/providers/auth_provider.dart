@@ -19,9 +19,9 @@ class AuthService {
   final FirebaseAuth _auth;
   final GoogleSignIn _googleSignIn;
 
-  /// Mensaje genérico para no revelar si un correo/usuario existe.
+  /// Mensaje genérico para no revelar si un correo existe.
   static const _loginError =
-      'Usuario/correo o contraseña incorrectos. Si no tienes cuenta, regístrate.';
+      'Correo o contraseña incorrectos. Si no tienes cuenta, regístrate.';
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
   User? get currentUser => _auth.currentUser;
@@ -69,31 +69,17 @@ class AuthService {
     return refreshed.emailVerified;
   }
 
-  /// Login con correo O nombre de usuario.
-  /// [resolveUsername] devuelve el email asociado al username, o null.
-  Future<UserCredential?> loginWithEmailOrUsername({
-    required String identifier,
+  /// Login con correo y contraseña.
+  Future<UserCredential?> loginWithEmail({
+    required String email,
     required String password,
-    required Future<String?> Function(String username) resolveUsername,
   }) async {
-    final raw = identifier.trim();
-    if (raw.isEmpty) throw const ValidationException('Ingresa tu correo o usuario.');
-
-    String email;
-    if (raw.contains('@')) {
-      email = raw;
-    } else {
-      final username = raw.replaceAll('@', '').toLowerCase();
-      final resolved = await resolveUsername(username);
-      if (resolved == null || resolved.isEmpty) {
-        throw const AuthException(_loginError);
-      }
-      email = resolved;
-    }
+    final raw = email.trim();
+    if (raw.isEmpty) throw const ValidationException('Ingresa tu correo.');
 
     try {
       return await _auth.signInWithEmailAndPassword(
-        email: email.trim(),
+        email: raw,
         password: password,
       );
     } on FirebaseAuthException catch (e) {
@@ -105,17 +91,6 @@ class AuthService {
       }
       throw AuthException(_handleAuthException(e));
     }
-  }
-
-  Future<UserCredential?> loginWithEmail({
-    required String email,
-    required String password,
-  }) async {
-    return loginWithEmailOrUsername(
-      identifier: email,
-      password: password,
-      resolveUsername: (_) async => null,
-    );
   }
 
   Future<UserCredential?> signInWithGoogle() async {

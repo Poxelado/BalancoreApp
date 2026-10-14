@@ -120,7 +120,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       await repo.claimUsername(
         username: username,
         uid: createdUid,
-        email: email,
       );
 
       // Guardar para que el onboarding lo tenga sí o sí

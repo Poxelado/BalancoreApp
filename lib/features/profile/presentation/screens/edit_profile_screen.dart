@@ -162,7 +162,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         }
         await ref.read(profileRepositoryProvider).changeUsername(
           uid: widget.profile.uid,
-          email: widget.profile.email ?? '',
           oldUsername: widget.profile.username,
           newUsername: newUsername,
         );
