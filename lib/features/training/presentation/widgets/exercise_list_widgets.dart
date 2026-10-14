@@ -71,7 +71,8 @@ class ExerciseThumb extends StatelessWidget {
 }
 
 /// Banner grande de un ejercicio (estilo Hevy/Symmetry): la imagen a lo ancho
-/// con un degradado y el nombre superpuestos. Cae al ícono si no hay imagen.
+/// y debajo el nombre COMPLETO (sin recortar) con el grupo muscular. Cae al
+/// ícono si no hay imagen.
 class ExerciseBanner extends StatelessWidget {
   final String exerciseId;
   final String name;
@@ -93,93 +94,83 @@ class ExerciseBanner extends StatelessWidget {
     final e = ExerciseCatalog.byId(exerciseId);
     final url = e?.imageUrl;
     final accent = accentOf(context);
+    final scheme = Theme.of(context).colorScheme;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: Material(
-        color: accent.withValues(alpha: 0.10),
+        color: accent.withValues(alpha: 0.08),
         child: InkWell(
           onTap: onTap,
-          child: SizedBox(
-            height: height,
-            width: double.infinity,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (url != null)
-                  Image.network(
-                    url,
-                    fit: BoxFit.cover,
-                    semanticLabel: name,
-                    loadingBuilder: (context, child, progress) {
-                      if (progress == null) return child;
-                      return Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: accent,
-                        ),
-                      );
-                    },
-                    errorBuilder: (_, __, ___) => _icon(accent),
-                  )
-                else
-                  _icon(accent),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    padding: const EdgeInsets.fromLTRB(14, 28, 14, 12),
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, Color(0xCC000000)],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                height: height,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (url != null)
+                      Image.network(
+                        url,
+                        fit: BoxFit.cover,
+                        semanticLabel: name,
+                        loadingBuilder: (context, child, progress) {
+                          if (progress == null) return child;
+                          return Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: accent,
+                            ),
+                          );
+                        },
+                        errorBuilder: (_, __, ___) => _icon(accent),
+                      )
+                    else
+                      _icon(accent),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      name,
+                      style: TextStyle(
+                        color: scheme.onSurface,
+                        fontSize: 18,
+                        height: 1.2,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            shadows: [
-                              Shadow(blurRadius: 6, color: Colors.black45),
-                            ],
-                          ),
-                        ),
-                        if (muscleGroup.isNotEmpty)
-                          Row(
-                            children: [
-                              const Icon(Icons.accessibility_new,
-                                  size: 13, color: Colors.white70),
-                              const SizedBox(width: 4),
-                              Flexible(
-                                child: Text(
-                                  muscleGroup,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
+                    if (muscleGroup.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.accessibility_new,
+                              size: 14, color: accent),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              muscleGroup,
+                              style: TextStyle(
+                                color: scheme.onSurfaceVariant,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
                               ),
-                            ],
+                            ),
                           ),
-                      ],
-                    ),
-                  ),
+                        ],
+                      ),
+                    ],
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
