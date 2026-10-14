@@ -11,18 +11,25 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
 
   int _restSecondsDefault = 90;
   int? _restRemaining;
+  /// Duración total del descanso en curso (para el anillo del popup).
+  int _restTotal = 0;
   Timer? _restTimer;
 
   final Map<String, TextEditingController> _weightCtrls = {};
   final Map<String, TextEditingController> _repsCtrls = {};
   /// exerciseId -> suggestion from history
   final Map<String, ProgressionSuggestion> _suggestions = {};
-  /// Claves "<índiceEjercicio>_<índiceSerie>" de las series que son récord.
-  final Set<String> _prKeys = {};
+  /// Índice de ejercicio -> índice de la serie con el mejor récord (PR). Solo
+  /// se marca una serie por ejercicio: la más alta.
+  final Map<int, int> _prBestSet = {};
 
   /// Etiqueta de récord para la serie, o null si no lo es.
   String? _prLabelFor(int exerciseIndex, int setIndex) =>
-      _prKeys.contains('$exerciseIndex' '_$setIndex') ? 'PR' : null;
+      _prBestSet[exerciseIndex] == setIndex ? 'PR' : null;
+
+  /// Puntuación comparable de una serie para elegir el mejor récord: el 1RM
+  /// estimado (combina peso y reps). Cae al peso si no hay reps.
+  double _prScore(WorkoutSetLog s) => epley(s.weight, s.reps) ?? s.weight;
   Future<void> _loadProgression() async {
     try {
       final history = await ref.read(workoutHistoryProvider(120).future);
@@ -282,10 +289,15 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
       HapticFeedback.lightImpact();
       _startRest();
       await _checkPersonalRecords(exerciseIndex, setIndex);
+    } else if (_prBestSet[exerciseIndex] == setIndex) {
+      // Se desmarcó la serie que era la mejor: ya no hay PR en el ejercicio.
+      setState(() => _prBestSet.remove(exerciseIndex));
     }
   }
 
-  /// Recalcula los récords de la sesión y avisa si esta serie los batió.
+  /// Recalcula los récords de la sesión y avisa solo la PRIMERA vez que el
+  /// ejercicio bate un récord. El badge se mueve a la mejor serie, pero sin
+  /// volver a felicitar.
   Future<void> _checkPersonalRecords(int exerciseIndex, int setIndex) async {
     final ex = _session.exercises[exerciseIndex];
     final set = ex.sets[setIndex];
@@ -302,14 +314,18 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
         history: past,
       );
       if (records.isEmpty) return;
-      final key = '${exerciseIndex}_$setIndex';
-      _prKeys.add(key);
-      // Aviso visible solo para peso o 1RM: el volumen cambia casi en cada
-      // serie y molestaría.
+      // Aviso solo para peso o 1RM: el volumen cambia casi en cada serie.
       final headline =
           records.where((r) => r.kind != PrKind.volume).toList();
       if (headline.isEmpty) return;
-      setState(() {});
+
+      final prevBestSet = _prBestSet[exerciseIndex];
+      final prevScore =
+          prevBestSet == null ? -1.0 : _prScore(ex.sets[prevBestSet]);
+      if (_prScore(set) <= prevScore) return; // ya hay una mejor marcada
+      final firstTime = prevBestSet == null;
+      setState(() => _prBestSet[exerciseIndex] = setIndex);
+      if (!firstTime) return;
       final best = headline.first;
       _toast('🏆 ¡Nuevo récord en ${ex.exerciseName}! '
           '${best.label}: ${best.value.round()} kg');
@@ -375,6 +391,7 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
     setState(() {
       _session = _session.copyWith(restEndsAt: ends);
       _restRemaining = total;
+      _restTotal = total;
     });
     _persist(silent: true);
     _scheduleRestNotification(ends);
@@ -417,6 +434,7 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
     setState(() {
       _session = _session.copyWith(restEndsAt: target);
       _restRemaining = _session.restRemaining();
+      _restTotal = (_restTotal + delta).clamp(1, 3600);
     });
     await _persist(silent: true);
     _scheduleRestNotification(target);
@@ -424,10 +442,12 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
 
   void _clearRest() {
     _restTimer?.cancel();
+    NotificationService.instance.cancelRestTimer();
     if (!mounted) return;
     setState(() {
       _session = _session.copyWith(clearRest: true);
       _restRemaining = null;
+      _restTotal = 0;
     });
     _persist(silent: true);
   }
@@ -445,7 +465,10 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
       _persist(silent: true);
       return;
     }
-    setState(() => _restRemaining = left);
+    setState(() {
+      _restRemaining = left;
+      _restTotal = left;
+    });
     _runRestTicker();
   }
 
@@ -641,7 +664,11 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
       sets[i] = sets[i].copyWith(setNumber: i + 1);
     }
     exercises[exerciseIndex] = ex.copyWith(sets: sets);
-    setState(() => _session = _session.copyWith(exercises: exercises));
+    setState(() {
+      _session = _session.copyWith(exercises: exercises);
+      // Se renumeran/ordenan las series: el índice del PR deja de ser válido.
+      _prBestSet.remove(exerciseIndex);
+    });
     _syncControllersForExercise(exercises[exerciseIndex]);
   }
 
@@ -955,7 +982,9 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
         clearRest: true,
       );
       _restTimer?.cancel();
+      NotificationService.instance.cancelRestTimer();
       _restRemaining = null;
+      _restTotal = 0;
       await _persist();
       final kcal = await _applyWorkoutCalories();
       if (!mounted) return;

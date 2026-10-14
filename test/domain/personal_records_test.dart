@@ -132,6 +132,19 @@ void main() {
       expect(kinds, contains(PrKind.weight));
       expect(kinds.contains(PrKind.volume), isFalse);
     });
+
+    test('varias series que baten el histórico dejan un solo récord por tipo', () {
+      final history = [_sess('prev', [_set(1, 100, 5)])];
+      // 110 y 120 superan los 100 kg previos: antes salían dos filas de peso.
+      final records = detectPersonalRecords(
+        _sess('a', [_set(1, 110, 5), _set(2, 120, 5)]),
+        history,
+      );
+      final weights =
+          records.where((r) => r.kind == PrKind.weight).toList();
+      expect(weights.length, 1);
+      expect(weights.single.value, 120, reason: 'Se conserva el mejor');
+    });
   });
 
   group('recordsForSet', () {

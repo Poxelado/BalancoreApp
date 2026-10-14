@@ -8,6 +8,7 @@ WorkoutSession _session({
   required List<WorkoutSetLog> sets,
   String exerciseId = 'squat',
   String exerciseName = 'Sentadilla',
+  int? rpe,
 }) {
   return WorkoutSession(
     id: id,
@@ -19,6 +20,7 @@ WorkoutSession _session({
       WorkoutExerciseLog(
         exerciseId: exerciseId,
         exerciseName: exerciseName,
+        rpe: rpe,
         sets: sets,
       ),
     ],
@@ -127,6 +129,29 @@ void main() {
       expect(s.isIncrease, isFalse);
       expect(s.weights.every((w) => w == 100), isTrue);
       expect(s.reps.every((r) => r == 11), isTrue);
+    });
+
+    test('RPE al límite bloquea la subida aunque se llegue al techo', () {
+      final s = _suggest([
+        _session(
+          id: 'a',
+          startedAt: DateTime(2026, 10, 1),
+          sets: _completedSets(100, 12),
+          rpe: 9,
+        ),
+        _session(
+          id: 'b',
+          startedAt: DateTime(2026, 10, 6),
+          sets: _completedSets(100, 12),
+          rpe: 9,
+        ),
+      ]);
+
+      expect(s, isNotNull);
+      expect(s!.isIncrease, isFalse);
+      expect(s.isRepIncrease, isFalse);
+      expect(s.weights.every((w) => w == 100), isTrue);
+      expect(s.message, contains('límite'));
     });
 
     test('setCount <= 0 devuelve null', () {

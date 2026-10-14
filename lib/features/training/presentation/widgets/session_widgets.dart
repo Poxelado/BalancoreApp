@@ -125,12 +125,12 @@ class ExerciseSelectorStrip extends StatelessWidget {
                         ),
                       ),
                       child: Stack(
+                        fit: StackFit.expand,
                         children: [
-                          Center(
-                            child: ExerciseThumb(
-                              exerciseId: e.exerciseId,
-                              size: 40,
-                            ),
+                          ExerciseThumb(
+                            exerciseId: e.exerciseId,
+                            size: 56,
+                            circular: true,
                           ),
                           if (allDone)
                             Positioned(
@@ -219,77 +219,30 @@ class ExerciseHeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 8, 8),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 2, right: 10),
-            child: ExerciseThumb(exerciseId: ex.exerciseId, size: 44),
+          ExerciseBanner(
+            exerciseId: ex.exerciseId,
+            name: ex.exerciseName,
+            muscleGroup: ex.muscleGroup,
+            onTap: onOpenDetail,
           ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                InkWell(
-                  onTap: onOpenDetail,
-                  child: Text(
-                    ex.exerciseName,
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                if (ex.muscleGroup.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      ex.muscleGroup,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ),
-                if (supersetPartner != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .secondary
-                            .withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.link,
-                              size: 13,
-                              color: Theme.of(context).colorScheme.secondary),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              'Superset con $supersetPartner',
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color:
-                                    Theme.of(context).colorScheme.secondary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 6),
-                InkWell(
-                  onTap: onEditRest,
-                  borderRadius: BorderRadius.circular(8),
+          if (supersetPartner != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: _supersetChip(context, supersetPartner!),
+            ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              InkWell(
+                onTap: onEditRest,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 2, vertical: 4),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -303,129 +256,27 @@ class ExerciseHeaderCard extends StatelessWidget {
                           color: accentOf(context),
                         ),
                       ),
+                      const SizedBox(width: 2),
                       Icon(Icons.edit, size: 14, color: accentOf(context)),
                     ],
                   ),
                 ),
-                const SizedBox(height: 10),
-                // RPE compacto: una fila 1–10 sin scroll
-                Container(
-                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                  decoration: BoxDecoration(
-                    color: primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: primary.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.speed, size: 16, color: accentOf(context)),
-                          const SizedBox(width: 6),
-                          Text(
-                            'RPE',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: accentOf(context),
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            ex.rpe != null
-                                ? '${ex.rpe} · ${rpeLabel(ex.rpe!)}'
-                                : 'Esfuerzo percibido',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          for (var r = 1; r <= 10; r++) ...[
-                            if (r > 1) const SizedBox(width: 3),
-                            Expanded(
-                              child: Material(
-                                color: ex.rpe == r
-                                    ? rpeColor(r)
-                                    : (Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? Colors.white.withValues(alpha: 0.08)
-                                        : Colors.black.withValues(alpha: 0.06)),
-                                borderRadius: BorderRadius.circular(8),
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(8),
-                                  onTap: () => onSetRpe(r),
-                                  child: SizedBox(
-                                    height: 32,
-                                    child: Center(
-                                      child: Text(
-                                        '$r',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: ex.rpe == r
-                                              ? Colors.white
-                                              : Colors.grey.shade500,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Fácil',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey.shade500,
-                            ),
-                          ),
-                          Text(
-                            'Máximo',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey.shade500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+              ),
+              const Spacer(),
               IconButton(
                 tooltip: 'Superset',
+                visualDensity: VisualDensity.compact,
                 icon: Icon(
                   ex.hasSuperset ? Icons.link : Icons.link_off,
-                  color:
-                      ex.hasSuperset
-                          ? Theme.of(context).colorScheme.secondary
-                          : primary,
+                  color: ex.hasSuperset
+                      ? Theme.of(context).colorScheme.secondary
+                      : primary,
                 ),
                 onPressed: onEditSuperset,
               ),
               IconButton(
                 tooltip: 'Notas del ejercicio',
+                visualDensity: VisualDensity.compact,
                 icon: Icon(
                   ex.notes.isEmpty
                       ? Icons.note_add_outlined
@@ -436,9 +287,169 @@ class ExerciseHeaderCard extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 6),
+          _rpeCard(context),
         ],
       ),
     );
+  }
+
+  Widget _supersetChip(BuildContext context, String partner) {
+    final secondary = Theme.of(context).colorScheme.secondary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: secondary.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.link, size: 13, color: secondary),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              'Superset con $partner',
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: secondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Selector de esfuerzo percibido (RPE) 1–10, con color por intensidad,
+  /// descriptores y reps en reserva (RIR) para una lectura realista.
+  Widget _rpeCard(BuildContext context) {
+    final accent = accentOf(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: accent.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.speed, size: 16, color: accent),
+              const SizedBox(width: 6),
+              Text(
+                'Esfuerzo percibido',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: accent,
+                  letterSpacing: 0.2,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                ex.rpe != null ? '${ex.rpe} · ${rpeLabel(ex.rpe!)}' : 'Sin marcar',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: ex.rpe != null ? FontWeight.w700 : FontWeight.w500,
+                  color: ex.rpe != null ? rpeColor(ex.rpe!) : Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              for (var r = 1; r <= 10; r++) ...[
+                if (r > 1) const SizedBox(width: 3),
+                Expanded(child: _rpeCell(context, r)),
+              ],
+            ],
+          ),
+          const SizedBox(height: 6),
+          Container(
+            height: 4,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(2),
+              gradient: const LinearGradient(
+                colors: [
+                  Color(0xFF4CAF50),
+                  Color(0xFF8BC34A),
+                  Color(0xFFFFC107),
+                  Color(0xFFFF9800),
+                  Color(0xFFE53935),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Text('Fácil',
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+              const Spacer(),
+              Flexible(
+                child: Text(
+                  _rpeHint(ex.rpe),
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Text('Máximo',
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _rpeCell(BuildContext context, int r) {
+    final selected = ex.rpe == r;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Material(
+      color: selected
+          ? rpeColor(r)
+          : (dark
+              ? Colors.white.withValues(alpha: 0.08)
+              : Colors.black.withValues(alpha: 0.05)),
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => onSetRpe(r),
+        child: SizedBox(
+          height: 34,
+          child: Center(
+            child: Text(
+              '$r',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: selected ? Colors.white : Colors.grey.shade500,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _rpeHint(int? rpe) {
+    if (rpe == null) return 'Toca tu esfuerzo';
+    final rir = (10 - rpe).clamp(0, 10);
+    if (rir == 0) return 'Al fallo · 0 reps en reserva';
+    if (rir == 1) return '1 rep en reserva';
+    return '$rir reps en reserva';
   }
 }
 
@@ -493,9 +504,11 @@ class ProgressionBanner extends StatelessWidget {
   }
 }
 
-/// Franja de descanso activo entre series.
+/// Descanso activo entre series, como tarjeta flotante (popup) con anillo de
+/// cuenta atrás. Aparece sobre el listado de series y se puede ajustar o saltar.
 class RestBanner extends StatelessWidget {
   final int remaining;
+  final int total;
   final Color primary;
   final VoidCallback onSkip;
   final ValueChanged<int> onAdjust;
@@ -503,6 +516,7 @@ class RestBanner extends StatelessWidget {
   const RestBanner({
     super.key,
     required this.remaining,
+    this.total = 0,
     required this.primary,
     required this.onSkip,
     required this.onAdjust,
@@ -510,34 +524,77 @@ class RestBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = accentOf(context);
+    final denom = total > 0 ? total : (remaining > 0 ? remaining : 1);
+    final progress = (remaining / denom).clamp(0.0, 1.0);
     return Material(
-      color: primary.withValues(alpha: 0.15),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      elevation: 8,
+      borderRadius: BorderRadius.circular(16),
+      color: Theme.of(context).colorScheme.surface,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: accent.withValues(alpha: 0.35)),
+        ),
         child: Row(
           children: [
-            Icon(Icons.hourglass_bottom, color: accentOf(context)),
-            const SizedBox(width: 8),
-            Text(
-              fmtRest(remaining),
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: accentOf(context),
-                fontSize: 16,
+            SizedBox(
+              width: 46,
+              height: 46,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  CircularProgressIndicator(
+                    value: progress,
+                    strokeWidth: 4,
+                    color: accent,
+                    backgroundColor: accent.withValues(alpha: 0.15),
+                  ),
+                  Center(
+                    child: Icon(Icons.hourglass_bottom, size: 18, color: accent),
+                  ),
+                ],
               ),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'DESCANSO',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.6,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+                Text(
+                  fmtRest(remaining),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: accent,
+                    fontSize: 20,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
             ),
             const Spacer(),
             IconButton(
               tooltip: 'Quitar 15s',
+              visualDensity: VisualDensity.compact,
               onPressed: () => onAdjust(-15),
-              icon: Icon(Icons.remove_circle_outline, color: accentOf(context), size: 22),
+              icon: Icon(Icons.remove_circle_outline, color: accent, size: 22),
             ),
             IconButton(
               tooltip: 'Añadir 15s',
+              visualDensity: VisualDensity.compact,
               onPressed: () => onAdjust(15),
-              icon: Icon(Icons.add_circle_outline, color: accentOf(context), size: 22),
+              icon: Icon(Icons.add_circle_outline, color: accent, size: 22),
             ),
-            const SizedBox(width: 4),
             TextButton(onPressed: onSkip, child: const Text('Saltar')),
           ],
         ),

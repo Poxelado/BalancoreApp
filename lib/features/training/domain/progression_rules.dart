@@ -191,8 +191,19 @@ class ProgressionRules {
       }
     }
 
+    // RPE de la última sesión: si quedó al límite, no se sube (evita forzar
+    // una progresión sobre un esfuerzo ya máximo).
+    final lastRpe = prev.rpe;
+    final tooHard = lastRpe != null && lastRpe >= 9;
+
+    // El ejercicio se trabajó al límite → consolidar antes de progresar
+    if (tooHard && (bothHigh || bothCeiling || bothSolid)) {
+      message =
+          'Última sesión al límite (RPE $lastRpe) → consolida el peso antes de subir';
+      fillSameAsLast();
+    }
     // Sin 2 sesiones aún → no subir, solo repetir
-    if (!confirmed) {
+    else if (!confirmed) {
       message =
       'Repite lo anterior. Tras $sessionsToConfirm entrenos del ejercicio sugeriremos progresión';
       fillSameAsLast();

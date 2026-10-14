@@ -10,11 +10,15 @@ class ExerciseThumb extends StatelessWidget {
   final String? exerciseId;
   final double size;
 
+  /// true = recorta la imagen en círculo (para llenar avatares redondos).
+  final bool circular;
+
   const ExerciseThumb({
     super.key,
     this.exercise,
     this.exerciseId,
     this.size = 48,
+    this.circular = false,
   }) : assert(exercise != null || exerciseId != null,
             'Indica exercise o exerciseId');
 
@@ -23,30 +27,32 @@ class ExerciseThumb extends StatelessWidget {
     final e = exercise ?? ExerciseCatalog.byId(exerciseId!);
     final url = e?.imageUrl;
     if (url == null) return _fallback(accentOf(context));
+    final image = Image.network(
+      url,
+      width: size,
+      height: size,
+      fit: BoxFit.cover,
+      semanticLabel: e?.name ?? 'Imagen del ejercicio',
+      errorBuilder: (_, __, ___) => _fallback(accentOf(context)),
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return SizedBox(
+          width: size,
+          height: size,
+          child: Center(
+            child: SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2, color: accentOf(context)),
+            ),
+          ),
+        );
+      },
+    );
+    if (circular) return ClipOval(child: image);
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
-      child: Image.network(
-        url,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        semanticLabel: e?.name ?? 'Imagen del ejercicio',
-        errorBuilder: (_, __, ___) => _fallback(accentOf(context)),
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
-          return SizedBox(
-            width: size,
-            height: size,
-            child: Center(
-              child: SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: accentOf(context)),
-              ),
-            ),
-          );
-        },
-      ),
+      child: image,
     );
   }
 
@@ -56,11 +62,137 @@ class ExerciseThumb extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         color: primary.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
+        shape: circular ? BoxShape.circle : BoxShape.rectangle,
+        borderRadius: circular ? null : BorderRadius.circular(8),
       ),
       child: Icon(Icons.fitness_center, color: primary, size: size * 0.45),
     );
   }
+}
+
+/// Banner grande de un ejercicio (estilo Hevy/Symmetry): la imagen a lo ancho
+/// con un degradado y el nombre superpuestos. Cae al ícono si no hay imagen.
+class ExerciseBanner extends StatelessWidget {
+  final String exerciseId;
+  final String name;
+  final String muscleGroup;
+  final double height;
+  final VoidCallback? onTap;
+
+  const ExerciseBanner({
+    super.key,
+    required this.exerciseId,
+    required this.name,
+    this.muscleGroup = '',
+    this.height = 132,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final e = ExerciseCatalog.byId(exerciseId);
+    final url = e?.imageUrl;
+    final accent = accentOf(context);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Material(
+        color: accent.withValues(alpha: 0.10),
+        child: InkWell(
+          onTap: onTap,
+          child: SizedBox(
+            height: height,
+            width: double.infinity,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (url != null)
+                  Image.network(
+                    url,
+                    fit: BoxFit.cover,
+                    semanticLabel: name,
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+                      return Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: accent,
+                        ),
+                      );
+                    },
+                    errorBuilder: (_, __, ___) => _icon(accent),
+                  )
+                else
+                  _icon(accent),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(14, 28, 14, 12),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Colors.transparent, Color(0xCC000000)],
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            shadows: [
+                              Shadow(blurRadius: 6, color: Colors.black45),
+                            ],
+                          ),
+                        ),
+                        if (muscleGroup.isNotEmpty)
+                          Row(
+                            children: [
+                              const Icon(Icons.accessibility_new,
+                                  size: 13, color: Colors.white70),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  muscleGroup,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _icon(Color accent) => Center(
+        child: Icon(
+          Icons.fitness_center,
+          size: 56,
+          color: accent.withValues(alpha: 0.5),
+        ),
+      );
 }
 
 /// Ordena una lista de ejercicios agrupándolos por grupo muscular.

@@ -182,7 +182,9 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
     return Scaffold(
       backgroundColor: bg,
       body: SafeArea(
-        child: Column(
+        child: Stack(
+          children: [
+            Column(
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
@@ -233,7 +235,7 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
                     onPressed: _editSessionNotes,
                   ),
                   IconButton(
-                    icon: const Icon(Icons.settings_outlined),
+                    icon: const Icon(Icons.alarm),
                     tooltip: 'Ajustes',
                     onPressed: _openSettings,
                   ),
@@ -294,13 +296,6 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
                 suggestion: sug,
                 primary: primary,
                 onApply: () => _applySuggestionForExercise(_exerciseIndex),
-              ),
-            if (_restRemaining != null)
-              RestBanner(
-                remaining: _restRemaining!,
-                primary: primary,
-                onSkip: _skipRest,
-                onAdjust: _adjustRest,
               ),
             Padding(
               padding: const EdgeInsets.fromLTRB(13, 8, 20, 4),
@@ -421,6 +416,21 @@ class _WorkoutSessionScreenState extends ConsumerState<WorkoutSessionScreen>
                 ],
               ),
             ),
+          ],
+            ),
+            if (_restRemaining != null)
+              Positioned(
+                left: 12,
+                right: 12,
+                bottom: 76,
+                child: RestBanner(
+                  remaining: _restRemaining!,
+                  total: _restTotal,
+                  primary: primary,
+                  onSkip: _skipRest,
+                  onAdjust: _adjustRest,
+                ),
+              ),
           ],
         ),
       ),

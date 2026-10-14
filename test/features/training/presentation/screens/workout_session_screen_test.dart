@@ -521,6 +521,33 @@ testWidgets('borrar una serie la elimina de la sesión y renumera',
     await _unmount(tester);
   });
 
+  testWidgets('marca un solo PR por ejercicio y en la mejor serie',
+      (WidgetTester tester) async {
+    await _openScreen(tester, container);
+    await _flush(tester);
+
+    await tester.enterText(find.byType(TextField).first, '80');
+    await _flush(tester);
+    await _visible(tester, find.byIcon(Icons.check_circle_outline).first);
+    await tester.tap(find.byIcon(Icons.check_circle_outline).first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('PR'), findsOneWidget);
+
+    // Segunda serie más pesada: el badge se mueve, pero sigue habiendo uno.
+    await tester.enterText(find.byType(TextField).at(2), '100');
+    await _flush(tester);
+    await _visible(tester, find.byIcon(Icons.check_circle_outline).first);
+    await tester.tap(find.byIcon(Icons.check_circle_outline).first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('PR'), findsOneWidget,
+        reason: 'Un solo récord por ejercicio, en la serie más alta');
+
+    await _unmount(tester);
+  });
+
   testWidgets('el descanso se ajusta con ±15s y se salta limpiando el instante',
       (WidgetTester tester) async {
     await _openScreen(tester, container);

@@ -110,7 +110,17 @@ List<PersonalRecord> detectPersonalRecords(
       }
     }
   }
-  return records;
+  // Una sesión puede batir el mismo tipo de récord en varias series (varias
+  // series por encima del histórico). Se conserva solo la mejor por ejercicio
+  // y tipo, para no duplicar filas en el resumen.
+  final best = <String, PersonalRecord>{};
+  for (final r in records) {
+    final key = '${r.exerciseId.isNotEmpty ? r.exerciseId : r.exerciseName}'
+        '#${r.kind}';
+    final current = best[key];
+    if (current == null || r.value > current.value) best[key] = r;
+  }
+  return best.values.toList();
 }
 
 double _max(double? a, double b) => (a ?? 0) > b ? a! : b;

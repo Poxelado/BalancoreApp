@@ -29,6 +29,7 @@ class _Channel {
   static const progress = ('balancore_progress', 'Progreso');
   static const streak = ('balancore_streak', 'Racha');
   static const rest = ('balancore_rest', 'Descanso');
+  static const restCountdown = ('balancore_rest_countdown', 'Temporizador de descanso');
   static const general = ('balancore_general', 'General');
 }
 
@@ -299,6 +300,9 @@ class NotificationService {
   Future<void> showRestDone() async {
     try {
       if (!_ready) await init();
+      // Retira el contador en vivo y el aviso programado, y anuncia el fin.
+      await _plugin.cancel(kRestTimerId);
+      await _plugin.cancel(kRestDoneId);
       await _plugin.show(
         kRestDoneId,
         'Descanso terminado ⏱️',
@@ -311,34 +315,64 @@ class NotificationService {
     }
   }
 
-  /// Programa (o reprograma) el aviso de fin de descanso en [seconds].
+  /// Programa el aviso de fin de descanso en [seconds] y muestra un contador
+  /// en vivo (cronómetro descendente de Android) mientras dura. El aviso de fin
+  /// se calendariza para que llegue aunque la app quede en segundo plano.
   Future<void> showRestTimer(int seconds) async {
     try {
       if (!_ready) await init();
+      final ends = DateTime.now().add(Duration(seconds: seconds));
       await _plugin.cancel(kRestDoneId);
       await _plugin.zonedSchedule(
         kRestDoneId,
-        'Descanso en curso ⏱️',
-        'Termina en ${_humanSeconds(seconds)}.',
-        tz.TZDateTime.from(
-          DateTime.now().add(Duration(seconds: seconds)),
-          tz.local,
-        ),
+        'Descanso terminado ⏱️',
+        'Puedes con la siguiente serie.',
+        tz.TZDateTime.from(ends, tz.local),
         _details(_Channel.rest,
             importance: Importance.high, priority: Priority.high),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );
+      await _plugin.show(
+        kRestTimerId,
+        'Descanso en curso',
+        'Termina en ${_humanSeconds(seconds)}',
+        _countdownDetails(ends),
+      );
     } catch (e) {
       debugPrint('notifications: no se pudo programar el descanso: $e');
     }
   }
 
-  /// Cancela el aviso de descanso (el usuario lo salteó).
+  /// Contador en vivo: Android muestra un cronómetro descendente desde [ends].
+  NotificationDetails _countdownDetails(DateTime ends) {
+    final (id, name) = _Channel.restCountdown;
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        id,
+        name,
+        channelDescription: 'Contador del descanso entre series',
+        importance: Importance.low,
+        priority: Priority.low,
+        icon: '@mipmap/ic_launcher',
+        ongoing: true,
+        autoCancel: false,
+        onlyAlertOnce: true,
+        showWhen: true,
+        usesChronometer: true,
+        chronometerCountDown: true,
+        when: ends.millisecondsSinceEpoch,
+      ),
+      iOS: const DarwinNotificationDetails(),
+    );
+  }
+
+  /// Cancela el descanso: tanto el contador en vivo como el aviso de fin.
   Future<void> cancelRestTimer() async {
     try {
       if (!_ready) await init();
+      await _plugin.cancel(kRestTimerId);
       await _plugin.cancel(kRestDoneId);
     } catch (_) {
       // Sin plugin: no hay nada que cancelar.
