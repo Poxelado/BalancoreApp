@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:balancore/core/ai/ai_key_store.dart';
@@ -366,6 +367,7 @@ void main() {
   group('AiKeyStore', () {
     setUp(() async {
       SharedPreferences.setMockInitialValues({});
+      FlutterSecureStorage.setMockInitialValues({});
     });
 
     test('guarda, lee y borra la clave', () async {
@@ -383,6 +385,29 @@ void main() {
     test('una clave en blanco no cuenta como configurada', () async {
       await AiKeyStore.save('   ');
       expect(await AiKeyStore.read(), isNull);
+    });
+
+    test('migra la clave heredada de SharedPreferences al almacén seguro',
+        () async {
+      SharedPreferences.setMockInitialValues({'ai.gemini_key_v1': 'AIza-vieja'});
+      FlutterSecureStorage.setMockInitialValues({});
+
+      expect(await AiKeyStore.read(), 'AIza-vieja');
+
+      // Ya vive cifrada y se borró la copia sin cifrar.
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('ai.gemini_key_v1'), isNull);
+      expect(await AiKeyStore.read(), 'AIza-vieja');
+    });
+
+    test('clear borra también la copia heredada sin cifrar', () async {
+      SharedPreferences.setMockInitialValues({'ai.gemini_key_v1': 'AIza-vieja'});
+      FlutterSecureStorage.setMockInitialValues({});
+
+      await AiKeyStore.clear();
+      expect(await AiKeyStore.read(), isNull);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('ai.gemini_key_v1'), isNull);
     });
   });
 
@@ -406,6 +431,7 @@ void main() {
   group('RoutineAiServiceImpl.load', () {
     setUp(() {
       SharedPreferences.setMockInitialValues({});
+      FlutterSecureStorage.setMockInitialValues({});
     });
 
     test('toma la clave del usuario guardada', () async {

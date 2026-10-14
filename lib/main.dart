@@ -1,6 +1,8 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'app.dart';
 import 'core/notifications/notification_service.dart';
 
@@ -11,6 +13,7 @@ Future<void> main() async {
   // mostramos un aviso en vez de dejar una pantalla en blanco / crash.
   try {
     await Firebase.initializeApp();
+    await _initAppCheck();
     await NotificationService.instance.init();
   } catch (e) {
     debugPrint('Fallo al inicializar la app: $e');
@@ -25,6 +28,25 @@ Future<void> main() async {
       child: BalancoreApp(),
     ),
   );
+}
+
+/// Activa Firebase App Check (best-effort).
+///
+/// En release usa Play Integrity en Android y App Attest en iOS; en debug un
+/// proveedor de prueba, cuyo token hay que registrar en la consola de Firebase
+/// para que las peticiones cuenten como válidas. Si falla, no rompe el arranque:
+/// el exigir o no App Check se decide desde la consola de Firebase.
+Future<void> _initAppCheck() async {
+  try {
+    await FirebaseAppCheck.instance.activate(
+      androidProvider:
+          kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
+      appleProvider:
+          kDebugMode ? AppleProvider.debug : AppleProvider.appAttest,
+    );
+  } catch (e) {
+    debugPrint('App Check no disponible: $e');
+  }
 }
 
 class _StartupErrorApp extends StatelessWidget {

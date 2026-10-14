@@ -27,6 +27,17 @@ service cloud.firestore {
       return request.auth.token.email_verified == true;
     }
 
+    // Un doc de `usernames` sólo puede apuntar a la cuenta autenticada: el uid
+    // y el email deben coincidir con el token, y no debe traer campos extra.
+    function validUsernameDoc() {
+      return request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'username', 'updatedAt'])
+        && request.resource.data.username is string
+        && request.resource.data.username.size() > 0
+        && request.resource.data.username.size() <= 30;
+    }
+
     // Cada usuario sólo accede a su propio documento y subcolecciones, y sólo
     // con el correo verificado. La única excepción es el alta inicial del perfil
     // (create), que ocurre durante el registro, antes de verificar el correo.
@@ -47,16 +58,16 @@ service cloud.firestore {
     match /usernames/{username} {
       allow read: if true;
 
-      // create: solo si el doc no existe (implícito) y el uid es el propio.
-      allow create: if request.auth != null
-        && request.resource.data.uid == request.auth.uid;
+      // create: solo si el doc no existe (implícito) y el uid/email son los
+      // del usuario autenticado.
+      allow create: if request.auth != null && validUsernameDoc();
 
       // update: SOLO el dueño actual puede modificarlo. Sin esta comprobación
       // de resource.data.uid, cualquiera podría sobrescribir el username de
       // otro (set = create-or-update) y secuestrar el login por usuario.
       allow update: if request.auth != null
         && resource.data.uid == request.auth.uid
-        && request.resource.data.uid == request.auth.uid;
+        && validUsernameDoc();
 
       allow delete: if request.auth != null
         && resource.data.uid == request.auth.uid;

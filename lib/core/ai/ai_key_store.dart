@@ -1,3 +1,4 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Clave de Gemini incluida por quien compila la app (opcional).
@@ -25,26 +26,43 @@ String? resolveAiKey({String? userKey, String? embedded}) {
 
 /// Guarda la clave que el usuario trae para el modelo de lenguaje.
 ///
-/// Se guarda solo en el dispositivo (SharedPreferences): la clave nunca se
-/// sube a Firestore ni se sincroniza entre dispositivos. Es el mismo criterio
-/// que el resto de preferencias locales de la app.
+/// Se guarda cifrada en el almacén seguro del sistema (Keystore/Keychain a
+/// través de `flutter_secure_storage`): la clave nunca se sube a Firestore ni
+/// se sincroniza entre dispositivos. Las versiones anteriores la guardaban sin
+/// cifrar en `SharedPreferences`; al leerla se migra sola al almacén seguro.
 class AiKeyStore {
   static const _key = 'ai.gemini_key_v1';
 
+  static const _storage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
+
   static Future<String?> read() async {
-    final p = await SharedPreferences.getInstance();
-    final v = p.getString(_key);
-    return (v == null || v.trim().isEmpty) ? null : v.trim();
+    final value = await _storage.read(key: _key);
+    if (value != null && value.trim().isNotEmpty) return value.trim();
+
+    // Migración desde versiones anteriores (SharedPreferences sin cifrar).
+    final prefs = await SharedPreferences.getInstance();
+    final legacy = prefs.getString(_key);
+    if (legacy != null && legacy.trim().isNotEmpty) {
+      await _storage.write(key: _key, value: legacy.trim());
+      await prefs.remove(_key);
+      return legacy.trim();
+    }
+    return null;
   }
 
   static Future<void> save(String key) async {
-    final p = await SharedPreferences.getInstance();
-    await p.setString(_key, key.trim());
+    final trimmed = key.trim();
+    if (trimmed.isEmpty) return clear();
+    await _storage.write(key: _key, value: trimmed);
   }
 
   static Future<void> clear() async {
-    final p = await SharedPreferences.getInstance();
-    await p.remove(_key);
+    await _storage.delete(key: _key);
+    // Limpia también cualquier copia heredada sin cifrar.
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_key);
   }
 
   static Future<bool> hasKey() async => (await read()) != null;
