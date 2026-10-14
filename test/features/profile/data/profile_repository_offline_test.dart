@@ -187,4 +187,49 @@ void main() {
     );
     expect(found?.id, 's1');
   });
+
+  test('sin conexión el agua y el sueño se encolan y se ven al instante',
+      () async {
+    final repo =
+        ProfileRepository(db: db, offline: store, isOnline: () => false);
+    await repo.updateTodayLog('u1', waterGlasses: 5);
+    await repo.updateTodayLog('u1', sleepHours: 7.5);
+
+    expect(store.length, 1, reason: 'se fusiona en una sola operación del día');
+    final log = await repo.getTodayLog('u1');
+    expect(log.waterGlasses, 5);
+    expect(log.sleepHours, 7.5);
+    expect(await _todayDocExists(db), isFalse,
+        reason: 'todavía no se subió a Firestore');
+  });
+
+  test('al aplicar el cambio del día se suben agua y sueño a Firestore',
+      () async {
+    final repo =
+        ProfileRepository(db: db, offline: store, isOnline: () => false);
+    await repo.updateTodayLog('u1', waterGlasses: 3, sleepHours: 6.0);
+
+    for (final op in store.ops.toList()) {
+      await repo.applyOfflineOp(op);
+    }
+
+    final doc = await db
+        .collection('users')
+        .doc('u1')
+        .collection('dailyLogs')
+        .doc(WorkoutSession.dateKey())
+        .get();
+    expect(doc.data()?['waterGlasses'], 3);
+    expect(doc.data()?['sleepHours'], 6.0);
+  });
+
+  test('sin conexión los pasos se encolan y se ven al instante', () async {
+    final repo =
+        ProfileRepository(db: db, offline: store, isOnline: () => false);
+    await repo.setTodaySteps('u1', 4321);
+
+    expect(store.length, 1);
+    final log = await repo.getTodayLog('u1');
+    expect(log.steps, 4321);
+  });
 }

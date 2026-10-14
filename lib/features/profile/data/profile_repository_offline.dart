@@ -44,7 +44,42 @@ extension ProfileOffline on ProfileRepository {
           op.payload['dateKey']?.toString() ?? _todayKey(),
           op.payload['mealId']?.toString() ?? '',
         );
+      case OfflineOpType.dailyLog:
+        final data = Map<String, dynamic>.from(
+          (op.payload['data'] as Map?) ?? const <String, dynamic>{},
+        );
+        final key = op.payload['dateKey']?.toString() ?? _todayKey();
+        data['date'] = key;
+        await _logRef(op.uid, key).set(data, SetOptions(merge: true));
     }
+  }
+
+  /// Guarda agua/sueño/pasos del día, encolando en el dispositivo si no hay
+  /// red. Fusiona con lo ya pendiente para no pisar otros campos.
+  Future<void> _queueDailyPatch(
+    String uid,
+    String dateKey,
+    Map<String, dynamic> data,
+  ) async {
+    var merged = <String, dynamic>{...data};
+    for (final op in _offline.ops) {
+      if (op.type != OfflineOpType.dailyLog || op.uid != uid) continue;
+      if (op.payload['dateKey']?.toString() != dateKey) continue;
+      final raw = op.payload['data'];
+      if (raw is Map) {
+        merged = {...Map<String, dynamic>.from(raw), ...merged};
+      }
+    }
+    await _runOrQueue(
+      OfflineOp(
+        type: OfflineOpType.dailyLog,
+        uid: uid,
+        dedupeKey: 'dailyLog:$dateKey',
+        payload: {'dateKey': dateKey, 'data': merged},
+        createdAt: DateTime.now().toIso8601String(),
+      ),
+      () => _logRef(uid, dateKey).set(merged, SetOptions(merge: true)),
+    );
   }
 
   /// Sesiones de [uid] que están en la cola sin subir.
@@ -60,35 +95,51 @@ extension ProfileOffline on ProfileRepository {
       .where((id) => id.isNotEmpty)
       .toSet();
 
-  /// Lee una lista de Firestore y guarda copia local; si la lectura falla
-  /// (sin conexión), devuelve la última copia buena.
+  /// Lee una lista de Firestore y guarda copia local. Sin conexión devuelve
+  /// directamente la copia local (o lista vacía) para no colgar la UI.
   Future<List<T>> _cachedList<T>(
     String key, {
     required Future<List<T>> Function() fetch,
     required Map<String, dynamic> Function(T) encode,
     required T Function(Map<String, dynamic>) decode,
   }) async {
+    if (!_online()) {
+      final cached = await _readCacheList(key, decode);
+      if (cached != null) {
+        debugPrint('cache: usando $key (${cached.length})');
+        return cached;
+      }
+      debugPrint('cache: sin datos para $key (sin conexión)');
+      return <T>[];
+    }
     try {
       final list = await fetch().timeout(const Duration(seconds: 8));
       unawaited(_cache.save(key, list.map(encode).toList()));
       return list;
     } catch (e) {
-      final cached = await _cache.read(key);
-      if (cached is List) {
-        final out = <T>[];
-        for (final item in cached) {
-          if (item is Map) {
-            try {
-              out.add(decode(Map<String, dynamic>.from(item)));
-            } catch (_) {}
-          }
-        }
-        if (out.isNotEmpty || cached.isEmpty) {
-          debugPrint('cache: usando $key (${out.length})');
-          return out;
-        }
-      }
+      debugPrint('cache: falló la lectura de $key: $e');
+      final cached = await _readCacheList(key, decode);
+      if (cached != null) return cached;
       rethrow;
     }
+  }
+
+  /// Decodifica una lista cacheada; devuelve null si no hay copia utilizable.
+  Future<List<T>?> _readCacheList<T>(
+    String key,
+    T Function(Map<String, dynamic>) decode,
+  ) async {
+    final cached = await _cache.read(key);
+    if (cached is! List) return null;
+    final out = <T>[];
+    for (final item in cached) {
+      if (item is Map) {
+        try {
+          out.add(decode(Map<String, dynamic>.from(item)));
+        } catch (_) {}
+      }
+    }
+    if (out.isNotEmpty || cached.isEmpty) return out;
+    return null;
   }
 }

@@ -979,9 +979,8 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
       await _persist();
       final kcal = await _applyWorkoutCalories();
       if (!mounted) return;
-      final history = await ref.read(workoutHistoryProvider(120).future);
+      final past = await _pastSessionsForSummary();
       if (!mounted) return;
-      final past = history.where((s) => s.id != _session.id).toList();
       final message = MotivationalMessages.pickSync(MotivationContext(
         justFinishedWorkout: true,
         firstWorkoutEver: past.where((s) => s.completed).isEmpty,
@@ -1004,6 +1003,30 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
       );
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  /// Historial previo (sin la sesión recién hecha) para el resumen. Nunca
+  /// lanza: si el proveedor falla al recargar, cae a la cola/caché local.
+  Future<List<WorkoutSession>> _pastSessionsForSummary() async {
+    try {
+      final history = await ref
+          .read(workoutHistoryProvider(120).future)
+          .timeout(const Duration(seconds: 8));
+      return history.where((s) => s.id != _session.id).toList();
+    } catch (e) {
+      debugPrint('Resumen sin historial del proveedor: $e');
+    }
+    try {
+      final user = ref.read(authServiceProvider).currentUser;
+      if (user == null) return const [];
+      final history = await ref
+          .read(profileRepositoryProvider)
+          .getWorkoutHistory(user.uid, limit: 120);
+      return history.where((s) => s.id != _session.id).toList();
+    } catch (e) {
+      debugPrint('Resumen sin historial local: $e');
+      return const [];
     }
   }
 

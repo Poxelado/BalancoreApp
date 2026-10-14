@@ -60,19 +60,22 @@ extension ProfileWorkouts on ProfileRepository {
   }
 
   Future<WorkoutSession?> getActiveWorkoutSession(String uid) async {
-    List<WorkoutSession> list;
-    try {
-      final snap = await _userDoc(uid)
-          .doc(uid)
-          .collection('workoutSessions')
-          .where('completed', isEqualTo: false)
-          .limit(20)
-          .get()
-          .timeout(const Duration(seconds: 8));
-      list = snap.docs.map(_sessionFromDoc).toList();
-    } catch (e) {
-      list = [];
+    List<WorkoutSession> list = const [];
+    if (_online()) {
+      try {
+        final snap = await _userDoc(uid)
+            .doc(uid)
+            .collection('workoutSessions')
+            .where('completed', isEqualTo: false)
+            .limit(20)
+            .get()
+            .timeout(const Duration(seconds: 8));
+        list = snap.docs.map(_sessionFromDoc).toList();
+      } catch (e) {
+        list = const [];
+      }
     }
+    list = list.toList();
     // Sumar las que están en la cola local sin subir.
     for (final p in _pendingSessions(uid)) {
       if (!p.completed) list.add(p);
@@ -94,17 +97,19 @@ extension ProfileWorkouts on ProfileRepository {
         String? title,
       }) async {
     final list = <WorkoutSession>[];
-    try {
-      final snap = await _userDoc(uid)
-          .doc(uid)
-          .collection('workoutSessions')
-          .where('completed', isEqualTo: false)
-          .limit(20)
-          .get()
-          .timeout(const Duration(seconds: 8));
-      list.addAll(snap.docs.map(_sessionFromDoc));
-    } catch (e) {
-      debugPrint('offline: no se pudo buscar sesión incompleta: $e');
+    if (_online()) {
+      try {
+        final snap = await _userDoc(uid)
+            .doc(uid)
+            .collection('workoutSessions')
+            .where('completed', isEqualTo: false)
+            .limit(20)
+            .get()
+            .timeout(const Duration(seconds: 8));
+        list.addAll(snap.docs.map(_sessionFromDoc));
+      } catch (e) {
+        debugPrint('offline: no se pudo buscar sesión incompleta: $e');
+      }
     }
     final deleted = _pendingSessionDeletes(uid);
     for (final p in _pendingSessions(uid)) {

@@ -35,22 +35,30 @@ class ProfileRepository {
 
   // ─── Perfil ─────────────────────────────────────────────
   Future<UserProfile?> getProfile(String uid) async {
-    try {
-      final doc = await _userDoc(uid)
-          .doc(uid)
-          .get()
-          .timeout(const Duration(seconds: 8));
-      if (!doc.exists || doc.data() == null) return null;
-      final profile = UserProfile.fromMap(doc.data() as Map<String, dynamic>);
-      unawaited(_cache.save('profile:$uid', profile.toMap()));
-      return profile;
-    } catch (e) {
-      final cached = await _cache.read('profile:$uid');
-      if (cached is Map) {
-        return UserProfile.fromMap(Map<String, dynamic>.from(cached));
+    if (_online()) {
+      try {
+        final doc = await _userDoc(uid)
+            .doc(uid)
+            .get()
+            .timeout(const Duration(seconds: 8));
+        if (!doc.exists || doc.data() == null) return null;
+        final profile = UserProfile.fromMap(doc.data() as Map<String, dynamic>);
+        unawaited(_cache.save('profile:$uid', profile.toMap()));
+        return profile;
+      } catch (e) {
+        debugPrint('cache: falló el perfil: $e');
+        final cached = await _cache.read('profile:$uid');
+        if (cached is Map) {
+          return UserProfile.fromMap(Map<String, dynamic>.from(cached));
+        }
+        rethrow;
       }
-      rethrow;
     }
+    final cached = await _cache.read('profile:$uid');
+    if (cached is Map) {
+      return UserProfile.fromMap(Map<String, dynamic>.from(cached));
+    }
+    throw StateError('Perfil no disponible sin conexión');
   }
 
   Future<void> saveProfile(UserProfile profile) async {

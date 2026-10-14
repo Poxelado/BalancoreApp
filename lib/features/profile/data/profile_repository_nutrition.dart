@@ -7,23 +7,37 @@ extension ProfileNutrition on ProfileRepository {
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
   }
 
-  DocumentReference _todayLogRef(String uid) {
-    return _userDoc(uid).doc(uid).collection('dailyLogs').doc(_todayKey());
+  DocumentReference _logRef(String uid, String dateKey) {
+    return _userDoc(uid).doc(uid).collection('dailyLogs').doc(dateKey);
   }
 
   Future<DailyLog> getTodayLog(String uid) async {
     final key = _todayKey();
     DailyLog log;
-    try {
-      log = await _fetchLog(uid, key);
-      unawaited(_cache.save('dailyLog:$uid:$key', log.toMap()));
-    } catch (e) {
+    var fromCache = false;
+    if (_online()) {
+      try {
+        log = await _fetchLog(uid, key);
+        unawaited(_cache.save('dailyLog:$uid:$key', log.toMap()));
+      } catch (e) {
+        debugPrint('cache: falló el log de hoy: $e');
+        final cached = await _cache.read('dailyLog:$uid:$key');
+        log = cached is Map
+            ? DailyLog.fromMap(Map<String, dynamic>.from(cached))
+            : DailyLog(date: key);
+        fromCache = true;
+      }
+    } else {
       final cached = await _cache.read('dailyLog:$uid:$key');
       log = cached is Map
           ? DailyLog.fromMap(Map<String, dynamic>.from(cached))
           : DailyLog(date: key);
+      fromCache = true;
     }
-    return _overlayMeals(uid, key, log);
+    if (fromCache) {
+      debugPrint('cache: log de hoy desde copia local (${log.meals.length})');
+    }
+    return _overlayDailyOps(uid, key, _overlayMeals(uid, key, log));
   }
 
   Future<DailyLog> _fetchLog(String uid, String dateKey) async {
@@ -69,6 +83,20 @@ extension ProfileNutrition on ProfileRepository {
     });
   }
 
+  /// Aplica sobre [log] los cambios de agua/sueño/pasos pendientes de subir.
+  DailyLog _overlayDailyOps(String uid, String dateKey, DailyLog log) {
+    Map<String, dynamic>? data;
+    for (final op in _offline.ops) {
+      if (op.uid != uid || op.type != OfflineOpType.dailyLog) continue;
+      if (op.payload['dateKey']?.toString() != dateKey) continue;
+      final raw = op.payload['data'];
+      if (raw is! Map) continue;
+      data = {...(data ?? const {}), ...Map<String, dynamic>.from(raw)};
+    }
+    if (data == null) return log;
+    return DailyLog.fromMap({...log.toMap(), ...data});
+  }
+
   Future<void> updateTodayLog(
       String uid, {
         int? waterGlasses,
@@ -90,7 +118,7 @@ extension ProfileNutrition on ProfileRepository {
     if (fatGrams != null) data['fatGrams'] = fatGrams;
     if (exerciseCalories != null) data['exerciseCalories'] = exerciseCalories;
     if (steps != null) data['steps'] = steps;
-    await _todayLogRef(uid).set(data, SetOptions(merge: true));
+    await _queueDailyPatch(uid, key, data);
   }
 
   /// Suma kcal de entrenamiento al día indicado (o a hoy). Acumula si hay
@@ -111,10 +139,10 @@ extension ProfileNutrition on ProfileRepository {
   /// Guarda los pasos del podómetro para hoy (valor absoluto del día).
   Future<void> setTodaySteps(String uid, int steps) async {
     final key = _todayKey();
-    await _todayLogRef(uid).set({
+    await _queueDailyPatch(uid, key, {
       'date': key,
       'steps': steps < 0 ? 0 : steps,
-    }, SetOptions(merge: true));
+    });
   }
 
   Future<void> _writeMeals(

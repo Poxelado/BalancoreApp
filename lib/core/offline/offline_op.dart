@@ -11,6 +11,9 @@ enum OfflineOpType {
 
   /// Borrado de una comida de un día.
   mealRemove,
+
+  /// Cambios del día (agua, sueño, pasos). Se fusiona por campos.
+  dailyLog,
 }
 
 /// Una escritura que se quedó pendiente de subir (cola de salida offline).
