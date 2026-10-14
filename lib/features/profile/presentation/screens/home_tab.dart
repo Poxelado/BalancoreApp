@@ -4,6 +4,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import '../widgets/home_widgets.dart';
+import 'step_counter_settings_screen.dart';
 import '../../../../core/notifications/smart_schedule.dart';
 import '../../../../core/notifications/inactivity_check.dart';
 import '../../../../core/first_run/first_run_prefs.dart';
@@ -354,6 +355,11 @@ class _HomeTabState extends ConsumerState<HomeTab> {
               onGoRoutine: () =>
               ref.read(shellTabProvider.notifier).state = 3,
             ),
+            const SizedBox(height: 8),
+            StepsCard(
+              cardBg: cardBg,
+              onOpenSettings: _openStepSettings,
+            ),
             const SizedBox(height: 16),
             const SizedBox(height: 16),
 
@@ -448,6 +454,13 @@ class _HomeTabState extends ConsumerState<HomeTab> {
         .read(profileRepositoryProvider)
         .updateTodayLog(uid, sleepHours: hours);
     invalidateProgressData(ref);
+  }
+
+  void _openStepSettings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const StepCounterSettingsScreen()),
+    );
   }
 }
 

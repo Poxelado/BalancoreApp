@@ -4,6 +4,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../profile/domain/user_profile.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import '../widgets/exercise_list_widgets.dart';
+import '../../domain/workout_calories.dart';
 import '../../../../../core/theme/app_theme.dart';
 
 /// Editar una sesión ya guardada (historial).
@@ -171,6 +172,10 @@ class _EditWorkoutHistoryScreenState
 
   @override
   Widget build(BuildContext context) {
+    final weight = ref.watch(userProfileProvider).value?.currentWeight ?? 70;
+    final kcal = estimateWorkoutCalories(_session, weightKg: weight);
+    final met = estimateWorkoutMet(_session);
+    final minutes = (_session.elapsedSeconds / 60).round();
     return Scaffold(
       appBar: AppBar(
         title: const Text('Editar entrenamiento'),
@@ -214,6 +219,59 @@ class _EditWorkoutHistoryScreenState
               labelText: 'Notas de la sesión',
               border: OutlineInputBorder(),
               hintText: 'Cómo te sentiste, etc.',
+            ),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppDataColors.calories.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: AppDataColors.calories.withValues(alpha: 0.35),
+              ),
+            ),
+            child: Row(
+              children: [
+                const CircleAvatar(
+                  backgroundColor: Color(0x22FF9800),
+                  child: Icon(
+                    Icons.local_fire_department,
+                    color: AppDataColors.calories,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Gasto estimado',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppDataColors.calories,
+                        ),
+                      ),
+                      Text(
+                        '≈ $kcal kcal',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'MET ${met.toStringAsFixed(1)} · $minutes min · '
+                        '${weight.round()} kg',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 20),

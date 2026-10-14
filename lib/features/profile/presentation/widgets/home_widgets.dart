@@ -4,6 +4,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import '../../../../core/first_run/first_run_prefs.dart';
+import '../../../../core/steps/step_counter.dart';
 import '../../../../core/theme/app_theme.dart';
 
 const int kMlPerGlass = 200;
@@ -573,5 +574,107 @@ class MotivationBanner extends StatelessWidget {
       ),
     );
   }
-
 }
+
+/// Tarjeta del contador de pasos en Inicio. Al tocarla fuerza una lectura del
+/// sensor y guarda los pasos de hoy; si está apagado, lleva a los ajustes.
+class StepsCard extends ConsumerWidget {
+  final Color cardBg;
+  final VoidCallback onOpenSettings;
+
+  const StepsCard({
+    super.key,
+    required this.cardBg,
+    required this.onOpenSettings,
+  });
+
+  Future<void> _recollect(BuildContext context, WidgetRef ref) async {
+    final steps = await ref.read(stepCounterProvider.notifier).recollect();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          steps == null
+              ? 'No se pudo leer el sensor de pasos.'
+              : 'Listo: $steps pasos guardados en el día.',
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final st = ref.watch(stepCounterProvider);
+    final weight = ref.watch(userProfileProvider).value?.currentWeight ?? 70;
+    final kcal = stepCalories(st.steps, weight);
+    final active = st.ready && st.enabled;
+
+    final String subtitle;
+    if (!st.ready) {
+      subtitle = 'Cargando…';
+    } else if (!st.enabled) {
+      subtitle = 'Toca para activarlo en Ajustes';
+    } else if (kcal > 0) {
+      subtitle = '${st.steps} pasos · ≈ $kcal kcal';
+    } else {
+      subtitle = '${st.steps} pasos';
+    }
+
+    return Material(
+      color: cardBg,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          if (!active) {
+            onOpenSettings();
+          } else {
+            _recollect(context, ref);
+          }
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: AppDataColors.steps.withValues(alpha: 0.15),
+                child: const Icon(
+                  Icons.directions_walk,
+                  color: AppDataColors.steps,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Contador de pasos',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (active)
+                IconButton(
+                  tooltip: 'Recolectar pasos',
+                  icon: const Icon(Icons.sync, color: AppDataColors.steps),
+                  onPressed: () => _recollect(context, ref),
+                )
+              else
+                Icon(Icons.chevron_right, color: Colors.grey.shade500),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+

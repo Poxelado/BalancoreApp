@@ -11,12 +11,14 @@ class WorkoutSummaryScreen extends StatelessWidget {
   final SessionStats stats;
   final List<PersonalRecord> records;
   final String title;
+  final int calories;
 
   const WorkoutSummaryScreen({
     super.key,
     required this.stats,
     this.records = const [],
     this.title = 'Entrenamiento completado',
+    this.calories = 0,
   });
 
   Color _colorFor(BuildContext context, int i) {
@@ -102,6 +104,60 @@ class WorkoutSummaryScreen extends StatelessWidget {
             if (stats.hasPrevious) ...[
               const SizedBox(height: 10),
               _comparison(context, accentOf(context)),
+            ],
+            if (calories > 0) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppDataColors.calories.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AppDataColors.calories.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const CircleAvatar(
+                      backgroundColor: Color(0x22FF9800),
+                      child: Icon(
+                        Icons.local_fire_department,
+                        color: AppDataColors.calories,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Gasto estimado',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppDataColors.calories,
+                            ),
+                          ),
+                          Text(
+                            '≈ $calories kcal',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Sumado a tu gasto de hoy',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
             if (records.isNotEmpty) ...[
               const SizedBox(height: 18),

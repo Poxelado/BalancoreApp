@@ -899,21 +899,24 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
   }
 
   /// Suma al día las kcal quemadas en el entreno (estimadas por MET y peso).
-  Future<void> _applyWorkoutCalories() async {
+  /// Devuelve las kcal estimadas (0 si no se pudieron calcular).
+  Future<int> _applyWorkoutCalories() async {
     try {
       final user = ref.read(authServiceProvider).currentUser;
-      if (user == null) return;
+      if (user == null) return 0;
       final weight = ref.read(userProfileProvider).value?.currentWeight ?? 0;
       final kcal = estimateWorkoutCalories(_session, weightKg: weight);
-      if (kcal <= 0) return;
+      if (kcal <= 0) return 0;
       await ref.read(profileRepositoryProvider).addExerciseCalories(
             user.uid,
             kcal,
             dateKey: WorkoutSession.dateKey(_session.startedAt),
           );
       invalidateProgressData(ref);
+      return kcal;
     } catch (e) {
       debugPrint('No se pudieron sumar las kcal del entreno: $e');
+      return 0;
     }
   }
 
@@ -954,7 +957,7 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
       _restTimer?.cancel();
       _restRemaining = null;
       await _persist();
-      await _applyWorkoutCalories();
+      final kcal = await _applyWorkoutCalories();
       if (!mounted) return;
       final history = await ref.read(workoutHistoryProvider(120).future);
       if (!mounted) return;
@@ -973,6 +976,7 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
           builder: (_) => WorkoutSummaryScreen(
             stats: computeSessionStats(_session, past),
             records: detectPersonalRecords(_session, past),
+            calories: kcal,
             title: message,
           ),
         ),

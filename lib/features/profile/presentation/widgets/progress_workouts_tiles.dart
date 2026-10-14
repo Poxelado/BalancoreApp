@@ -5,6 +5,7 @@ import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import '../../../training/presentation/screens/workout_session_screen.dart';
 import '../../../training/presentation/screens/edit_workout_history_screen.dart';
+import '../../../training/domain/workout_calories.dart';
 import '../../../../core/theme/app_theme.dart';
 
 /// Reconstruye una rutina efímera a partir de una sesión guardada,
@@ -127,6 +128,7 @@ class WorkoutSessionGroupTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final weight = ref.watch(userProfileProvider).value?.currentWeight ?? 70;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
@@ -176,7 +178,10 @@ class WorkoutSessionGroupTile extends ConsumerWidget {
                   subtitle: Text(
                     '${s.dayName} · ${fmtDayDate(s.startedAt)} · '
                         '${s.completed ? 'Completado' : 'En curso'} · '
-                        '${s.exercises.fold<int>(0, (a, e) => a + e.completedSets)}/${s.exercises.fold<int>(0, (a, e) => a + e.sets.length)} series',
+                        '${s.exercises.fold<int>(0, (a, e) => a + e.completedSets)}/${s.exercises.fold<int>(0, (a, e) => a + e.sets.length)} series · '
+                        '~${estimateWorkoutCalories(s, weightKg: weight)} kcal',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   trailing: PopupMenuButton<String>(
                     onSelected: (v) async {
