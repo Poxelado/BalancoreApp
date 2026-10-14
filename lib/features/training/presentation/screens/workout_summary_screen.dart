@@ -291,8 +291,6 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
     final data = _data;
     final style = _style;
     final units = ref.watch(unitsProvider);
-    final profile = ref.watch(userProfileProvider).value;
-    final bodyWeight = profile?.currentWeight ?? 0;
     final username = _username;
 
     return Scaffold(
@@ -308,7 +306,7 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
                   _card(0, _musclesCard(data, style, username)),
                   _card(1, _radarCard(data, style, username, units)),
                   _card(2, _routineCard(data, style, username, units)),
-                  _card(3, _funCard(data, style, username, units, bodyWeight)),
+                  _card(3, _funCard(data, style, username, units)),
                   _card(4, _bigMetricsCard(data, style, username, units)),
                   _card(5, _metricsExercisesCard(data, style, username, units)),
                 ],
@@ -665,7 +663,7 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
   }
 
   Widget _funCard(WorkoutShareData data, ShareCardStyle style, String user,
-      UnitSystem units, double bodyWeight) {
+      UnitSystem units) {
     final eq = equivalenceFor(data.volumeKg);
     final count = eq.count.round();
     final comparison = '${count > 1 ? '$count× ' : ''}${eq.item}';
@@ -681,7 +679,7 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
               Text('Has levantado un total de',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: style.muted, fontSize: 15)),
-              const SizedBox(height: 6),
+              const SizedBox(height: 2),
               TweenAnimationBuilder<double>(
                 tween: Tween(begin: 0, end: data.volumeValue),
                 duration: const Duration(milliseconds: 900),
@@ -696,26 +694,10 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
                   ),
                 ),
               ),
-              if (bodyWeight > 0 && data.volumeKg > 0) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: style.chip,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '= ${(data.volumeKg / bodyWeight).toStringAsFixed(0)}× tu peso corporal',
-                    style: TextStyle(color: style.on, fontSize: 13),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
               Text('eso es como levantar',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: style.muted, fontSize: 15)),
-              const SizedBox(height: 2),
               Text(
                 comparison,
                 textAlign: TextAlign.center,
@@ -726,14 +708,14 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
                   shadows: _halo(style),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               TweenAnimationBuilder<double>(
                 tween: Tween(begin: 0.6, end: 1.25),
                 duration: const Duration(milliseconds: 700),
                 curve: Curves.elasticOut,
                 builder: (_, s, child) =>
                     Transform.scale(scale: s, child: child),
-                child: Text(eq.emoji, style: const TextStyle(fontSize: 62)),
+                child: Text(eq.emoji, style: const TextStyle(fontSize: 96)),
               ),
             ],
           ),

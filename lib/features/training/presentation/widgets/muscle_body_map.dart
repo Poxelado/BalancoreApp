@@ -7,7 +7,8 @@ import '../../domain/workout_share_metrics.dart';
 /// Figura humana (de frente o de espalda) con los músculos trabajados
 /// resaltados según [intensity] (0..1). Dibujada a mano para no depender de
 /// assets. La silueta conserva proporciones reales (se escala de forma
-/// uniforme), por lo que nunca se ve alargada ni achatada.
+/// uniforme) y cada músculo se separa con un contorno para que se distingan
+/// bien los grupos musculares.
 class MuscleBodyMap extends StatelessWidget {
   final Map<BodyRegion, double> intensity;
   final Color base;
@@ -37,69 +38,108 @@ class MuscleBodyMap extends StatelessWidget {
       );
 }
 
-/// `(región, x, y, ancho, alto, radio)` en coordenadas de diseño (ver
-/// [_designW] y [_designH]).
-typedef _Patch = (BodyRegion region, double x, double y, double w, double h, double r);
+/// `(región, forma)` en coordenadas de diseño (ver [_designW] y [_designH]).
+typedef _Shape = (BodyRegion region, Path path);
 
 const double _designW = 100;
 const double _designH = 210;
 
-const _frontMuscles = <_Patch>[
-  (BodyRegion.shoulders, 16.5, 39.5, 19, 18, 9),
-  (BodyRegion.shoulders, 64.5, 39.5, 19, 18, 9),
-  (BodyRegion.chest, 32.5, 41, 17.5, 26, 7),
-  (BodyRegion.chest, 50, 41, 17.5, 26, 7),
-  (BodyRegion.abs, 41, 70, 8, 8, 2.5),
-  (BodyRegion.abs, 51, 70, 8, 8, 2.5),
-  (BodyRegion.abs, 41, 80, 8, 8, 2.5),
-  (BodyRegion.abs, 51, 80, 8, 8, 2.5),
-  (BodyRegion.abs, 41, 90, 8, 8, 2.5),
-  (BodyRegion.abs, 51, 90, 8, 8, 2.5),
-  (BodyRegion.abs, 33, 70, 7, 24, 3.5),
-  (BodyRegion.abs, 60, 70, 7, 24, 3.5),
-  (BodyRegion.biceps, 18, 55, 13, 31, 6),
-  (BodyRegion.biceps, 69, 55, 13, 31, 6),
-  (BodyRegion.forearms, 17, 88, 12, 30, 6),
-  (BodyRegion.forearms, 71, 88, 12, 30, 6),
-  (BodyRegion.quadriceps, 34, 114, 16, 44, 8),
-  (BodyRegion.quadriceps, 50, 114, 16, 44, 8),
-  (BodyRegion.calves, 35, 162, 13, 36, 6),
-  (BodyRegion.calves, 52, 162, 13, 36, 6),
-];
+// -----------------------------------------------------------------------------
+// Silueta base
+// -----------------------------------------------------------------------------
 
-const _backMuscles = <_Patch>[
-  (BodyRegion.traps, 38, 37, 24, 16, 7),
-  (BodyRegion.lats, 30, 48, 19, 40, 9),
-  (BodyRegion.lats, 51, 48, 19, 40, 9),
-  (BodyRegion.lowerBack, 40, 86, 20, 14, 6),
-  (BodyRegion.triceps, 18, 55, 13, 31, 6),
-  (BodyRegion.triceps, 69, 55, 13, 31, 6),
-  (BodyRegion.forearms, 17, 88, 12, 30, 6),
-  (BodyRegion.forearms, 71, 88, 12, 30, 6),
-  (BodyRegion.glutes, 33.5, 97, 16, 19, 9),
-  (BodyRegion.glutes, 50.5, 97, 16, 19, 9),
-  (BodyRegion.hamstrings, 34, 118, 16, 28, 8),
-  (BodyRegion.hamstrings, 50, 118, 16, 28, 8),
-  (BodyRegion.calves, 35, 162, 13, 36, 6),
-  (BodyRegion.calves, 52, 162, 13, 36, 6),
-];
+List<Path> _silhouetteShapes() => [
+      _oval(50, 18, 11, 13.5), // cabeza
+      _poly([(44, 28), (56, 28), (57.5, 41), (42.5, 41)]), // cuello
+      _poly([(30, 40), (70, 40), (71, 58), (66, 78), (63, 96), (37, 96),
+          (34, 78), (29, 58)]), // torso
+      _poly([(37, 94), (63, 94), (62, 114), (38, 114)]), // pelvis
+      _oval(24.5, 46, 9.5, 9.5), // deltoides izq.
+      _oval(75.5, 46, 9.5, 9.5), // deltoides der.
+      _poly([(19, 50), (31.5, 53), (30, 85), (21, 86)]), // brazo izq.
+      _poly([(81, 50), (68.5, 53), (70, 85), (79, 86)]), // brazo der.
+      _poly([(21, 85), (30, 84), (29, 117), (22, 119)]), // antebrazo izq.
+      _poly([(79, 85), (70, 84), (71, 117), (78, 119)]), // antebrazo der.
+      _poly([(37, 95), (49, 96), (48, 157), (38, 158)]), // muslo izq.
+      _poly([(63, 95), (51, 96), (52, 157), (62, 158)]), // muslo der.
+      _poly([(39, 158), (48, 158), (47, 196), (40, 197)]), // pantorrilla izq.
+      _poly([(61, 158), (52, 158), (53, 196), (60, 197)]), // pantorrilla der.
+    ];
 
-/// Silueta base: torso, pelvis, cuello, brazos y piernas.
-const _baseShapes = <_Patch>[
-  (BodyRegion.abs, 43, 28, 14, 12, 4),
-  (BodyRegion.abs, 29, 36, 42, 60, 15),
-  (BodyRegion.abs, 32, 92, 36, 22, 9),
-  (BodyRegion.shoulders, 17, 39, 19, 19, 9),
-  (BodyRegion.shoulders, 64, 39, 19, 19, 9),
-  (BodyRegion.biceps, 18, 52, 14, 36, 7),
-  (BodyRegion.biceps, 68, 52, 14, 36, 7),
-  (BodyRegion.forearms, 17, 86, 12, 34, 6),
-  (BodyRegion.forearms, 71, 86, 12, 34, 6),
-  (BodyRegion.quadriceps, 34, 112, 15, 48, 7),
-  (BodyRegion.quadriceps, 51, 112, 15, 48, 7),
-  (BodyRegion.calves, 35, 160, 13, 40, 6),
-  (BodyRegion.calves, 52, 160, 13, 40, 6),
-];
+// -----------------------------------------------------------------------------
+// Músculos de frente
+// -----------------------------------------------------------------------------
+
+List<_Shape> _frontMuscles() => [
+      (BodyRegion.shoulders, _oval(24.5, 45, 8.5, 8)),
+      (BodyRegion.shoulders, _oval(75.5, 45, 8.5, 8)),
+      (BodyRegion.chest, _poly([(33.5, 41.5), (48.5, 42.5), (49, 56),
+          (46, 64), (35.5, 63), (32.5, 52)])),
+      (BodyRegion.chest, _poly([(66.5, 41.5), (51.5, 42.5), (51, 56),
+          (54, 64), (64.5, 63), (67.5, 52)])),
+      // Abdomen: 3 filas × 2 columnas.
+      (BodyRegion.abs, _rect(41.5, 66, 6.5, 7.5)),
+      (BodyRegion.abs, _rect(52, 66, 6.5, 7.5)),
+      (BodyRegion.abs, _rect(41.5, 75, 6.5, 7.5)),
+      (BodyRegion.abs, _rect(52, 75, 6.5, 7.5)),
+      (BodyRegion.abs, _rect(41.5, 84, 6.5, 7.5)),
+      (BodyRegion.abs, _rect(52, 84, 6.5, 7.5)),
+      (BodyRegion.abs, _poly([(35, 66), (41, 68), (41, 90), (36.5, 92)])),
+      (BodyRegion.abs, _poly([(65, 66), (59, 68), (59, 90), (63.5, 92)])),
+      (BodyRegion.biceps, _poly([(19, 52), (31, 54), (31, 80), (22, 83)])),
+      (BodyRegion.biceps, _poly([(81, 52), (69, 54), (69, 80), (78, 83)])),
+      (BodyRegion.forearms, _poly([(21, 86), (30, 85), (29, 114), (22, 117)])),
+      (BodyRegion.forearms, _poly([(79, 86), (70, 85), (71, 114), (78, 117)])),
+      // Cuádriceps: dos cabezas por muslo.
+      (BodyRegion.quadriceps, _poly([(37, 115), (43, 115), (43, 152), (38, 154)])),
+      (BodyRegion.quadriceps, _poly([(44, 115), (48.5, 115), (48.5, 152), (44, 154)])),
+      (BodyRegion.quadriceps, _poly([(63, 115), (57, 115), (57, 152), (62, 154)])),
+      (BodyRegion.quadriceps, _poly([(56, 115), (51.5, 115), (51.5, 152), (56, 154)])),
+      (BodyRegion.calves, _poly([(43, 161), (47, 176), (43, 193), (39, 176)])),
+      (BodyRegion.calves, _poly([(57, 161), (61, 176), (57, 193), (53, 176)])),
+    ];
+
+// -----------------------------------------------------------------------------
+// Músculos de espalda
+// -----------------------------------------------------------------------------
+
+List<_Shape> _backMuscles() => [
+      (BodyRegion.traps, _poly([(38, 40), (50, 35), (62, 40), (58, 52),
+          (50, 58), (42, 52)])),
+      (BodyRegion.lats, _poly([(30, 46), (44, 50), (46, 64), (42, 86),
+          (34, 88), (31, 68)])),
+      (BodyRegion.lats, _poly([(70, 46), (56, 50), (54, 64), (58, 86),
+          (66, 88), (69, 68)])),
+      (BodyRegion.lowerBack, _poly([(40, 84), (60, 84), (58, 96), (42, 96)])),
+      (BodyRegion.triceps, _poly([(19, 52), (31, 54), (31, 80), (22, 83)])),
+      (BodyRegion.triceps, _poly([(81, 52), (69, 54), (69, 80), (78, 83)])),
+      (BodyRegion.forearms, _poly([(21, 86), (30, 85), (29, 114), (22, 117)])),
+      (BodyRegion.forearms, _poly([(79, 86), (70, 85), (71, 114), (78, 117)])),
+      (BodyRegion.glutes, _poly([(36, 96), (49, 96), (49, 112), (36, 113)])),
+      (BodyRegion.glutes, _poly([(64, 96), (51, 96), (51, 112), (64, 113)])),
+      (BodyRegion.hamstrings, _poly([(37, 116), (48, 117), (47, 142), (38, 143)])),
+      (BodyRegion.hamstrings, _poly([(63, 116), (52, 117), (53, 142), (62, 143)])),
+      (BodyRegion.calves, _poly([(43, 161), (47, 176), (43, 193), (39, 176)])),
+      (BodyRegion.calves, _poly([(57, 161), (61, 176), (57, 193), (53, 176)])),
+    ];
+
+Path _poly(List<(double, double)> points) =>
+    Path()..addPolygon([for (final (x, y) in points) Offset(x, y)], true);
+
+Path _rect(double x, double y, double w, double h) => Path()
+  ..addRRect(
+    RRect.fromRectAndRadius(
+      Rect.fromLTWH(x, y, w, h),
+      const Radius.circular(1.2),
+    ),
+  );
+
+Path _oval(double cx, double cy, double rx, double ry) => Path()
+  ..addOval(Rect.fromCenter(
+    center: Offset(cx, cy),
+    width: rx * 2,
+    height: ry * 2,
+  ));
 
 class _BodyMapPainter extends CustomPainter {
   final Map<BodyRegion, double> intensity;
@@ -119,63 +159,45 @@ class _BodyMapPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final scale = math.min(size.width / _designW, size.height / _designH);
-    final drawW = _designW * scale;
-    final drawH = _designH * scale;
-    final box = Rect.fromLTWH(
-      (size.width - drawW) / 2,
-      (size.height - drawH) / 2,
-      drawW,
-      drawH,
+    canvas.save();
+    canvas.translate(
+      (size.width - _designW * scale) / 2,
+      (size.height - _designH * scale) / 2,
     );
-    _figure(canvas, box, front ? _frontMuscles : _backMuscles);
+    canvas.scale(scale);
+    _figure(canvas);
+    canvas.restore();
   }
 
-  void _figure(Canvas canvas, Rect box, List<_Patch> muscles) {
-    final silhouette = Paint()..color = base;
-    final fill = Paint();
+  void _figure(Canvas canvas) {
+    final shapes = _silhouetteShapes();
+    var body = shapes.first;
+    for (var i = 1; i < shapes.length; i++) {
+      body = Path.combine(PathOperation.union, body, shapes[i]);
+    }
+    canvas.drawPath(body, Paint()..color = base);
+
+    final edge = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1
+      ..strokeJoin = StrokeJoin.round
+      ..color = outline;
+    canvas.drawPath(body, edge);
+
+    final fill = Paint()..style = PaintingStyle.fill;
     final stroke = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = math.max(0.6, box.width * 0.014)
+      ..strokeWidth = 1.1
+      ..strokeJoin = StrokeJoin.round
       ..color = outline;
 
-    Rect rect(_Patch p) => Rect.fromLTWH(
-          box.left + p.$2 / _designW * box.width,
-          box.top + p.$3 / _designH * box.height,
-          p.$4 / _designW * box.width,
-          p.$5 / _designH * box.height,
-        );
-    double radius(_Patch p) => p.$6 / _designW * box.width;
-
-    void shape(_Patch p, Paint paint) => canvas.drawRRect(
-          RRect.fromRectAndRadius(rect(p), Radius.circular(radius(p))),
-          paint,
-        );
-
-    // Cabeza.
-    canvas.drawOval(
-      Rect.fromLTWH(
-        box.left + 38.5 / _designW * box.width,
-        box.top + 3 / _designH * box.height,
-        23 / _designW * box.width,
-        28 / _designH * box.height,
-      ),
-      silhouette,
-    );
-
-    // Silueta base.
-    for (final s in _baseShapes) {
-      shape(s, silhouette);
-    }
-
-    // Músculos (siempre visibles; se resaltan según intensidad).
-    for (final m in muscles) {
-      final t = (intensity[m.$1] ?? 0).clamp(0.0, 1.0);
+    for (final (region, path) in front ? _frontMuscles() : _backMuscles()) {
+      final t = (intensity[region] ?? 0).clamp(0.0, 1.0);
       fill.color = t <= 0
-          ? Color.lerp(base, trained, 0.12)!
-          : Color.lerp(base, trained, 0.45 + 0.55 * t)!;
-      final r = RRect.fromRectAndRadius(rect(m), Radius.circular(radius(m)));
-      canvas.drawRRect(r, fill);
-      canvas.drawRRect(r, stroke);
+          ? Color.lerp(base, trained, 0.14)!
+          : Color.lerp(base, trained, 0.5 + 0.5 * t)!;
+      canvas.drawPath(path, fill);
+      canvas.drawPath(path, stroke);
     }
   }
 
