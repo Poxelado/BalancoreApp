@@ -295,12 +295,15 @@ extension ProfileNutrition on ProfileRepository {
   CollectionReference _savedFoods(String uid) =>
       _userDoc(uid).doc(uid).collection('savedFoods');
 
-  Future<List<SavedFood>> getSavedFoods(String uid) => _cachedList(
-        'savedFoods:$uid',
-        fetch: () => _fetchSavedFoods(uid),
-        encode: (f) => {...f.toMap(), 'id': f.id},
-        decode: (m) => SavedFood.fromMap(m['id']?.toString() ?? '', m),
-      );
+  Future<List<SavedFood>> getSavedFoods(String uid) async {
+    final list = await _cachedList(
+      'savedFoods:$uid',
+      fetch: () => _fetchSavedFoods(uid),
+      encode: (f) => {...f.toMap(), 'id': f.id},
+      decode: (m) => SavedFood.fromMap(m['id']?.toString() ?? '', m),
+    );
+    return overlayFoods(uid, list);
+  }
 
   Future<List<SavedFood>> _fetchSavedFoods(String uid) async {
     final snap = await _savedFoods(uid).get();
@@ -317,38 +320,61 @@ extension ProfileNutrition on ProfileRepository {
   }
 
   Future<String> saveFood(String uid, SavedFood food) async {
-    final data = food.toMap();
+    var id = food.id;
+    var data = food.toMap();
     // Evitar duplicados por nombre (case-insensitive)
-    if (food.id.isEmpty) {
+    if (id.isEmpty) {
       final existing = await getSavedFoods(uid);
       final key = food.name.trim().toLowerCase();
       for (final f in existing) {
         if (f.name.trim().toLowerCase() == key) {
-          await _savedFoods(uid).doc(f.id).set({
+          id = f.id;
+          data = {
             ...data,
             'useCount': f.useCount, // no resetear
             'updatedAt': DateTime.now().toIso8601String(),
-          }, SetOptions(merge: true));
-          return f.id;
+          };
+          break;
         }
       }
-      final ref = await _savedFoods(uid).add(data);
-      return ref.id;
+      id = id.isEmpty ? _localId() : id;
     }
-    await _savedFoods(uid).doc(food.id).set(data, SetOptions(merge: true));
-    return food.id;
+    await _runOrQueue(
+      OfflineOp(
+        type: OfflineOpType.foodUpsert,
+        uid: uid,
+        dedupeKey: 'food:$id',
+        payload: {'id': id, 'food': data},
+        createdAt: DateTime.now().toIso8601String(),
+      ),
+      () => _savedFoods(uid).doc(id).set(data, SetOptions(merge: true)),
+    );
+    return id;
   }
 
   Future<void> deleteSavedFood(String uid, String foodId) async {
-    await _savedFoods(uid).doc(foodId).delete();
+    await _runOrQueue(
+      OfflineOp(
+        type: OfflineOpType.foodDelete,
+        uid: uid,
+        dedupeKey: 'food:$foodId',
+        payload: {'id': foodId},
+        createdAt: DateTime.now().toIso8601String(),
+      ),
+      () => _savedFoods(uid).doc(foodId).delete(),
+    );
   }
 
   Future<void> incrementFoodUse(String uid, String foodId) async {
-    final ref = _savedFoods(uid).doc(foodId);
-    await ref.set({
-      'useCount': FieldValue.increment(1),
-      'updatedAt': DateTime.now().toIso8601String(),
-    }, SetOptions(merge: true));
+    try {
+      final ref = _savedFoods(uid).doc(foodId);
+      await ref.set({
+        'useCount': FieldValue.increment(1),
+        'updatedAt': DateTime.now().toIso8601String(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('offline: no se pudo incrementar el uso del alimento: $e');
+    }
   }
 
 
@@ -357,12 +383,15 @@ extension ProfileNutrition on ProfileRepository {
   CollectionReference _savedRecipes(String uid) =>
       _userDoc(uid).doc(uid).collection('savedRecipes');
 
-  Future<List<SavedRecipe>> getSavedRecipes(String uid) => _cachedList(
-        'savedRecipes:$uid',
-        fetch: () => _fetchSavedRecipes(uid),
-        encode: (r) => {...r.toMap(), 'id': r.id},
-        decode: (m) => SavedRecipe.fromMap(m['id']?.toString() ?? '', m),
-      );
+  Future<List<SavedRecipe>> getSavedRecipes(String uid) async {
+    final list = await _cachedList(
+      'savedRecipes:$uid',
+      fetch: () => _fetchSavedRecipes(uid),
+      encode: (r) => {...r.toMap(), 'id': r.id},
+      decode: (m) => SavedRecipe.fromMap(m['id']?.toString() ?? '', m),
+    );
+    return overlayRecipes(uid, list);
+  }
 
   Future<List<SavedRecipe>> _fetchSavedRecipes(String uid) async {
     final snap = await _savedRecipes(uid).get();
@@ -381,24 +410,43 @@ extension ProfileNutrition on ProfileRepository {
   }
 
   Future<String> saveRecipe(String uid, SavedRecipe recipe) async {
+    final id = recipe.id.isEmpty ? _localId() : recipe.id;
     final data = recipe.toMap();
-    if (recipe.id.isEmpty) {
-      final ref = await _savedRecipes(uid).add(data);
-      return ref.id;
-    }
-    await _savedRecipes(uid).doc(recipe.id).set(data, SetOptions(merge: true));
-    return recipe.id;
+    await _runOrQueue(
+      OfflineOp(
+        type: OfflineOpType.recipeUpsert,
+        uid: uid,
+        dedupeKey: 'recipe:$id',
+        payload: {'id': id, 'recipe': data},
+        createdAt: DateTime.now().toIso8601String(),
+      ),
+      () => _savedRecipes(uid).doc(id).set(data, SetOptions(merge: true)),
+    );
+    return id;
   }
 
   Future<void> deleteRecipe(String uid, String recipeId) async {
-    await _savedRecipes(uid).doc(recipeId).delete();
+    await _runOrQueue(
+      OfflineOp(
+        type: OfflineOpType.recipeDelete,
+        uid: uid,
+        dedupeKey: 'recipe:$recipeId',
+        payload: {'id': recipeId},
+        createdAt: DateTime.now().toIso8601String(),
+      ),
+      () => _savedRecipes(uid).doc(recipeId).delete(),
+    );
   }
 
   Future<void> incrementRecipeUse(String uid, String recipeId) async {
-    await _savedRecipes(uid).doc(recipeId).set({
-      'useCount': FieldValue.increment(1),
-      'updatedAt': DateTime.now().toIso8601String(),
-    }, SetOptions(merge: true));
+    try {
+      await _savedRecipes(uid).doc(recipeId).set({
+        'useCount': FieldValue.increment(1),
+        'updatedAt': DateTime.now().toIso8601String(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('offline: no se pudo incrementar el uso del plato: $e');
+    }
   }
 
   /// Registra un plato en el día (con escala de porción).

@@ -51,8 +51,77 @@ extension ProfileOffline on ProfileRepository {
         final key = op.payload['dateKey']?.toString() ?? _todayKey();
         data['date'] = key;
         await _logRef(op.uid, key).set(data, SetOptions(merge: true));
+      case OfflineOpType.foodUpsert:
+        final id = op.payload['id']?.toString() ?? '';
+        final raw = op.payload['food'];
+        if (id.isEmpty || raw is! Map) break;
+        await _savedFoods(op.uid)
+            .doc(id)
+            .set(Map<String, dynamic>.from(raw), SetOptions(merge: true));
+      case OfflineOpType.foodDelete:
+        final id = op.payload['id']?.toString() ?? '';
+        if (id.isEmpty) break;
+        await _savedFoods(op.uid).doc(id).delete();
+      case OfflineOpType.recipeUpsert:
+        final id = op.payload['id']?.toString() ?? '';
+        final raw = op.payload['recipe'];
+        if (id.isEmpty || raw is! Map) break;
+        await _savedRecipes(op.uid)
+            .doc(id)
+            .set(Map<String, dynamic>.from(raw), SetOptions(merge: true));
+      case OfflineOpType.recipeDelete:
+        final id = op.payload['id']?.toString() ?? '';
+        if (id.isEmpty) break;
+        await _savedRecipes(op.uid).doc(id).delete();
     }
   }
+
+  /// Aplica sobre [list] los alimentos guardados pendientes de subir.
+  List<SavedFood> overlayFoods(String uid, List<SavedFood> list) {
+    final byId = {for (final f in list) f.id: f};
+    for (final op in _offline.ops) {
+      if (op.uid != uid) continue;
+      if (op.type == OfflineOpType.foodUpsert) {
+        final id = op.payload['id']?.toString() ?? '';
+        final raw = op.payload['food'];
+        if (id.isEmpty || raw is! Map) continue;
+        byId[id] = SavedFood.fromMap(id, Map<String, dynamic>.from(raw));
+      } else if (op.type == OfflineOpType.foodDelete) {
+        byId.remove(op.payload['id']?.toString() ?? '');
+      }
+    }
+    return byId.values.toList()
+      ..sort((a, b) {
+        final c = b.useCount.compareTo(a.useCount);
+        if (c != 0) return c;
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+  }
+
+  /// Aplica sobre [list] las recetas pendientes de subir.
+  List<SavedRecipe> overlayRecipes(String uid, List<SavedRecipe> list) {
+    final byId = {for (final r in list) r.id: r};
+    for (final op in _offline.ops) {
+      if (op.uid != uid) continue;
+      if (op.type == OfflineOpType.recipeUpsert) {
+        final id = op.payload['id']?.toString() ?? '';
+        final raw = op.payload['recipe'];
+        if (id.isEmpty || raw is! Map) continue;
+        byId[id] = SavedRecipe.fromMap(id, Map<String, dynamic>.from(raw));
+      } else if (op.type == OfflineOpType.recipeDelete) {
+        byId.remove(op.payload['id']?.toString() ?? '');
+      }
+    }
+    return byId.values.toList()
+      ..sort((a, b) {
+        final c = b.useCount.compareTo(a.useCount);
+        if (c != 0) return c;
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+  }
+
+  /// Genera un id local para un alimento o receta creado sin conexión.
+  String _localId() => DateTime.now().microsecondsSinceEpoch.toString();
 
   /// Guarda agua/sueño/pasos del día, encolando en el dispositivo si no hay
   /// red. Fusiona con lo ya pendiente para no pisar otros campos.

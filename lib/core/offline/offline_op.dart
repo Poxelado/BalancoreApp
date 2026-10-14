@@ -14,6 +14,18 @@ enum OfflineOpType {
 
   /// Cambios del día (agua, sueño, pasos). Se fusiona por campos.
   dailyLog,
+
+  /// Alta o edición de un alimento guardado (idempotente por id).
+  foodUpsert,
+
+  /// Borrado de un alimento guardado.
+  foodDelete,
+
+  /// Alta o edición de una receta/plato (idempotente por id).
+  recipeUpsert,
+
+  /// Borrado de una receta/plato.
+  recipeDelete,
 }
 
 /// Una escritura que se quedó pendiente de subir (cola de salida offline).

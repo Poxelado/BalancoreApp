@@ -232,4 +232,77 @@ void main() {
     final log = await repo.getTodayLog('u1');
     expect(log.steps, 4321);
   });
+
+  test('sin conexión una receta se encola y aparece al instante', () async {
+    final repo =
+        ProfileRepository(db: db, offline: store, isOnline: () => false);
+    final id = await repo.saveRecipe(
+      'u1',
+      const SavedRecipe(
+        id: '',
+        name: 'Arroz con pollo',
+        ingredients: [RecipeIngredient(name: 'Arroz', calories: 200)],
+      ),
+    );
+
+    expect(id, isNotEmpty, reason: 'se le asigna un id local');
+    expect(store.length, 1);
+    final recipes = await repo.getSavedRecipes('u1');
+    expect(recipes.length, 1);
+    expect(recipes.first.id, id);
+    expect(recipes.first.name, 'Arroz con pollo');
+    expect(recipes.first.totalCalories, 200);
+  });
+
+  test('al aplicar la receta pendiente se sube a Firestore', () async {
+    final repo =
+        ProfileRepository(db: db, offline: store, isOnline: () => false);
+    final id = await repo.saveRecipe(
+      'u1',
+      const SavedRecipe(id: '', name: 'Tortilla'),
+    );
+
+    for (final op in store.ops.toList()) {
+      await repo.applyOfflineOp(op);
+    }
+
+    final doc = await db
+        .collection('users')
+        .doc('u1')
+        .collection('savedRecipes')
+        .doc(id)
+        .get();
+    expect(doc.exists, isTrue);
+    expect(doc.data()?['name'], 'Tortilla');
+  });
+
+  test('sin conexión borrar una receta la oculta y encola el borrado',
+      () async {
+    final repo =
+        ProfileRepository(db: db, offline: store, isOnline: () => false);
+    final id = await repo.saveRecipe(
+      'u1',
+      const SavedRecipe(id: '', name: 'Tortilla'),
+    );
+    await repo.deleteRecipe('u1', id);
+
+    final recipes = await repo.getSavedRecipes('u1');
+    expect(recipes, isEmpty);
+    expect(store.ops.single.type.name, 'recipeDelete');
+  });
+
+  test('sin conexión un alimento se encola y aparece al instante', () async {
+    final repo =
+        ProfileRepository(db: db, offline: store, isOnline: () => false);
+    final id = await repo.saveFood(
+      'u1',
+      SavedFood(id: '', name: 'Avena', calories: 150),
+    );
+
+    expect(id, isNotEmpty);
+    expect(store.length, 1);
+    final foods = await repo.getSavedFoods('u1');
+    expect(foods.length, 1);
+    expect(foods.first.name, 'Avena');
+  });
 }
