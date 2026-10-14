@@ -219,6 +219,27 @@ void main() {
       final p = _profile(weight: 60);
       expect(p.targetWaterGlasses, 8);
     });
+
+    test('aceptar términos y marketing se conserva en toMap/fromMap', () {
+      final at = DateTime(2026, 3, 1, 10, 30);
+      final p = _profile().copyWith(
+        acceptedTerms: true,
+        acceptedMarketing: true,
+        termsAcceptedAt: at,
+      );
+      final restored = UserProfile.fromMap(p.toMap());
+
+      expect(restored.acceptedTerms, isTrue);
+      expect(restored.acceptedMarketing, isTrue);
+      expect(restored.termsAcceptedAt, at);
+    });
+
+    test('por defecto no se aceptan términos ni marketing', () {
+      final p = _profile();
+      expect(p.acceptedTerms, isFalse);
+      expect(p.acceptedMarketing, isFalse);
+      expect(p.termsAcceptedAt, isNull);
+    });
   });
 
   group('DailyLog', () {

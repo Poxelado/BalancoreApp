@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../profile/domain/user_profile.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
+import '../../../training/domain/routine_generator.dart';
+import '../../../training/presentation/providers/exercise_provider.dart';
 import '../providers/auth_provider.dart';
 import '../../../../core/errors/app_exception.dart';
 import '../../../../core/notifications/notification_preferences.dart';
@@ -36,10 +38,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   int _streakInterval = 4;
   bool? _wantNotifs;
 
+  // Rutina dinámica
+  RoutineLevel _rLevel = RoutineLevel.intermedio;
+  int _rDays = 4;
+  int _rMinutes = 60;
+  final Set<String> _rEquipment = {};
+  List<RoutineDay>? _generatedDays;
+  bool _generatingRoutine = false;
+
+  // Términos (para usuarios que no pasan por el registro por correo)
+  bool _acceptedTerms = false;
+  bool _termsAlreadyAccepted = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _prefillFromAuth());
+    // Prefetch del catálogo para poder generar la rutina en el paso 4.
+    ref.read(exerciseRepositoryProvider).loadCatalog();
   }
 
   Future<void> _prefillFromAuth() async {
@@ -50,6 +66,31 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (!mounted) return;
     if (profile?.displayName != null && profile!.displayName!.isNotEmpty) {
       _nameController.text = profile.displayName!;
+    }
+    if (profile?.acceptedTerms ?? false) {
+      setState(() => _termsAlreadyAccepted = true);
+    }
+  }
+
+  Future<void> _generateRoutine() async {
+    final catalog = ref.read(exercisesProvider).valueOrNull ?? const [];
+    if (catalog.isEmpty) return;
+    setState(() => _generatingRoutine = true);
+    try {
+      final days = generateRoutine(
+        RoutineRequest(
+          goal: RoutineGoal.fromLabel(_goal),
+          level: _rLevel,
+          daysPerWeek: _rDays,
+          minutesAvailable: _rMinutes,
+          equipment: _rEquipment,
+          catalog: catalog,
+        ),
+      );
+      if (!mounted) return;
+      setState(() => _generatedDays = days);
+    } finally {
+      if (mounted) setState(() => _generatingRoutine = false);
     }
   }
 
@@ -182,6 +223,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       );
       return;
     }
+    if (!_termsAlreadyAccepted && !_acceptedTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Debes aceptar los Términos y Condiciones para continuar.'),
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
@@ -211,6 +260,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         goal: _goal,
       );
 
+      final existing = ref.read(userProfileProvider).value;
       final profile = UserProfile(
         uid: user.uid,
         email: user.email,
@@ -230,6 +280,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         targetFat: macros.fat,
         targetWaterMl: UserProfile.calculateWaterMl(weightKg: weight),
         onboardingCompleted: true,
+        acceptedTerms: true,
+        acceptedMarketing: existing?.acceptedMarketing ?? false,
+        termsAcceptedAt: existing?.termsAcceptedAt ?? DateTime.now(),
         createdAt: DateTime.now(),
       );
 
@@ -240,6 +293,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         weight,
         DateTime.now(),
       );
+
+      // Guarda la rutina dinámica generada (si el usuario la creó).
+      if (_generatedDays != null && _generatedDays!.isNotEmpty) {
+        await ref
+            .read(profileRepositoryProvider)
+            .saveAllRoutines(user.uid, _generatedDays!);
+        ref.invalidate(routinesProvider);
+      }
 
       ref.read(pendingUsernameProvider.notifier).state = null;
       ref.invalidate(userProfileProvider);
@@ -283,7 +344,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
-    } else if (_page == 2) {
+    } else if (_page < 4) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
@@ -340,11 +401,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Row(
-                  children: List.generate(4, (i) {
+                  children: List.generate(5, (i) {
                     return Expanded(
                       child: Container(
                         height: 4,
-                        margin: EdgeInsets.only(right: i < 3 ? 6 : 0),
+                        margin: EdgeInsets.only(right: i < 4 ? 6 : 0),
                         decoration: BoxDecoration(
                           color: i <= _page
                               ? primary
@@ -386,6 +447,38 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       previewWater: _previewWater,
                       previewMacros: _previewMacros,
                     ),
+                    RoutinePage(
+                      goal: RoutineGoal.fromLabel(_goal),
+                      level: _rLevel,
+                      days: _rDays,
+                      minutes: _rMinutes,
+                      equipment: _rEquipment,
+                      generated: _generatedDays,
+                      generating: _generatingRoutine,
+                      catalogReady: ref.watch(exercisesProvider).hasValue,
+                      primary: primary,
+                      onLevel: (v) => setState(() {
+                        _rLevel = v;
+                        _generatedDays = null;
+                      }),
+                      onDays: (v) => setState(() {
+                        _rDays = v;
+                        _generatedDays = null;
+                      }),
+                      onMinutes: (v) => setState(() {
+                        _rMinutes = v;
+                        _generatedDays = null;
+                      }),
+                      onEquipment: (name, selected) => setState(() {
+                        if (selected) {
+                          _rEquipment.add(name);
+                        } else {
+                          _rEquipment.remove(name);
+                        }
+                        _generatedDays = null;
+                      }),
+                      onGenerate: _generateRoutine,
+                    ),
                     RemindersPage(
                       wantNotifs: _wantNotifs,
                       workoutMin: _workoutMin,
@@ -404,6 +497,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           setState(() => _streakInterval = v),
                       requestPermission: () =>
                           NotificationService.instance.requestPermission(),
+                      showTerms: !_termsAlreadyAccepted,
+                      acceptedTerms: _acceptedTerms,
+                      onAcceptedTerms: (v) =>
+                          setState(() => _acceptedTerms = v),
                     ),
                   ],
                 ),
@@ -428,7 +525,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       ),
                     )
                         : Text(
-                      _page < 3 ? 'Continuar' : 'Empezar en Balancore',
+                      _page < 4 ? 'Continuar' : 'Empezar en Balancore',
                       style: const TextStyle(
                         fontSize: 16,
                         color: Colors.white,

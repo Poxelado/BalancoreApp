@@ -27,16 +27,13 @@ class GoalPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'Tu objetivo',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          const OnboardingHeader(
+            icon: Icons.flag_outlined,
+            title: 'Tu objetivo',
+            subtitle: 'Ajusta las calorías según lo que quieras lograr.',
+            step: 'PASO 3 DE 5',
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Ajusta las calorías según lo que quieras lograr.',
-            style: TextStyle(color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 4),
           ...UserProfile.goals.map((g) {
             final selected = goal == g;
             final subtitle = switch (g) {
@@ -159,6 +156,9 @@ class RemindersPage extends StatelessWidget {
   final ValueChanged<int> onWeightWeekday;
   final ValueChanged<int> onStreakInterval;
   final Future<bool> Function() requestPermission;
+  final bool showTerms;
+  final bool acceptedTerms;
+  final ValueChanged<bool> onAcceptedTerms;
 
   const RemindersPage({
     super.key,
@@ -176,7 +176,12 @@ class RemindersPage extends StatelessWidget {
     required this.onWeightWeekday,
     required this.onStreakInterval,
     required this.requestPermission,
+    this.showTerms = false,
+    this.acceptedTerms = false,
+    this.onAcceptedTerms = _ignore,
   });
+
+  static void _ignore(bool _) {}
 
   @override
   Widget build(BuildContext context) {
@@ -186,20 +191,14 @@ class RemindersPage extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
       children: [
-        Text(
-          '¿Quieres recibir recordatorios?',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: onSurface,
-          ),
+        const OnboardingHeader(
+          icon: Icons.notifications_active_outlined,
+          title: '¿Quieres recibir recordatorios?',
+          subtitle:
+              'Te avisamos de entrenar, comer, peso y racha. Puedes cambiarlo después en Ajustes.',
+          step: 'PASO 5 DE 5',
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Te avisamos de entrenar, comer, peso y racha. Puedes cambiarlo después en Ajustes.',
-          style: TextStyle(color: onSurface.withValues(alpha: 0.7)),
-        ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 4),
         Row(
           children: [
             Expanded(
@@ -387,6 +386,22 @@ class RemindersPage extends StatelessWidget {
                 : '12:00 · 18:00 — no perder la racha (3 de 4)',
             style: TextStyle(
                 fontSize: 12, color: onSurface.withValues(alpha: 0.65)),
+          ),
+        ],
+        if (showTerms) ...[
+          const SizedBox(height: 20),
+          const Divider(),
+          const SizedBox(height: 8),
+          CheckboxListTile(
+            value: acceptedTerms,
+            onChanged: (v) => onAcceptedTerms(v ?? false),
+            controlAffinity: ListTileControlAffinity.leading,
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: const Text(
+              'Acepto los Términos y Condiciones y la Política de Privacidad.',
+              style: TextStyle(fontSize: 13, height: 1.35),
+            ),
           ),
         ],
       ],

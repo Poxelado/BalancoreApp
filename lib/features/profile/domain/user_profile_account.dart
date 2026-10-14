@@ -23,6 +23,11 @@ class UserProfile {
   /// Fechas ISO de cambios de username (para límite 3/mes).
   final List<String> usernameChangeDates;
   final bool onboardingCompleted;
+  /// Aceptó los Términos y Condiciones y la Política de Privacidad.
+  final bool acceptedTerms;
+  /// Aceptó recibir comunicaciones por correo.
+  final bool acceptedMarketing;
+  final DateTime? termsAcceptedAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -46,6 +51,9 @@ class UserProfile {
     this.targetWaterMl = 0,
     this.usernameChangeDates = const [],
     this.onboardingCompleted = false,
+    this.acceptedTerms = false,
+    this.acceptedMarketing = false,
+    this.termsAcceptedAt,
     this.createdAt,
     this.updatedAt,
   });
@@ -85,6 +93,9 @@ class UserProfile {
       'targetWaterMl': targetWaterMl,
       'usernameChangeDates': usernameChangeDates,
       'onboardingCompleted': onboardingCompleted,
+      'acceptedTerms': acceptedTerms,
+      'acceptedMarketing': acceptedMarketing,
+      'termsAcceptedAt': termsAcceptedAt?.toIso8601String(),
       'createdAt':
       createdAt?.toIso8601String() ?? DateTime.now().toIso8601String(),
       'updatedAt': DateTime.now().toIso8601String(),
@@ -116,6 +127,11 @@ class UserProfile {
           ? (map['usernameChangeDates'] as List).map((e) => e.toString()).toList()
           : const [],
       onboardingCompleted: map['onboardingCompleted'] ?? false,
+      acceptedTerms: map['acceptedTerms'] ?? false,
+      acceptedMarketing: map['acceptedMarketing'] ?? false,
+      termsAcceptedAt: map['termsAcceptedAt'] != null
+          ? DateTime.tryParse(map['termsAcceptedAt'])
+          : null,
       createdAt: map['createdAt'] != null
           ? DateTime.tryParse(map['createdAt'])
           : null,
@@ -143,6 +159,9 @@ class UserProfile {
     int? targetWaterMl,
     List<String>? usernameChangeDates,
     bool? onboardingCompleted,
+    bool? acceptedTerms,
+    bool? acceptedMarketing,
+    DateTime? termsAcceptedAt,
   }) {
     return UserProfile(
       uid: uid,
@@ -164,6 +183,9 @@ class UserProfile {
       targetWaterMl: targetWaterMl ?? this.targetWaterMl,
       usernameChangeDates: usernameChangeDates ?? this.usernameChangeDates,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
+      acceptedTerms: acceptedTerms ?? this.acceptedTerms,
+      acceptedMarketing: acceptedMarketing ?? this.acceptedMarketing,
+      termsAcceptedAt: termsAcceptedAt ?? this.termsAcceptedAt,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
     );

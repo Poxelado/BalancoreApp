@@ -22,16 +22,14 @@ class IdentityPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            '¿Cómo te llamamos?',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          const OnboardingHeader(
+            icon: Icons.badge_outlined,
+            title: '¿Cómo te llamamos?',
+            subtitle:
+                'Tu usuario ya quedó definido al crear la cuenta. Aquí solo el nombre (opcional) y el sexo.',
+            step: 'PASO 1 DE 5',
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Tu usuario ya quedó definido al crear la cuenta. Aquí solo el nombre (opcional) y el sexo.',
-            style: TextStyle(color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 4),
           TextFormField(
             controller: nameController,
             textCapitalization: TextCapitalization.words,
@@ -109,16 +107,14 @@ class BodyPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'Tus datos corporales',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          const OnboardingHeader(
+            icon: Icons.straighten,
+            title: 'Tus datos corporales',
+            subtitle:
+                'Los usamos para calcular tus calorías, macros y agua objetivo.',
+            step: 'PASO 2 DE 5',
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Los usamos para calcular tus calorías y macros objetivo.',
-            style: TextStyle(color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 4),
           TextFormField(
             controller: ageController,
             keyboardType: TextInputType.number,
