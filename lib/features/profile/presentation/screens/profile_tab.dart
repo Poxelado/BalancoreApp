@@ -8,6 +8,7 @@ import 'weight_history_screen.dart';
 import 'edit_profile_screen.dart';
 import '../widgets/profile_tab_widgets.dart';
 import '../../../training/domain/workout_share_metrics.dart';
+import '../../../training/presentation/widgets/muscle_body_map.dart';
 import '../../../training/presentation/screens/edit_workout_history_screen.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../training/presentation/screens/exercise_detail_screen.dart';
@@ -68,6 +69,13 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
 
   String _fmtDate(DateTime d) {
     return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
+  }
+
+  String _fmtFullDate(DateTime d) {
+    final h = d.hour.toString().padLeft(2, '0');
+    final m = d.minute.toString().padLeft(2, '0');
+    return '${_weekdays[d.weekday]} ${d.day} de '
+        '${_monthFull[d.month].toLowerCase()} · $h:$m';
   }
 
   String _fmtDuration(WorkoutSession s) {
@@ -164,30 +172,52 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
   void _showSessionDetail(WorkoutSession s) {
     final primary = Theme.of(context).colorScheme.primary;
     final units = ref.read(unitsProvider);
+    final data = buildWorkoutShareData(s);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = Theme.of(context).colorScheme.surface;
+    final completedSets = s.exercises.fold<int>(
+      0,
+      (a, e) => a + e.sets.where((x) => x.completed).length,
+    );
+    final totalSets = s.exercises.fold<int>(0, (a, e) => a + e.sets.length);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
         return DraggableScrollableSheet(
           expand: false,
-          initialChildSize: 0.55,
-          minChildSize: 0.35,
-          maxChildSize: 0.9,
+          initialChildSize: 0.6,
+          minChildSize: 0.4,
+          maxChildSize: 0.92,
           builder: (context, controller) {
-            return Column(
+            return ListView(
+              controller: controller,
+              padding: const EdgeInsets.fromLTRB(0, 8, 0, 20),
               children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade400,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  padding: const EdgeInsets.fromLTRB(20, 10, 8, 0),
                   child: Row(
                     children: [
                       Expanded(
                         child: Text(
                           s.title.isEmpty ? s.dayName : s.title,
                           style: const TextStyle(
-                            fontSize: 18,
+                            fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -208,7 +238,8 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
                       ),
                       IconButton(
                         tooltip: 'Eliminar',
-                        icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+                        icon: Icon(Icons.delete_outline,
+                            color: Theme.of(context).colorScheme.error),
                         onPressed: () async {
                           final ok = await showDialog<bool>(
                             context: context,
@@ -225,7 +256,8 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
                                 TextButton(
                                   onPressed: () => Navigator.pop(d, true),
                                   style: TextButton.styleFrom(
-                                    foregroundColor: Theme.of(context).colorScheme.error,
+                                    foregroundColor:
+                                        Theme.of(context).colorScheme.error,
                                   ),
                                   child: const Text('Eliminar'),
                                 ),
@@ -250,83 +282,126 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
                   ),
                 ),
                 Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                  child: Row(
+                    children: [
+                      Icon(Icons.event, size: 14, color: Colors.grey.shade600),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          _fmtFullDate(s.startedAt),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                      _EstadoPill(completed: s.completed),
+                    ],
+                  ),
+                ),
+                Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 2,
-                      crossAxisAlignment: WrapCrossAlignment.center,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest
+                              .withValues(alpha: 0.4)
+                          : primary.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
                       children: [
-                        _DetailChip(
-                          icon: Icons.event,
-                          text: _fmtDate(s.startedAt),
-                        ),
-                        _DetailChip(
-                          icon: Icons.timer_outlined,
-                          text: _fmtDuration(s),
-                        ),
-                        _DetailChip(
-                          icon: s.completed
-                              ? Icons.check_circle
-                              : Icons.hourglass_empty,
-                          text: s.completed ? 'Completado' : 'En curso',
-                          color: s.completed
-                              ? AppSemanticColors.of(context).success
-                              : null,
+                        if (data.bodyIntensity.isNotEmpty) ...[
+                          _MiniBody(
+                            intensity: data.bodyIntensity,
+                            front: true,
+                            primary: primary,
+                            isDark: isDark,
+                          ),
+                          const SizedBox(width: 6),
+                          _MiniBody(
+                            intensity: data.bodyIntensity,
+                            front: false,
+                            primary: primary,
+                            isDark: isDark,
+                          ),
+                          Container(
+                            width: 1,
+                            height: 76,
+                            margin: const EdgeInsets.symmetric(horizontal: 12),
+                            color: Colors.grey.withValues(alpha: 0.3),
+                          ),
+                        ],
+                        Expanded(
+                          child: Column(
+                            children: [
+                              _StatRow(
+                                icon: Icons.timer_outlined,
+                                label: 'Duración',
+                                value: _fmtDuration(s),
+                              ),
+                              _StatRow(
+                                icon: Icons.scale_outlined,
+                                label: 'Volumen',
+                                value: data.volumeKg > 0
+                                    ? units.formatWeight(data.volumeKg,
+                                        decimals: 0)
+                                    : '—',
+                              ),
+                              _StatRow(
+                                icon: Icons.repeat,
+                                label: 'Series',
+                                value: '$completedSets/$totalSets',
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const Divider(height: 24),
-                Expanded(
-                  child: ListView.builder(
-                    controller: controller,
-                    itemCount: s.exercises.length,
-                    itemBuilder: (_, i) {
-                      final e = s.exercises[i];
-                      final done =
-                          e.sets.where((set) => set.completed).length;
-                      final max = _maxWeight(e);
-                      final parts = <String>[
-                        e.muscleGroup.isEmpty ? 'Sin sector' : e.muscleGroup,
-                        '$done/${e.sets.length} series',
-                        if (max > 0)
-                          'Máx ${units.formatWeight(max, decimals: max == max.roundToDouble() ? 0 : 1)}',
-                      ];
-                      return ListTile(
-                        title: Text(e.exerciseName),
-                        subtitle: Text(
-                          e.notes.isNotEmpty
-                              ? '${parts.join(' · ')}\n📝 ${e.notes}'
-                              : parts.join(' · '),
-                        ),
-                        isThreeLine: e.notes.isNotEmpty,
-                        trailing: Icon(
-                          done == e.sets.length && e.sets.isNotEmpty
-                              ? Icons.check_circle
-                              : Icons.fitness_center,
-                          color: done == e.sets.length && e.sets.isNotEmpty
-                              ? AppSemanticColors.of(context).success
-                              : primary,
-                        ),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ExerciseDetailScreen(
-                                exerciseId: e.exerciseId,
-                                exerciseName: e.exerciseName,
-                                muscleGroup: e.muscleGroup,
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'EJERCICIOS',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
                   ),
                 ),
+                for (final e in s.exercises)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: _ExerciseCard(
+                      exercise: e,
+                      units: units,
+                      maxWeight: _maxWeight(e),
+                      isDark: isDark,
+                      primary: primary,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ExerciseDetailScreen(
+                              exerciseId: e.exerciseId,
+                              exerciseName: e.exerciseName,
+                              muscleGroup: e.muscleGroup,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
               ],
             );
           },
@@ -576,24 +651,243 @@ class _ProfileTabState extends ConsumerState<ProfileTab> {
   }
 }
 
-/// Chip pequeño con icono + texto para la cabecera del detalle.
-class _DetailChip extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  final Color? color;
+/// Pastilla de estado (completado / en curso) para el detalle.
+class _EstadoPill extends StatelessWidget {
+  final bool completed;
 
-  const _DetailChip({required this.icon, required this.text, this.color});
+  const _EstadoPill({required this.completed});
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? Colors.grey.shade600;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: c),
-        const SizedBox(width: 4),
-        Text(text, style: TextStyle(fontSize: 12, color: c)),
-      ],
+    final color = completed
+        ? AppSemanticColors.of(context).success
+        : Theme.of(context).colorScheme.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            completed ? Icons.check_circle : Icons.hourglass_empty,
+            size: 12,
+            color: color,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            completed ? 'Completado' : 'En curso',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Figura muscular pequeña (frontal o trasera) del resumen del detalle.
+class _MiniBody extends StatelessWidget {
+  final Map<BodyRegion, double> intensity;
+  final bool front;
+  final Color primary;
+  final bool isDark;
+
+  const _MiniBody({
+    required this.intensity,
+    required this.front,
+    required this.primary,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 44,
+      height: 92,
+      child: MuscleBodyMap(
+        intensity: intensity,
+        front: front,
+        base: isDark
+            ? Colors.white.withValues(alpha: 0.14)
+            : Colors.black.withValues(alpha: 0.06),
+        trained: primary,
+        outline: isDark
+            ? Colors.white.withValues(alpha: 0.30)
+            : primary.withValues(alpha: 0.22),
+      ),
+    );
+  }
+}
+
+/// Fila etiqueta/valor del resumen del detalle.
+class _StatRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _StatRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Icon(icon, size: 15, color: Colors.grey.shade500),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
+          const Spacer(),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tarjeta de un ejercicio dentro del detalle.
+class _ExerciseCard extends StatelessWidget {
+  final WorkoutExerciseLog exercise;
+  final UnitSystem units;
+  final double maxWeight;
+  final bool isDark;
+  final Color primary;
+  final VoidCallback onTap;
+
+  const _ExerciseCard({
+    required this.exercise,
+    required this.units,
+    required this.maxWeight,
+    required this.isDark,
+    required this.primary,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final done = exercise.sets.where((s) => s.completed).length;
+    final complete = done == exercise.sets.length &&
+        exercise.sets.isNotEmpty;
+    final success = AppSemanticColors.of(context).success;
+
+    return Material(
+      color: isDark
+          ? Theme.of(context)
+              .colorScheme
+              .surfaceContainerHighest
+              .withValues(alpha: 0.4)
+          : Colors.grey.shade100,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: primary.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  complete ? Icons.check : Icons.fitness_center,
+                  size: 20,
+                  color: complete ? success : primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      exercise.exerciseName,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        _MiniTag(
+                          text: exercise.muscleGroup.isEmpty
+                              ? 'Sin sector'
+                              : exercise.muscleGroup,
+                        ),
+                        _MiniTag(text: '$done/${exercise.sets.length} series'),
+                        if (maxWeight > 0)
+                          _MiniTag(
+                            text: 'Máx ${units.formatWeight(maxWeight, decimals: maxWeight == maxWeight.roundToDouble() ? 0 : 1)}',
+                          ),
+                      ],
+                    ),
+                    if (exercise.notes.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        '📝 ${exercise.notes}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: Colors.grey.shade400),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Etiqueta compacta (sector / series / peso) del detalle.
+class _MiniTag extends StatelessWidget {
+  final String text;
+
+  const _MiniTag({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.08)
+            : Colors.black.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 11,
+          color: isDark ? Colors.white70 : Colors.grey.shade700,
+        ),
+      ),
     );
   }
 }
