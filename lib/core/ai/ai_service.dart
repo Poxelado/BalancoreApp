@@ -92,7 +92,7 @@ class RoutineAiServiceImpl implements RoutineAiService {
 
   /// Modelo con salida en JSON. No es el más potente, pero es el que mejor
   /// ratio tiene entre calidad de respuesta estructurada y cuota gratuita.
-  static const _model = 'gemini-2.0-flash';
+  static const _model = 'gemini-3.8-flash';
   static const _endpoint = 'generativelanguage.googleapis.com';
 
   RoutineAiServiceImpl({

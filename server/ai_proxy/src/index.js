@@ -8,7 +8,7 @@
 //   GEMINI_API_KEY  (obligatorio)  clave de Google AI Studio
 //   AI_PROXY_TOKEN  (opcional)     token que debe mandar la app en `x-ai-token`
 
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-3.8-flash';
 const MAX_PROMPT_CHARS = 20000;
 
 export default {
