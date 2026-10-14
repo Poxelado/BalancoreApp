@@ -10,6 +10,7 @@ import 'progress_tab.dart';
 import 'settings_screen.dart';
 import 'home_tab.dart';
 import '../widgets/workout_mini_player.dart';
+import '../widgets/offline_status_banner.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -100,10 +101,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ]
             : null,
       ),
-      body: Stack(
+      body: Column(
         children: [
-          Positioned.fill(child: _buildPage(ref.watch(shellTabProvider))),
-          const WorkoutMiniPlayer(),
+          const OfflineStatusBanner(),
+          Expanded(
+            child: Stack(
+              children: [
+                Positioned.fill(child: _buildPage(ref.watch(shellTabProvider))),
+                const WorkoutMiniPlayer(),
+              ],
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(

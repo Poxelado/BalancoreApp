@@ -1,12 +1,59 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import '../../../../core/offline/offline_store.dart';
+import '../../../../core/offline/offline_sync.dart';
 import '../../data/profile_repository.dart';
 import '../../domain/user_profile.dart';
 
 export '../../data/profile_repository.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
+/// Cola local de escrituras pendientes de subir (compartida por toda la app).
+final offlineStoreProvider = Provider<OfflineStore>((ref) {
+  final store = OfflineStore();
+  ref.onDispose(store.dispose);
+  return store;
+});
+
+final connectivityProvider = Provider<Connectivity>((ref) => Connectivity());
+
+/// ¿Hay conexión a internet? Se actualiza sola cuando cambia la red.
+final isOnlineProvider = StreamProvider<bool>((ref) async* {
+  final connectivity = ref.watch(connectivityProvider);
+  try {
+    yield _onlineFrom(await connectivity.checkConnectivity());
+    yield* connectivity.onConnectivityChanged.map(_onlineFrom).distinct();
+  } catch (_) {
+    // Sin el plugin (p. ej. en tests) asumimos que hay red.
+    yield true;
+  }
+});
+
+bool _onlineFrom(List<ConnectivityResult> results) =>
+    results.isEmpty || results.any((r) => r != ConnectivityResult.none);
+
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
-  return ProfileRepository();
+  return ProfileRepository(
+    offline: ref.watch(offlineStoreProvider),
+    isOnline: () => ref.read(isOnlineProvider).value ?? true,
+  );
+});
+
+/// Cuántas escrituras quedan pendientes de subir (para el indicador).
+final pendingUploadsProvider = StreamProvider<int>((ref) async* {
+  final store = ref.watch(offlineStoreProvider);
+  await store.load();
+  yield store.length;
+  yield* store.changes.map((_) => store.length);
+});
+
+/// Reenvía la cola al recuperar la conexión.
+final offlineSyncProvider = Provider<OfflineSync>((ref) {
+  return OfflineSync(
+    store: ref.watch(offlineStoreProvider),
+    apply: (op) => ref.read(profileRepositoryProvider).applyOfflineOp(op),
+    onSynced: () => invalidateProgressData(ref),
+  );
 });
 
 final userProfileProvider = FutureProvider<UserProfile?>((ref) async {

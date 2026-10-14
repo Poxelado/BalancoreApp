@@ -27,10 +27,23 @@ extension ProfileWorkouts on ProfileRepository {
     return _sessionFromDoc(doc);
   }
 
-  Future<void> saveWorkoutSession(String uid, WorkoutSession session) async {
+  Future<void> _writeSession(String uid, WorkoutSession session) async {
     final data = session.toMap();
     data['id'] = session.id;
     await _sessionRef(uid, session.id).set(data);
+  }
+
+  Future<void> saveWorkoutSession(String uid, WorkoutSession session) async {
+    await _runOrQueue(
+      OfflineOp(
+        type: OfflineOpType.workoutSession,
+        uid: uid,
+        dedupeKey: 'ws:${session.id}',
+        payload: session.toMap(),
+        createdAt: DateTime.now().toIso8601String(),
+      ),
+      () => _writeSession(uid, session),
+    );
   }
 
   Future<void> deleteWorkoutSession(String uid, String sessionId) async {
@@ -44,10 +57,16 @@ extension ProfileWorkouts on ProfileRepository {
         .where('completed', isEqualTo: false)
         .limit(20)
         .get();
-    if (snap.docs.isEmpty) return null;
     final list = snap.docs.map(_sessionFromDoc).toList();
-    list.sort((a, b) => b.startedAt.compareTo(a.startedAt));
-    return list.first;
+    // Sumar las que están en la cola local sin subir.
+    for (final p in _pendingSessions(uid)) {
+      if (!p.completed) list.add(p);
+    }
+    if (list.isEmpty) return null;
+    final byId = {for (final s in list) s.id: s};
+    final merged = byId.values.toList()
+      ..sort((a, b) => b.startedAt.compareTo(a.startedAt));
+    return merged.first;
   }
 
   /// Sesión incompleta de esta rutina (mismo dayName), si existe.
@@ -95,7 +114,17 @@ extension ProfileWorkouts on ProfileRepository {
         .orderBy('startedAt', descending: true)
         .limit(limit)
         .get();
-    return snap.docs.map(_sessionFromDoc).toList();
+    final list = snap.docs.map(_sessionFromDoc).toList();
+    final byId = {for (final s in list) s.id: s};
+    for (final p in _pendingSessions(uid)) {
+      byId[p.id] = p;
+    }
+    final merged = byId.values.toList()
+      ..sort((a, b) => b.startedAt.compareTo(a.startedAt));
+    if (limit > 0 && merged.length > limit) {
+      return merged.sublist(0, limit);
+    }
+    return merged;
   }
 
   /// Ajusta el nivel de actividad según los entrenos completados en los últimos

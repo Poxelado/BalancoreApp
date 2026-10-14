@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/steps/step_counter_scope.dart';
 import 'core/theme/theme_provider.dart';
 import 'features/auth/presentation/screens/auth_wrapper.dart';
+import 'features/profile/presentation/widgets/offline_sync_scope.dart';
 
 class BalancoreApp extends ConsumerWidget {
   const BalancoreApp({super.key});
@@ -21,7 +22,9 @@ class BalancoreApp extends ConsumerWidget {
       theme: lightTheme,
       darkTheme: darkTheme,
       themeMode: prefs.themeMode,
-      home: const StepCounterScope(child: AuthWrapper()),
+      home: const OfflineSyncScope(
+        child: StepCounterScope(child: AuthWrapper()),
+      ),
     );
   }
 }

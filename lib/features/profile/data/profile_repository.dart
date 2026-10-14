@@ -1,5 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../../../core/errors/app_exception.dart';
+import '../../../core/offline/offline_op.dart';
+import '../../../core/offline/offline_store.dart';
 import '../domain/user_profile.dart';
 
 part 'profile_repository_routines.dart';
@@ -7,12 +10,20 @@ part 'profile_repository_nutrition.dart';
 part 'profile_repository_workouts.dart';
 part 'profile_repository_account.dart';
 part 'profile_repository_custom_routines.dart';
+part 'profile_repository_offline.dart';
 
 class ProfileRepository {
-  ProfileRepository({FirebaseFirestore? db})
-      : _db = db ?? FirebaseFirestore.instance;
+  ProfileRepository({
+    FirebaseFirestore? db,
+    OfflineStore? offline,
+    bool Function()? isOnline,
+  })  : _db = db ?? FirebaseFirestore.instance,
+        _offline = offline ?? OfflineStore(),
+        _isOnline = isOnline;
 
   final FirebaseFirestore _db;
+  final OfflineStore _offline;
+  final bool Function()? _isOnline;
 
   CollectionReference _userDoc(String uid) => _db.collection('users');
 

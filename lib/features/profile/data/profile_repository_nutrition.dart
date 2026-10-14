@@ -13,11 +13,50 @@ extension ProfileNutrition on ProfileRepository {
 
   Future<DailyLog> getTodayLog(String uid) async {
     final key = _todayKey();
-    final doc = await _todayLogRef(uid).get();
-    if (!doc.exists || doc.data() == null) {
-      return DailyLog(date: key);
+    final log = await _fetchLog(uid, key);
+    return _overlayMeals(uid, key, log);
+  }
+
+  Future<DailyLog> _fetchLog(String uid, String dateKey) async {
+    final doc = await _userDoc(uid)
+        .doc(uid)
+        .collection('dailyLogs')
+        .doc(dateKey)
+        .get();
+    if (!doc.exists || doc.data() == null) return DailyLog(date: dateKey);
+    return DailyLog.fromMap(Map<String, dynamic>.from(doc.data() as Map));
+  }
+
+  /// Aplica sobre [log] las comidas pendientes de subir (cola local) para que
+  /// se vean al instante aunque todavía no se hayan sincronizado.
+  DailyLog _overlayMeals(String uid, String dateKey, DailyLog log) {
+    var meals = List<MealEntry>.from(log.meals);
+    var changed = false;
+    for (final op in _offline.ops) {
+      if (op.uid != uid) continue;
+      if (op.payload['dateKey']?.toString() != dateKey) continue;
+      if (op.type == OfflineOpType.mealUpsert) {
+        final raw = op.payload['meal'];
+        if (raw is! Map) continue;
+        final meal = MealEntry.fromMap(Map<String, dynamic>.from(raw));
+        meals = [
+          for (final m in meals)
+            if (m.id != meal.id) m,
+          meal,
+        ];
+        changed = true;
+      } else if (op.type == OfflineOpType.mealRemove) {
+        final id = op.payload['mealId']?.toString();
+        if (id == null) continue;
+        meals = meals.where((m) => m.id != id).toList();
+        changed = true;
+      }
     }
-    return DailyLog.fromMap(doc.data()! as Map<String, dynamic>);
+    if (!changed) return log;
+    return DailyLog.fromMap({
+      ...log.toMap(),
+      'meals': meals.map((m) => m.toMap()).toList(),
+    });
   }
 
   Future<void> updateTodayLog(
@@ -68,40 +107,89 @@ extension ProfileNutrition on ProfileRepository {
     }, SetOptions(merge: true));
   }
 
-  Future<void> _saveLogWithMeals(String uid, List<MealEntry> meals) async {
-    final key = _todayKey();
+  Future<void> _writeMeals(
+    String uid,
+    String dateKey,
+    List<MealEntry> meals,
+    DailyLog existing,
+  ) async {
     final cal = meals.fold<int>(0, (s, m) => s + m.calories);
     final protein = meals.fold<int>(0, (s, m) => s + m.proteinGrams);
     final carbs = meals.fold<int>(0, (s, m) => s + m.carbsGrams);
     final fat = meals.fold<int>(0, (s, m) => s + m.fatGrams);
 
-    // Preservar agua/sueño si ya existen
-    final existing = await getTodayLog(uid);
-
-    await _todayLogRef(uid).set({
-      'date': key,
+    await _userDoc(uid).doc(uid).collection('dailyLogs').doc(dateKey).set({
+      'date': dateKey,
       'meals': meals.map((m) => m.toMap()).toList(),
       'consumedCalories': cal,
       'proteinGrams': protein,
       'carbsGrams': carbs,
       'fatGrams': fat,
+      // Preservar agua/sueño si ya existen
       'waterGlasses': existing.waterGlasses,
       'sleepHours': existing.sleepHours,
     }, SetOptions(merge: true));
   }
 
-  /// Agrega una comida y recalcula totales del día.
+  Future<void> _saveLogWithMeals(String uid, List<MealEntry> meals) async {
+    final key = _todayKey();
+    final existing = await _fetchLog(uid, key);
+    await _writeMeals(uid, key, meals, existing);
+  }
+
+  /// Inserta o reemplaza por id una comida del día (idempotente).
+  Future<void> _applyMealUpsert(
+      String uid, String dateKey, MealEntry meal) async {
+    final log = await _fetchLog(uid, dateKey);
+    final meals = [
+      for (final m in log.meals)
+        if (m.id != meal.id) m,
+      meal,
+    ];
+    await _writeMeals(uid, dateKey, meals, log);
+  }
+
+  /// Quita por id una comida del día (idempotente).
+  Future<void> _applyMealRemove(
+      String uid, String dateKey, String mealId) async {
+    final log = await _fetchLog(uid, dateKey);
+    final meals = log.meals.where((m) => m.id != mealId).toList();
+    await _writeMeals(uid, dateKey, meals, log);
+  }
+
+  OfflineOp _mealOp(String uid, String dateKey, MealEntry meal) => OfflineOp(
+        type: OfflineOpType.mealUpsert,
+        uid: uid,
+        dedupeKey: 'meal:$dateKey:${meal.id}',
+        payload: {'dateKey': dateKey, 'meal': meal.toMap()},
+        createdAt: DateTime.now().toIso8601String(),
+      );
+
+  OfflineOp _mealRemoveOp(String uid, String dateKey, String mealId) =>
+      OfflineOp(
+        type: OfflineOpType.mealRemove,
+        uid: uid,
+        dedupeKey: 'meal:$dateKey:$mealId',
+        payload: {'dateKey': dateKey, 'mealId': mealId},
+        createdAt: DateTime.now().toIso8601String(),
+      );
+
+  /// Agrega (o reemplaza por id) una comida y recalcula totales del día.
   Future<void> addMeal(String uid, MealEntry meal) async {
-    final log = await getTodayLog(uid);
-    final meals = [...log.meals, meal];
-    await _saveLogWithMeals(uid, meals);
+    final key = _todayKey();
+    await _runOrQueue(
+      _mealOp(uid, key, meal),
+      () => _applyMealUpsert(uid, key, meal),
+    );
   }
 
   /// Elimina una comida por id y recalcula totales.
   Future<void> removeMeal(String uid, String mealId) async {
-    final log = await getTodayLog(uid);
-    final meals = log.meals.where((m) => m.id != mealId).toList();
-    await _saveLogWithMeals(uid, meals);
+    final key = _todayKey();
+    await _runOrQueue(
+      _mealRemoveOp(uid, key, mealId),
+      () => _applyMealRemove(uid, key, mealId),
+    );
   }
 
   /// Actualiza un día concreto del historial (no solo hoy).
@@ -149,11 +237,11 @@ extension ProfileNutrition on ProfileRepository {
 
   /// Actualiza una comida existente por id y recalcula totales.
   Future<void> updateMeal(String uid, MealEntry updated) async {
-    final log = await getTodayLog(uid);
-    final meals = log.meals.map((m) {
-      return m.id == updated.id ? updated : m;
-    }).toList();
-    await _saveLogWithMeals(uid, meals);
+    final key = _todayKey();
+    await _runOrQueue(
+      _mealOp(uid, key, updated),
+      () => _applyMealUpsert(uid, key, updated),
+    );
   }
 
   // ─── Alimentos guardados (biblioteca personal) ──────────
@@ -262,7 +350,11 @@ extension ProfileNutrition on ProfileRepository {
     final meal = recipe.toMealEntry(mealType: mealType, scale: scale);
     await addMeal(uid, meal);
     if (recipe.id.isNotEmpty) {
-      await incrementRecipeUse(uid, recipe.id);
+      try {
+        await incrementRecipeUse(uid, recipe.id);
+      } catch (e) {
+        debugPrint('offline: uso de receta no incrementado: $e');
+      }
     }
   }
 
@@ -335,7 +427,11 @@ extension ProfileNutrition on ProfileRepository {
         _guessMealTypeNow();
     final meal = food.toMeal(mealType: type);
     await addMeal(uid, meal);
-    await incrementFoodUse(uid, food.id);
+    try {
+      await incrementFoodUse(uid, food.id);
+    } catch (e) {
+      debugPrint('offline: uso de alimento no incrementado: $e');
+    }
   }
 
   /// Añade al instante una comida reciente como plantilla.
