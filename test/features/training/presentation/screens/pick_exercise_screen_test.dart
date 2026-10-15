@@ -30,11 +30,11 @@ const _list = [
   ),
 ];
 
-Future<List<Exercise>?> _open(WidgetTester tester) async {
+Future<List<Exercise>?> _open(WidgetTester tester, [List<Exercise> list = _list]) async {
   List<Exercise>? result;
   final container = ProviderContainer(
     overrides: [
-      exercisesProvider.overrideWith((ref) async => _list),
+      exercisesProvider.overrideWith((ref) async => list),
       favoriteExerciseIdsProvider.overrideWith((ref) async => <String>{}),
     ],
   );
@@ -151,6 +151,54 @@ void main() {
     test('ordena por grupos conocidos y agrupa', () {
       final groups = groupByMuscle(_list).map((e) => e.key).toList();
       expect(groups, ['Pecho', 'Espalda', 'Pierna']);
+    });
+  });
+
+  group('búsqueda por zona y sin tildes', () {
+    const list = [
+      Exercise(
+        id: 'wrist',
+        name: 'Curl de muñeca',
+        muscleGroup: 'Brazo',
+        primaryMuscles: ['forearms'],
+      ),
+      Exercise(
+        id: 'curl',
+        name: 'Curl bíceps',
+        muscleGroup: 'Brazo',
+        primaryMuscles: ['biceps'],
+      ),
+    ];
+
+    testWidgets('"antebrazo" encuentra el ejercicio de antebrazo', (tester) async {
+      await _open(tester, list);
+      expect(find.text('Curl de muñeca'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'antebrazo');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Curl de muñeca'), findsOneWidget);
+      expect(find.text('Curl bíceps'), findsNothing);
+    });
+
+    testWidgets('buscar sin tilde encuentra el nombre con tilde', (tester) async {
+      await _open(tester, list);
+      await tester.enterText(find.byType(TextField), 'biceps');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Curl bíceps'), findsOneWidget);
+      expect(find.text('Curl de muñeca'), findsNothing);
+    });
+
+    testWidgets('el chip de zona filtra por Antebrazos', (tester) async {
+      await _open(tester, list);
+      expect(find.text('Toda zona'), findsOneWidget);
+
+      await tester.tap(find.text('Antebrazos'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Curl de muñeca'), findsOneWidget);
+      expect(find.text('Curl bíceps'), findsNothing);
     });
   });
 

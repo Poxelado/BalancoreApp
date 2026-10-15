@@ -238,10 +238,13 @@ class ExerciseFilterBar extends StatelessWidget {
   final String? group;
   final String? level;
   final List<String> groups;
+  final List<String> zones;
+  final String? zone;
   final bool showLevels;
   final ValueChanged<String> onQueryChanged;
   final ValueChanged<String?> onGroupChanged;
   final ValueChanged<String?> onLevelChanged;
+  final ValueChanged<String?>? onZoneChanged;
   final String searchHint;
 
   const ExerciseFilterBar({
@@ -253,6 +256,9 @@ class ExerciseFilterBar extends StatelessWidget {
     required this.onQueryChanged,
     required this.onGroupChanged,
     required this.onLevelChanged,
+    this.zones = const [],
+    this.zone,
+    this.onZoneChanged,
     this.showLevels = true,
     this.searchHint = 'Buscar ejercicio…',
   });
@@ -300,6 +306,27 @@ class ExerciseFilterBar extends StatelessWidget {
             ],
           ),
         ),
+        if (zones.isNotEmpty && onZoneChanged != null)
+          SizedBox(
+            height: 40,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              children: [
+                _chip(
+                  label: 'Toda zona',
+                  selected: zone == null,
+                  onSelected: () => onZoneChanged!(null),
+                ),
+                for (final z in zones)
+                  _chip(
+                    label: z,
+                    selected: zone == z,
+                    onSelected: () => onZoneChanged!(zone == z ? null : z),
+                  ),
+              ],
+            ),
+          ),
         if (showLevels)
           SizedBox(
             height: 40,

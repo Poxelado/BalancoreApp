@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/user_profile.dart';
+import '../../../training/domain/muscle_zones.dart';
 import '../providers/profile_provider.dart';
 import 'metric_card.dart';
 import 'progress_muscles.dart';
@@ -63,17 +64,31 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
   static const _muscleColors = <String, Color>{
     'pecho': Color(0xFFE91E63),
     'espalda': Color(0xFF2196F3),
+    'dorsales': Color(0xFF1E88E5),
+    'lumbar': Color(0xFF3949AB),
     'hombro': Color(0xFFFF9800),
     'hombros': Color(0xFFFF9800),
+    'trapecio': Color(0xFFFB8C00),
+    'cuello': Color(0xFFF57C00),
+    // 'antebrazos' va antes de 'brazo' (contiene la subcadena "brazo").
+    'antebrazos': Color(0xFFAB47BC),
     'bíceps': Color(0xFF9C27B0),
     'biceps': Color(0xFF9C27B0),
-    'brazo': Color(0xFF9C27B0),
     'tríceps': Color(0xFF673AB7),
     'triceps': Color(0xFF673AB7),
+    'brazo': Color(0xFF9C27B0),
     'pierna': Color(0xFF4CAF50),
     'piernas': Color(0xFF4CAF50),
+    'cuádriceps': Color(0xFF43A047),
+    'cuadriceps': Color(0xFF43A047),
+    'isquios': Color(0xFF66BB6A),
+    'gemelos': Color(0xFF7CB342),
     'glúteo': Color(0xFF8BC34A),
     'gluteo': Color(0xFF8BC34A),
+    'glúteos': Color(0xFF8BC34A),
+    'gluteos': Color(0xFF8BC34A),
+    'abductores': Color(0xFF8BC34A),
+    'aductores': Color(0xFF8BC34A),
     'core': Color(0xFF00BCD4),
     'abdomen': Color(0xFF00BCD4),
     'cardio': Color(0xFFFF5722),
@@ -246,7 +261,7 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
           final tk = _bucketKey(s.startedAt, weeks: useWeeks);
           byTimeMuscle.putIfAbsent(tk, () => {});
           for (final e in s.exercises) {
-            final muscle = _normMuscle(e.muscleGroup);
+            final muscle = _normMuscle(primaryZoneLabelFor(e.exerciseId, e.muscleGroup));
             final done = e.completedSets;
             final setsCount = done > 0 ? done : e.sets.length;
             if (setsCount <= 0) continue;
@@ -284,7 +299,7 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
           for (final s in sorted) {
             var has = false;
             for (final e in s.exercises) {
-              if (_normMuscle(e.muscleGroup) != sel) continue;
+              if (_normMuscle(primaryZoneLabelFor(e.exerciseId, e.muscleGroup)) != sel) continue;
               has = true;
               final done = e.completedSets;
               final sc = done > 0 ? done : e.sets.length;

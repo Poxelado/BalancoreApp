@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/exercise.dart';
+import '../../domain/muscle_zones.dart';
 import '../providers/exercise_provider.dart';
 import '../widgets/exercise_list_widgets.dart';
 import '../../../../../core/theme/app_theme.dart';
+import '../../../../../core/utils/text_normalize.dart';
 
 /// Selector de ejercicios para añadir a una rutina.
 /// Devuelve `List<Exercise>` (selección múltiple) al pulsar "Añadir".
@@ -18,6 +20,7 @@ class PickExerciseScreen extends ConsumerStatefulWidget {
 class _PickExerciseScreenState extends ConsumerState<PickExerciseScreen> {
   String _query = '';
   String? _group;
+  String? _zone;
   String? _level;
   final Map<String, Exercise> _selected = {};
 
@@ -59,13 +62,17 @@ class _PickExerciseScreenState extends ConsumerState<PickExerciseScreen> {
         data: (base) {
           final all = ExerciseCatalog.forPicker(base);
           final groups = availableGroups(all);
+          final zones = availableZones(all);
           final filtered = all.where((e) {
             if (_group != null && e.muscleGroup != _group) return false;
+            if (_zone != null && !primaryZonesOf(e).contains(_zone)) return false;
             if (_level != null && e.level != _level) return false;
             if (_query.isNotEmpty) {
-              final q = _query.toLowerCase();
-              final matches = e.name.toLowerCase().contains(q) ||
-                  (e.nameEn?.toLowerCase().contains(q) ?? false);
+              final matches = matchesSearch(e.name, _query) ||
+                  matchesSearch(e.nameEn ?? '', _query) ||
+                  matchesSearch(e.muscleGroup, _query) ||
+                  [...primaryZonesOf(e), ...e.primaryMuscles]
+                      .any((z) => matchesSearch(z, _query));
               if (!matches) return false;
             }
             return true;
@@ -76,11 +83,14 @@ class _PickExerciseScreenState extends ConsumerState<PickExerciseScreen> {
               ExerciseFilterBar(
                 query: _query,
                 group: _group,
+                zone: _zone,
                 level: _level,
                 groups: groups,
+                zones: zones,
                 searchHint: 'Buscar y añadir…',
                 onQueryChanged: (v) => setState(() => _query = v.trim()),
                 onGroupChanged: (g) => setState(() => _group = g),
+                onZoneChanged: (z) => setState(() => _zone = z),
                 onLevelChanged: (l) => setState(() => _level = l),
               ),
               Padding(
