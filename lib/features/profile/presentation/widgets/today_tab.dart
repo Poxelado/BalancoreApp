@@ -200,11 +200,6 @@ class TodayTab extends ConsumerWidget {
                     fontWeight: FontWeight.bold,
                     color: accentOf(context))),
             const Spacer(),
-            IconButton(
-              tooltip: 'Buscar alimento (Open Food Facts)',
-              onPressed: () => openFoodSearch(context, ref),
-              icon: const Icon(Icons.manage_search),
-            ),
             OutlinedButton.icon(
               onPressed: () => openCopyDaySheet(context, ref),
               icon: const Icon(Icons.copy_all_outlined, size: 16),
@@ -229,6 +224,19 @@ class TodayTab extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 8),
+
+        // Acceso destacado a la base de datos de alimentos (Open Food Facts).
+        FilledButton.tonalIcon(
+          onPressed: () => openFoodSearch(context, ref),
+          icon: const Icon(Icons.travel_explore, size: 20),
+          label: const Text('Buscar en Open Food Facts'),
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(44),
+            backgroundColor: primary.withValues(alpha: 0.12),
+            foregroundColor: primary,
+          ),
+        ),
+        const SizedBox(height: 10),
 
         // Atajos: frecuentes + recientes (1 toque)
         QuickFoodsBar(
@@ -272,15 +280,8 @@ class TodayTab extends ConsumerWidget {
               icon: Icons.restaurant_outlined,
               title: 'Sin comidas hoy',
               subtitle: 'Registra algo para macros, racha y progreso.',
-              actionLabel: 'Agregar comida',
-              onAction: () {
-                // el botón Agregar del tab ya está arriba; scroll hint
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Usa "Agregar" arriba o un alimento reciente'),
-                  ),
-                );
-              },
+              actionLabel: 'Buscar en Open Food Facts',
+              onAction: () => openFoodSearch(context, ref),
             ),
           ),
       ],

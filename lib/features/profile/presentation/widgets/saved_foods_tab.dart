@@ -282,7 +282,10 @@ class SavedFoodsTab extends ConsumerWidget {
                         final qty = double.tryParse(
                             qtyCtrl.text.replaceAll(',', '.')) ??
                             0;
-                        final grams = qty.round().clamp(0, 20000);
+                        // En "ud" no conocemos el peso en g: no inventar gramos.
+                        final grams = unitMode == 2
+                            ? 0
+                            : qty.round().clamp(0, 20000);
                         await ref.read(profileRepositoryProvider).saveFood(
                           user.uid,
                           SavedFood(

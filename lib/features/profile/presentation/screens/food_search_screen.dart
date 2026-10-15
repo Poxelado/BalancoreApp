@@ -154,24 +154,25 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen>
     final unitGrams = (p.servingGrams != null && p.servingGrams! > 0)
         ? p.servingGrams!
         : 125.0;
-    final qtyCtrl = TextEditingController(text: '1');
-    int unitMode = p.servingGrams != null ? 2 : 0;
-    if (unitMode == 2) {
-      qtyCtrl.text = '1';
-    } else {
-      qtyCtrl.text = (p.servingGrams ?? 100).round().toString();
-    }
+    final isLiquid = p.isLiquid;
+    // Si la etiqueta trae porción en ml → arrancar en ml; si es en g → en ud.
+    final bool hasServing = p.servingGrams != null;
+    final int unitMode = hasServing ? (isLiquid ? 1 : 2) : (isLiquid ? 1 : 0);
+    final String initialQty = hasServing
+        ? (isLiquid ? p.servingGrams!.round().toString() : '1')
+        : (isLiquid ? '200' : '100');
     bool saveLib = widget.saveToLibrary;
+    final unitLabel = p.baseUnit;
 
     final confirmed = await _quantitySheet(
       context,
       title: p.displayName,
       subtitle: p.barcode.isNotEmpty ? 'Código: ${p.barcode}' : null,
       per100:
-          'Por 100 g: ${p.caloriesPer100g.round()} kcal · P ${p.proteinPer100g.round()} · C ${p.carbsPer100g.round()} · G ${p.fatPer100g.round()}',
-      unitGramsHint: p.servingGrams?.round(),
+          'Por 100 $unitLabel: ${p.caloriesPer100g.round()} kcal · P ${p.proteinPer100g.round()} · C ${p.carbsPer100g.round()} · G ${p.fatPer100g.round()}',
+      unitGramsHint: (!isLiquid ? p.servingGrams?.round() : null),
       initialUnitMode: unitMode,
-      initialQty: qtyCtrl.text,
+      initialQty: initialQty,
       onMacros: (grams) => p.forGrams(grams),
       saveLibDefault: saveLib,
       labelFrom: (mode, qty, grams) {
@@ -204,13 +205,14 @@ class _FoodSearchScreenState extends ConsumerState<FoodSearchScreen>
         : unitMode == 1
             ? '200'
             : '100';
+    final baseUnit = f.defaultUnit == 'ml' ? 'ml' : 'g';
 
     final confirmed = await _quantitySheet(
       context,
       title: f.name,
-      subtitle: '${f.category} · valores por 100 g (referencia genérica)',
+      subtitle: '${f.category} · valores por 100 $baseUnit (referencia genérica)',
       per100:
-          'Por 100 g: ${f.kcalPer100g.round()} kcal · P ${f.proteinPer100g.round()} · C ${f.carbsPer100g.round()} · G ${f.fatPer100g.round()}',
+          'Por 100 $baseUnit: ${f.kcalPer100g.round()} kcal · P ${f.proteinPer100g.round()} · C ${f.carbsPer100g.round()} · G ${f.fatPer100g.round()}',
       unitGramsHint: f.unitGrams?.round(),
       initialUnitMode: unitMode,
       initialQty: initialQty,

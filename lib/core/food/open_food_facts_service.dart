@@ -13,6 +13,8 @@ class OffProduct {
   final double fatPer100g;
   final String? imageUrl;
   final double? servingGrams;
+  /// Unidad de la porción según la etiqueta: 'g' o 'ml' (null = gramos).
+  final String? servingUnit;
 
   const OffProduct({
     required this.barcode,
@@ -24,7 +26,14 @@ class OffProduct {
     required this.fatPer100g,
     this.imageUrl,
     this.servingGrams,
+    this.servingUnit,
   });
+
+  /// true si el producto es líquido (etiqueta en ml).
+  bool get isLiquid => servingUnit == 'ml';
+
+  /// Unidad de la base de nutrientes por 100: 'ml' o 'g'.
+  String get baseUnit => isLiquid ? 'ml' : 'g';
 
   ({int kcal, int protein, int carbs, int fat}) forGrams(double grams) {
     final f = grams / 100.0;
@@ -102,7 +111,7 @@ class OpenFoodFactsService {
         'json': '1',
         'page_size': '$pageSize',
         'fields':
-        'code,product_name,brands,nutriments,image_front_small_url,serving_quantity',
+        'code,product_name,brands,nutriments,image_front_small_url,serving_quantity,serving_quantity_unit,serving_size',
       }),
     );
 
@@ -129,7 +138,7 @@ class OpenFoodFactsService {
     final res = await _get(
           (host) => Uri.https(host, '/api/v2/product/$code.json', {
         'fields':
-        'code,product_name,brands,nutriments,image_front_small_url,serving_quantity',
+        'code,product_name,brands,nutriments,image_front_small_url,serving_quantity,serving_quantity_unit,serving_size',
       }),
     );
 
@@ -145,7 +154,11 @@ class OpenFoodFactsService {
     return _fromMap(Map<String, dynamic>.from(product));
   }
 
-  OffProduct? _fromMap(Map<String, dynamic> m) {
+  OffProduct? _fromMap(Map<String, dynamic> m) => parseProduct(m);
+
+  /// Normaliza un producto crudo de Open Food Facts.
+  /// Expuesto para pruebas unitarias.
+  static OffProduct? parseProduct(Map<String, dynamic> m) {
     final name = (m['product_name'] ?? m['product_name_en'] ?? '')
         .toString()
         .trim();
@@ -191,6 +204,18 @@ class OpenFoodFactsService {
       serving = double.tryParse(sq.replaceAll(',', '.'));
     }
 
+    // Unidad de la porción: la etiqueta puede indicar g o ml.
+    var unit = (m['serving_quantity_unit'] ?? '').toString().trim().toLowerCase();
+    if (unit.isEmpty) {
+      final ss = (m['serving_size'] ?? '').toString().toLowerCase();
+      if (ss.contains('ml')) {
+        unit = 'ml';
+      } else if (ss.contains('g')) {
+        unit = 'g';
+      }
+    }
+    if (unit != 'ml' && unit != 'g') unit = '';
+
     final brand = (m['brands'] ?? '').toString().trim();
     final img = (m['image_front_small_url'] ?? '').toString();
 
@@ -204,6 +229,7 @@ class OpenFoodFactsService {
       fatPer100g: fat,
       imageUrl: img.isEmpty ? null : img,
       servingGrams: serving != null && serving > 0 ? serving : null,
+      servingUnit: unit.isEmpty ? null : unit,
     );
   }
 }
