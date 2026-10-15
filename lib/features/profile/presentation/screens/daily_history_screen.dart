@@ -5,6 +5,9 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import '../widgets/history_components.dart';
+import '../widgets/meal_editor_sheet.dart';
+import '../widgets/meal_section.dart';
+import '../widgets/meal_actions.dart';
 import '../../../../core/theme/app_theme.dart';
 part 'daily_history_screen_sections.dart';
 

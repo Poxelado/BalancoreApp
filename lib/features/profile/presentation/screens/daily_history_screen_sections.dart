@@ -146,6 +146,7 @@ mixin _DailyHistorySections on ConsumerState<DailyHistoryScreen> {
                       log: log,
                       filter: _selected,
                       onEdit: () => _editLog(log),
+                      onEditMeals: () => _editMeals(log),
                     ),
                   )
                       .toList(),
@@ -212,6 +213,7 @@ mixin _DailyHistorySections on ConsumerState<DailyHistoryScreen> {
                       log: log,
                       filter: _selected,
                       onEdit: () => _editLog(log),
+                      onEditMeals: () => _editMeals(log),
                     ),
                   )
                       .toList(),
@@ -356,5 +358,112 @@ mixin _DailyHistorySections on ConsumerState<DailyHistoryScreen> {
     final parts = date.split('-');
     if (parts.length != 3) return date;
     return '${parts[2]}/${parts[1]}/${parts[0]}';
+  }
+
+  /// Ver y modificar las comidas individuales de un día pasado.
+  Future<void> _editMeals(DailyLog log) async {
+    final user = ref.read(authServiceProvider).currentUser;
+    if (user == null) return;
+    final repo = ref.read(profileRepositoryProvider);
+
+    DailyLog current = await repo.getLogForDate(user.uid, log.date);
+    if (!mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setModal) {
+            Future<void> reload() async {
+              final fresh = await repo.getLogForDate(user.uid, log.date);
+              if (!ctx.mounted) return;
+              setModal(() => current = fresh);
+              ref.invalidate(dailyLogsHistoryProvider(_days));
+            }
+
+            final meals = current.meals;
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.72,
+              maxChildSize: 0.94,
+              builder: (_, scrollCtrl) {
+                return Padding(
+                  padding: EdgeInsets.only(
+                    left: 16,
+                    right: 16,
+                    top: 16,
+                    bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Comidas · ${_dateLabel(log.date)}',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: accentOf(context),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${current.consumedCalories} kcal · '
+                        'P ${current.proteinGrams} · C ${current.carbsGrams} · G ${current.fatGrams}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child: ListView(
+                          controller: scrollCtrl,
+                          children: [
+                            for (final t in MealEntry.mealTypes)
+                              MealSection(
+                                type: t,
+                                meals:
+                                    meals.where((m) => m.mealType == t).toList(),
+                                totalCal: meals
+                                    .where((m) => m.mealType == t)
+                                    .fold<int>(0, (s, m) => s + m.calories),
+                                onEdit: (m) async {
+                                  await openMealEditor(context, ref,
+                                      existing: m, dateKey: log.date);
+                                  await reload();
+                                },
+                                onDelete: (id) async {
+                                  await repo.removeMealForDate(
+                                      user.uid, log.date, id);
+                                  await reload();
+                                },
+                                onSaveAsFood: (m) =>
+                                    saveMealAsFood(context, ref, m),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      FilledButton.icon(
+                        onPressed: () async {
+                          await openMealEditor(context, ref, dateKey: log.date);
+                          await reload();
+                        },
+                        icon: const Icon(Icons.add),
+                        label: const Text('Añadir comida'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
   }
 }

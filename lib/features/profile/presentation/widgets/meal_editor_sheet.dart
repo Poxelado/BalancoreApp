@@ -13,6 +13,7 @@ Future<void> openMealEditor(
       MealEntry? existing,
       MealEntry? prefill,
       bool fromApi = false,
+      String? dateKey,
     }) async {
   final base = existing ?? prefill;
   final nameCtrl = TextEditingController(text: base?.name ?? '');
@@ -412,9 +413,17 @@ Future<void> openMealEditor(
 
                       final repo = ref.read(profileRepositoryProvider);
                       if (isEdit) {
-                        await repo.updateMeal(user.uid, meal);
+                        if (dateKey != null) {
+                          await repo.updateMealForDate(user.uid, dateKey, meal);
+                        } else {
+                          await repo.updateMeal(user.uid, meal);
+                        }
                       } else {
-                        await repo.addMeal(user.uid, meal);
+                        if (dateKey != null) {
+                          await repo.addMealForDate(user.uid, dateKey, meal);
+                        } else {
+                          await repo.addMeal(user.uid, meal);
+                        }
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Comida registrada')),

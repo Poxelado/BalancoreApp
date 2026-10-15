@@ -40,8 +40,24 @@ extension ProfileNutrition on ProfileRepository {
     return _overlayDailyOps(uid, key, _overlayMeals(uid, key, log));
   }
 
-  Future<DailyLog> _fetchLog(String uid, String dateKey) async {
-    final doc = await _userDoc(uid)
+  /// Log de una fecha concreta (yyyy-MM-dd), con las operaciones offline
+  /// pendientes superpuestas. Sirve para ver/editar días pasados.
+  Future<DailyLog> getLogForDate(String uid, String dateKey) async {
+    DailyLog log;
+    try {
+      log = await _fetchLog(uid, dateKey);
+      unawaited(_cache.save('dailyLog:$uid:$dateKey', log.toMap()));
+    } catch (e) {
+      debugPrint('cache: falló el log de $dateKey: $e');
+      final cached = await _cache.read('dailyLog:$uid:$dateKey');
+      log = cached is Map
+          ? DailyLog.fromMap(Map<String, dynamic>.from(cached))
+          : DailyLog(date: dateKey);
+    }
+    return _overlayDailyOps(uid, dateKey, _overlayMeals(uid, dateKey, log));
+  }
+
+  Future<DailyLog> _fetchLog(String uid, String dateKey) async {    final doc = await _userDoc(uid)
         .doc(uid)
         .collection('dailyLogs')
         .doc(dateKey)
@@ -221,12 +237,29 @@ extension ProfileNutrition on ProfileRepository {
     );
   }
 
+  /// Agrega una comida para una fecha concreta (yyyy-MM-dd).
+  Future<void> addMealForDate(String uid, String dateKey, MealEntry meal) async {
+    await _runOrQueue(
+      _mealOp(uid, dateKey, meal),
+      () => _applyMealUpsert(uid, dateKey, meal),
+    );
+  }
+
   /// Elimina una comida por id y recalcula totales.
   Future<void> removeMeal(String uid, String mealId) async {
     final key = _todayKey();
     await _runOrQueue(
       _mealRemoveOp(uid, key, mealId),
       () => _applyMealRemove(uid, key, mealId),
+    );
+  }
+
+  /// Elimina una comida por id en una fecha concreta.
+  Future<void> removeMealForDate(
+      String uid, String dateKey, String mealId) async {
+    await _runOrQueue(
+      _mealRemoveOp(uid, dateKey, mealId),
+      () => _applyMealRemove(uid, dateKey, mealId),
     );
   }
 
@@ -288,6 +321,15 @@ extension ProfileNutrition on ProfileRepository {
     await _runOrQueue(
       _mealOp(uid, key, updated),
       () => _applyMealUpsert(uid, key, updated),
+    );
+  }
+
+  /// Actualiza una comida en una fecha concreta.
+  Future<void> updateMealForDate(
+      String uid, String dateKey, MealEntry updated) async {
+    await _runOrQueue(
+      _mealOp(uid, dateKey, updated),
+      () => _applyMealUpsert(uid, dateKey, updated),
     );
   }
 

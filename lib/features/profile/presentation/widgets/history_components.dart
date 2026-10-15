@@ -394,11 +394,13 @@ class HistoryRow extends StatelessWidget {
   final DailyLog log;
   final HistoryMetric? filter;
   final VoidCallback onEdit;
+  final VoidCallback? onEditMeals;
 
   const HistoryRow({super.key,
     required this.log,
     required this.filter,
     required this.onEdit,
+    this.onEditMeals,
   });
 
   String get _dateLabel {
@@ -494,6 +496,25 @@ class HistoryRow extends StatelessWidget {
                       'Grasas ${log.fatGrams}g',
                     ),
                   ],
+                ),
+              if (onEditMeals != null)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: onEditMeals,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      minimumSize: const Size(0, 32),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    icon: const Icon(Icons.restaurant_menu, size: 16),
+                    label: Text(
+                      log.meals.isEmpty
+                          ? 'Añadir comidas'
+                          : 'Ver/editar comidas (${log.meals.length})',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
                 ),
             ],
           ),
