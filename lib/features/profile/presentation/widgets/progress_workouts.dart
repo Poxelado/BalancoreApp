@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/user_profile.dart';
+import '../../../training/domain/exercise.dart';
 import '../../../training/domain/muscle_zones.dart';
+import '../../../training/presentation/providers/exercise_provider.dart';
 import '../providers/profile_provider.dart';
 import 'metric_card.dart';
 import 'progress_muscles.dart';
@@ -52,6 +54,21 @@ class WorkoutsSectionBody extends ConsumerStatefulWidget {
 class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
   String? _selectedMuscle;
   bool _detailExpanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ensureCatalog();
+  }
+
+  /// Carga el catálogo para poder resolver zonas finas (bíceps, tríceps…).
+  Future<void> _ensureCatalog() async {
+    if (ExerciseCatalog.cache != null) return;
+    try {
+      await ref.read(exerciseRepositoryProvider).loadCatalog();
+    } catch (_) {}
+    if (mounted) setState(() {});
+  }
 
   static const _periods = <(int, String, String)>[
     (7, '1 semana', 'Última semana'),
@@ -212,6 +229,14 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
     });
   }
 
+  /// Salta a una zona fina concreta (p. ej. Bíceps dentro de Brazo).
+  void _selectZone(String zone) {
+    setState(() {
+      _selectedMuscle = zone;
+      _detailExpanded = true;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final primary = widget.primary;
@@ -255,6 +280,9 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
         var totalSets = 0;
         var totalExercises = 0;
         final byTimeMuscle = <String, Map<String, int>>{};
+        // Grupo grueso → zona fina → {ejercicio: series}. Permite bajar al
+        // detalle (p. ej. Brazo → Bíceps / Tríceps) cuando hay datos finos.
+        final subZoneExercises = <String, Map<String, Map<String, int>>>{};
         final useWeeks = periodDays > 30;
 
         for (final s in completed) {
@@ -262,6 +290,7 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
           byTimeMuscle.putIfAbsent(tk, () => {});
           for (final e in s.exercises) {
             final muscle = _normMuscle(primaryZoneLabelFor(e.exerciseId, e.muscleGroup));
+            final coarse = _normMuscle(e.muscleGroup);
             final done = e.completedSets;
             final setsCount = done > 0 ? done : e.sets.length;
             if (setsCount <= 0) continue;
@@ -274,6 +303,11 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
                 ? 'Ejercicio'
                 : e.exerciseName.trim();
             map[name] = (map[name] ?? 0) + setsCount;
+            if (coarse != muscle) {
+              final sub = subZoneExercises.putIfAbsent(coarse, () => {});
+              final exMap = sub.putIfAbsent(muscle, () => {});
+              exMap[name] = (exMap[name] ?? 0) + setsCount;
+            }
             final tm = byTimeMuscle[tk]!;
             tm[muscle] = (tm[muscle] ?? 0) + setsCount;
           }
@@ -440,11 +474,13 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
                   muscle: _selectedMuscle!,
                   sets: muscleSets[_selectedMuscle!] ?? 0,
                   exercises: muscleExercises[_selectedMuscle!] ?? {},
+                  subZones: subZoneExercises[_selectedMuscle!] ?? const {},
                   color: _colorForMuscle(_selectedMuscle!),
                   cardBg: cardBg,
                   expanded: _detailExpanded,
                   onToggle: () =>
                       setState(() => _detailExpanded = !_detailExpanded),
+                  onSelectZone: _selectZone,
                 ),
               if (_selectedMuscle != null) const SizedBox(height: 12),
 

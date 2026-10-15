@@ -62,53 +62,36 @@ class MuscleDetailPanel extends StatelessWidget {
   final String muscle;
   final int sets;
   final Map<String, int> exercises;
+  final Map<String, Map<String, int>> subZones;
   final Color color;
   final Color cardBg;
   final bool expanded;
   final VoidCallback onToggle;
+  final ValueChanged<String> onSelectZone;
 
-  const MuscleDetailPanel({super.key, 
+  const MuscleDetailPanel({super.key,
     required this.muscle,
     required this.sets,
     required this.exercises,
+    this.subZones = const {},
     required this.color,
     required this.cardBg,
     required this.expanded,
     required this.onToggle,
+    required this.onSelectZone,
   });
-
-  static const Map<String, List<String>> _subZones = {
-    'Pecho': ['General', 'Superior', 'Medio', 'Inferior'],
-    'Espalda': ['General', 'Dorsal', 'Trapecio', 'Lumbar'],
-    'Hombro': ['General', 'Deltoides ant.', 'Lateral', 'Posterior'],
-    'Hombros': ['General', 'Deltoides ant.', 'Lateral', 'Posterior'],
-    'Bíceps': ['General', 'Corto', 'Largo'],
-    'Biceps': ['General', 'Corto', 'Largo'],
-    'Brazo': ['General', 'Bíceps', 'Tríceps'],
-    'Tríceps': ['General', 'Largo', 'Lateral', 'Medial'],
-    'Triceps': ['General', 'Largo', 'Lateral', 'Medial'],
-    'Pierna': ['General', 'Cuádriceps', 'Isquios', 'Pantorrilla'],
-    'Piernas': ['General', 'Cuádriceps', 'Isquios', 'Pantorrilla'],
-    'Glúteo': ['General', 'Mayor', 'Medio'],
-    'Core': ['General', 'Abdomen', 'Oblicuos'],
-    'Abdomen': ['General', 'Superior', 'Inferior'],
-    'Cardio': ['General'],
-    'Sin grupo': ['General'],
-  };
-
-  List<String> get _zones {
-    if (_subZones.containsKey(muscle)) return _subZones[muscle]!;
-    final k = muscle.toLowerCase();
-    for (final e in _subZones.entries) {
-      if (k.contains(e.key.toLowerCase())) return e.value;
-    }
-    return const ['General'];
-  }
 
   @override
   Widget build(BuildContext context) {
     final exList = exercises.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
+
+    final zoneEntries = subZones.entries.toList()
+      ..sort((a, b) {
+        final sa = a.value.values.fold(0, (s, v) => s + v);
+        final sb = b.value.values.fold(0, (s, v) => s + v);
+        return sb.compareTo(sa);
+      });
 
     return Material(
       color: cardBg,
@@ -153,37 +136,34 @@ class MuscleDetailPanel extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Zona específica',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
+                  if (zoneEntries.isNotEmpty) ...[
+                    Text(
+                      'Zonas específicas',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      for (final z in _zones)
-                        Chip(
-                          label: Text(z, style: const TextStyle(fontSize: 12)),
-                          visualDensity: VisualDensity.compact,
-                          backgroundColor: z == 'General'
-                              ? color.withValues(alpha: 0.2)
-                              : null,
-                        ),
-                    ],
-                  ),
-                  Text(
-                    'Las subzonas se usarán cuando la biblioteca tenga detalle.',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontStyle: FontStyle.italic,
-                      color: Colors.grey.shade600,
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final z in zoneEntries)
+                          ActionChip(
+                            label: Text(
+                              '${z.key} · ${z.value.values.fold(0, (s, v) => s + v)}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            visualDensity: VisualDensity.compact,
+                            backgroundColor: color.withValues(alpha: 0.12),
+                            side: BorderSide(color: color.withValues(alpha: 0.4)),
+                            onPressed: () => onSelectZone(z.key),
+                          ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 10),
+                    const SizedBox(height: 10),
+                  ],
                   const Text(
                     'Ejercicios',
                     style: TextStyle(
