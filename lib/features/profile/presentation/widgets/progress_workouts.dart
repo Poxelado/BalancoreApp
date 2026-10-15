@@ -52,7 +52,8 @@ class WorkoutsSectionBody extends ConsumerStatefulWidget {
 }
 
 class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
-  String? _selectedMuscle;
+  String? _selectedMuscle; // sector muscular (grueso)
+  String? _selectedZone; // zona específica dentro del sector
   bool _detailExpanded = false;
 
   @override
@@ -221,18 +222,20 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
       if (_selectedMuscle == muscle) {
         // Deseleccionar → vuelve a vista general
         _selectedMuscle = null;
+        _selectedZone = null;
         _detailExpanded = false;
       } else {
         _selectedMuscle = muscle;
+        _selectedZone = null; // al cambiar de sector, sin zona específica
         _detailExpanded = true; // auto-expand al elegir
       }
     });
   }
 
-  /// Salta a una zona fina concreta (p. ej. Bíceps dentro de Brazo).
-  void _selectZone(String zone) {
+  /// Elige una zona específica dentro del sector (o null para ver todo).
+  void _selectZone(String? zone) {
     setState(() {
-      _selectedMuscle = zone;
+      _selectedZone = zone;
       _detailExpanded = true;
     });
   }
@@ -275,48 +278,62 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
             ? (completed.length / (periodDays / 7)).toStringAsFixed(1)
             : '${completed.length}';
 
-        final muscleSets = <String, int>{};
-        final muscleExercises = <String, Map<String, int>>{};
+        // Sector muscular (grueso) → zona específica (fina) → {ejercicio: series}
+        String coarseOf(ex) => _normMuscle(ex.muscleGroup);
+        String zoneOf(ex) =>
+            _normMuscle(primaryZoneLabelFor(ex.exerciseId, ex.muscleGroup));
+
+        final muscleSets = <String, int>{}; // sector → series
+        final fineTotals = <String, int>{}; // zona fina → series (global)
+        final zoneSets = <String, Map<String, int>>{}; // sector → zona → series
+        final zoneExercises =
+            <String, Map<String, Map<String, int>>>{}; // sector → zona → {ej: series}
         var totalSets = 0;
         var totalExercises = 0;
-        final byTimeMuscle = <String, Map<String, int>>{};
-        // Grupo grueso → zona fina → {ejercicio: series}. Permite bajar al
-        // detalle (p. ej. Brazo → Bíceps / Tríceps) cuando hay datos finos.
-        final subZoneExercises = <String, Map<String, Map<String, int>>>{};
+        final byTimeZone = <String, Map<String, int>>{}; // bucket → zona → series
         final useWeeks = periodDays > 30;
 
         for (final s in completed) {
           final tk = _bucketKey(s.startedAt, weeks: useWeeks);
-          byTimeMuscle.putIfAbsent(tk, () => {});
+          byTimeZone.putIfAbsent(tk, () => {});
           for (final e in s.exercises) {
-            final muscle = _normMuscle(primaryZoneLabelFor(e.exerciseId, e.muscleGroup));
-            final coarse = _normMuscle(e.muscleGroup);
+            final coarse = coarseOf(e);
+            final zone = zoneOf(e);
             final done = e.completedSets;
             final setsCount = done > 0 ? done : e.sets.length;
             if (setsCount <= 0) continue;
             totalSets += setsCount;
             totalExercises++;
-            muscleSets[muscle] = (muscleSets[muscle] ?? 0) + setsCount;
-            muscleExercises.putIfAbsent(muscle, () => {});
-            final map = muscleExercises[muscle]!;
+            muscleSets[coarse] = (muscleSets[coarse] ?? 0) + setsCount;
+            fineTotals[zone] = (fineTotals[zone] ?? 0) + setsCount;
+            final zs = zoneSets.putIfAbsent(coarse, () => {});
+            zs[zone] = (zs[zone] ?? 0) + setsCount;
+            final zMap =
+                zoneExercises.putIfAbsent(coarse, () => {}).putIfAbsent(zone, () => {});
             final name = e.exerciseName.trim().isEmpty
                 ? 'Ejercicio'
                 : e.exerciseName.trim();
-            map[name] = (map[name] ?? 0) + setsCount;
-            if (coarse != muscle) {
-              final sub = subZoneExercises.putIfAbsent(coarse, () => {});
-              final exMap = sub.putIfAbsent(muscle, () => {});
-              exMap[name] = (exMap[name] ?? 0) + setsCount;
-            }
-            final tm = byTimeMuscle[tk]!;
-            tm[muscle] = (tm[muscle] ?? 0) + setsCount;
+            zMap[name] = (zMap[name] ?? 0) + setsCount;
+            final tm = byTimeZone[tk]!;
+            tm[zone] = (tm[zone] ?? 0) + setsCount;
           }
         }
 
         final muscleOrder = muscleSets.entries.toList()
           ..sort((a, b) => b.value.compareTo(a.value));
 
-        // Métricas filtradas por sector (o generales)
+        // ¿Coincide un ejercicio con el filtro de sector/zona elegido?
+        bool matchesFilter(ex) {
+          if (_selectedMuscle != null && coarseOf(ex) != _selectedMuscle) {
+            return false;
+          }
+          if (_selectedZone != null && zoneOf(ex) != _selectedZone) {
+            return false;
+          }
+          return true;
+        }
+
+        // Métricas filtradas por sector/zona (o generales)
         int showSessions = completed.length;
         int showSets = totalSets;
         int showExercises = totalExercises;
@@ -324,8 +341,7 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
         var showPerWeek = perWeek;
         List<WorkoutSession> listSessions = sorted;
 
-        if (_selectedMuscle != null) {
-          final sel = _selectedMuscle!;
+        if (_selectedMuscle != null || _selectedZone != null) {
           final filtered = <WorkoutSession>[];
           final days = <String>{};
           var sets = 0;
@@ -333,7 +349,7 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
           for (final s in sorted) {
             var has = false;
             for (final e in s.exercises) {
-              if (_normMuscle(primaryZoneLabelFor(e.exerciseId, e.muscleGroup)) != sel) continue;
+              if (!matchesFilter(e)) continue;
               has = true;
               final done = e.completedSets;
               final sc = done > 0 ? done : e.sets.length;
@@ -363,10 +379,22 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
               : '$showSessions';
         }
 
-        // Chart muscles: selected only, or top 5 if none
-        final chartMuscles = _selectedMuscle != null
-            ? [_selectedMuscle!]
-            : muscleOrder.take(5).map((e) => e.key).toList();
+        // Músculos del gráfico según el filtro:
+        //  - zona específica: solo esa zona
+        //  - sector: sus zonas específicas (desglose)
+        //  - sin filtro: top 5 zonas finas
+        final List<String> chartMuscles;
+        if (_selectedZone != null) {
+          chartMuscles = [_selectedZone!];
+        } else if (_selectedMuscle != null) {
+          final zs = (zoneSets[_selectedMuscle!] ?? const {}).entries.toList()
+            ..sort((a, b) => b.value.compareTo(a.value));
+          chartMuscles = zs.map((e) => e.key).toList();
+        } else {
+          final ft = fineTotals.entries.toList()
+            ..sort((a, b) => b.value.compareTo(a.value));
+          chartMuscles = ft.take(5).map((e) => e.key).toList();
+        }
 
         final buckets = _bucketStarts();
 
@@ -446,7 +474,7 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ] else ...[
-              // 1) Sectores arriba
+              // 1) Sectores musculares (gruesos) arriba
               Text(
                 'Sectores musculares',
                 style: TextStyle(fontWeight: FontWeight.w600, color: accentOf(context)),
@@ -454,8 +482,10 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
               const SizedBox(height: 4),
               Text(
                 _selectedMuscle == null
-                    ? 'Toca un sector para filtrar métricas, gráfico y sesiones.'
-                    : 'Filtro: $_selectedMuscle · toca el mismo sector para quitar el filtro.',
+                    ? 'Toca un sector para ver sus zonas específicas, métricas y gráfico.'
+                    : _selectedZone == null
+                        ? 'Sector: $_selectedMuscle · elige una zona específica abajo (o toca el sector para quitar el filtro).'
+                        : 'Zona: $_selectedZone · toca "$_selectedMuscle" para volver a todo el sector.',
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 8),
@@ -468,13 +498,13 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
               ),
               const SizedBox(height: 8),
 
-              // 2) Detalle desplegable
+              // 2) Detalle desplegable: zonas específicas + ejercicios
               if (_selectedMuscle != null)
                 MuscleDetailPanel(
                   muscle: _selectedMuscle!,
                   sets: muscleSets[_selectedMuscle!] ?? 0,
-                  exercises: muscleExercises[_selectedMuscle!] ?? {},
-                  subZones: subZoneExercises[_selectedMuscle!] ?? const {},
+                  subZones: zoneExercises[_selectedMuscle!] ?? const {},
+                  selectedZone: _selectedZone,
                   color: _colorForMuscle(_selectedMuscle!),
                   cardBg: cardBg,
                   expanded: _detailExpanded,
@@ -484,11 +514,11 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
                 ),
               if (_selectedMuscle != null) const SizedBox(height: 12),
 
-              // 3) Métricas (respetan sector seleccionado)
+              // 3) Métricas (respetan sector + zona seleccionados)
               Text(
                 _selectedMuscle == null
                     ? '$showDays/$periodDays días · $showPerWeek/semana'
-                    : '$_selectedMuscle · $showDays días · $showPerWeek/semana',
+                    : '${_selectedZone ?? _selectedMuscle} · $showDays días · $showPerWeek/semana',
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
               const SizedBox(height: 8),
@@ -499,7 +529,9 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
                       icon: Icons.fitness_center,
                       label: 'Entrenos',
                       value: '$showSessions',
-                      subtitle: _selectedMuscle == null ? 'ok' : 'con sector',
+                      subtitle: _selectedZone != null
+                          ? 'con zona'
+                          : (_selectedMuscle != null ? 'con sector' : 'ok'),
                       color: accentOf(context),
                     ),
                   ),
@@ -509,7 +541,9 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
                       icon: Icons.repeat,
                       label: 'Series',
                       value: '$showSets',
-                      subtitle: _selectedMuscle ?? (periodDays <= 7 ? 'semana' : 'rango'),
+                      subtitle: _selectedZone ??
+                          _selectedMuscle ??
+                          (periodDays <= 7 ? 'semana' : 'rango'),
                       color: const Color(0xFFFF9800),
                     ),
                   ),
@@ -537,11 +571,13 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
               ),
               const SizedBox(height: 14),
 
-              // 4) Gráfico (filtrado si hay sector)
+              // 4) Gráfico (filtrado por sector/zona)
               Text(
-                _selectedMuscle != null
-                    ? 'Series · $_selectedMuscle'
-                    : 'Series por grupo muscular',
+                _selectedZone != null
+                    ? 'Series · $_selectedZone'
+                    : _selectedMuscle != null
+                        ? 'Series · $_selectedMuscle por zona'
+                        : 'Series por grupo muscular',
                 style: TextStyle(fontWeight: FontWeight.w600, color: accentOf(context)),
               ),
               const SizedBox(height: 4),
@@ -565,7 +601,7 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
                   buckets: buckets,
                   useWeeks: useWeeks,
                   muscles: chartMuscles,
-                  byTimeMuscle: byTimeMuscle,
+                  byTimeMuscle: byTimeZone,
                   colorFor: _colorForMuscle,
                   bucketKeyFn: (d, {required bool weeks}) => _bucketKey(d, weeks: weeks),
                 ),
@@ -601,7 +637,7 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
               Text(
                 _selectedMuscle == null
                     ? 'Sesiones'
-                    : 'Sesiones · $_selectedMuscle',
+                    : 'Sesiones · ${_selectedZone ?? _selectedMuscle}',
                 style: TextStyle(fontWeight: FontWeight.w600, color: accentOf(context)),
               ),
               const SizedBox(height: 8),
@@ -611,7 +647,7 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
                   child: Text(
                     _selectedMuscle == null
                         ? 'No hay sesiones en este periodo.'
-                        : 'No hay sesiones con ejercicios de $_selectedMuscle.',
+                        : 'No hay sesiones con ejercicios de ${_selectedZone ?? _selectedMuscle}.',
                     style: TextStyle(color: Colors.grey.shade600),
                     textAlign: TextAlign.center,
                   ),

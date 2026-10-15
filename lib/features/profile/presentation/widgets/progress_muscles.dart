@@ -61,19 +61,23 @@ class MuscleSectorChipsRow extends StatelessWidget {
 class MuscleDetailPanel extends StatelessWidget {
   final String muscle;
   final int sets;
-  final Map<String, int> exercises;
+
+  /// Zona específica → {ejercicio: series} dentro de este sector.
   final Map<String, Map<String, int>> subZones;
+
+  /// Zona específica elegida (null = todo el sector).
+  final String? selectedZone;
   final Color color;
   final Color cardBg;
   final bool expanded;
   final VoidCallback onToggle;
-  final ValueChanged<String> onSelectZone;
+  final ValueChanged<String?> onSelectZone;
 
   const MuscleDetailPanel({super.key,
     required this.muscle,
     required this.sets,
-    required this.exercises,
-    this.subZones = const {},
+    required this.subZones,
+    this.selectedZone,
     required this.color,
     required this.cardBg,
     required this.expanded,
@@ -81,17 +85,30 @@ class MuscleDetailPanel extends StatelessWidget {
     required this.onSelectZone,
   });
 
+  int _zoneSets(Map<String, int> zone) =>
+      zone.values.fold(0, (s, v) => s + v);
+
   @override
   Widget build(BuildContext context) {
-    final exList = exercises.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
+    // Solo tiene sentido mostrar subzonas si hay alguna distinta del sector.
     final zoneEntries = subZones.entries.toList()
-      ..sort((a, b) {
-        final sa = a.value.values.fold(0, (s, v) => s + v);
-        final sb = b.value.values.fold(0, (s, v) => s + v);
-        return sb.compareTo(sa);
-      });
+      ..sort((a, b) => _zoneSets(b.value).compareTo(_zoneSets(a.value)));
+    final hasSpecific =
+        zoneEntries.isNotEmpty && zoneEntries.any((e) => e.key != muscle);
+
+    // Ejercicios: de la zona elegida, o de todo el sector.
+    final exRows = <String, int>{};
+    if (selectedZone != null) {
+      exRows.addAll(subZones[selectedZone!] ?? const {});
+    } else {
+      for (final z in subZones.values) {
+        for (final e in z.entries) {
+          exRows[e.key] = (exRows[e.key] ?? 0) + e.value;
+        }
+      }
+    }
+    final exList = exRows.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
 
     return Material(
       color: cardBg,
@@ -105,14 +122,15 @@ class MuscleDetailPanel extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Row(
                 children: [
-                  Text(
-                    muscle,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: color,
+                  Expanded(
+                    child: Text(
+                      selectedZone == null ? muscle : '$muscle · $selectedZone',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: color,
+                      ),
                     ),
                   ),
-                  const Spacer(),
                   Text(
                     '$sets series',
                     style: TextStyle(
@@ -136,7 +154,7 @@ class MuscleDetailPanel extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (zoneEntries.isNotEmpty) ...[
+                  if (hasSpecific) ...[
                     Text(
                       'Zonas específicas',
                       style: TextStyle(
@@ -149,24 +167,46 @@ class MuscleDetailPanel extends StatelessWidget {
                       spacing: 6,
                       runSpacing: 6,
                       children: [
+                        ActionChip(
+                          label: const Text('Todos',
+                              style: TextStyle(fontSize: 12)),
+                          visualDensity: VisualDensity.compact,
+                          backgroundColor: selectedZone == null
+                              ? color.withValues(alpha: 0.25)
+                              : color.withValues(alpha: 0.08),
+                          side: BorderSide(
+                            color: selectedZone == null
+                                ? color
+                                : color.withValues(alpha: 0.3),
+                          ),
+                          onPressed: () => onSelectZone(null),
+                        ),
                         for (final z in zoneEntries)
                           ActionChip(
                             label: Text(
-                              '${z.key} · ${z.value.values.fold(0, (s, v) => s + v)}',
+                              '${z.key} · ${_zoneSets(z.value)}',
                               style: const TextStyle(fontSize: 12),
                             ),
                             visualDensity: VisualDensity.compact,
-                            backgroundColor: color.withValues(alpha: 0.12),
-                            side: BorderSide(color: color.withValues(alpha: 0.4)),
+                            backgroundColor: selectedZone == z.key
+                                ? color.withValues(alpha: 0.25)
+                                : color.withValues(alpha: 0.08),
+                            side: BorderSide(
+                              color: selectedZone == z.key
+                                  ? color
+                                  : color.withValues(alpha: 0.3),
+                            ),
                             onPressed: () => onSelectZone(z.key),
                           ),
                       ],
                     ),
                     const SizedBox(height: 10),
                   ],
-                  const Text(
-                    'Ejercicios',
-                    style: TextStyle(
+                  Text(
+                    selectedZone == null
+                        ? 'Ejercicios'
+                        : 'Ejercicios · $selectedZone',
+                    style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 13,
                     ),
