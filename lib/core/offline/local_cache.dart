@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Caché local de lecturas (JSON en `shared_preferences`).
@@ -19,8 +20,9 @@ class LocalCache {
     try {
       final prefs = await _instance();
       await prefs.setString(key, jsonEncode(value));
-    } catch (_) {
+    } catch (e) {
       // Sin caché no pasa nada: la lectura en vivo sigue funcionando.
+      debugPrint('cache: no se pudo guardar "$key": $e');
     }
   }
 
@@ -30,7 +32,8 @@ class LocalCache {
       final raw = prefs.getString(key);
       if (raw == null || raw.isEmpty) return null;
       return jsonDecode(raw);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('cache: no se pudo leer "$key": $e');
       return null;
     }
   }
@@ -39,6 +42,8 @@ class LocalCache {
     try {
       final prefs = await _instance();
       await prefs.remove(key);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('cache: no se pudo borrar "$key": $e');
+    }
   }
 }

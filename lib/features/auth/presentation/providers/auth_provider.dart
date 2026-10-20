@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -38,7 +39,9 @@ class AuthService {
       // Enviar correo de verificación (best-effort: no rompe el registro).
       try {
         await cred.user?.sendEmailVerification();
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('auth: no se pudo enviar el correo de verificación: $e');
+      }
       return cred;
     } on FirebaseAuthException catch (e) {
       throw AuthException(_handleAuthException(e));

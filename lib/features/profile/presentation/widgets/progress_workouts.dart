@@ -67,7 +67,9 @@ class WorkoutsSectionBodyState extends ConsumerState<WorkoutsSectionBody> {
     if (ExerciseCatalog.cache != null) return;
     try {
       await ref.read(exerciseRepositoryProvider).loadCatalog();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('progress_workouts: no se pudo cargar el catálogo: $e');
+    }
     if (mounted) setState(() {});
   }
 

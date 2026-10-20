@@ -205,7 +205,9 @@ extension ProfileOffline on ProfileRepository {
       if (item is Map) {
         try {
           out.add(decode(Map<String, dynamic>.from(item)));
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('cache: no se pudo decodificar un item de "$key": $e');
+        }
       }
     }
     if (out.isNotEmpty || cached.isEmpty) return out;

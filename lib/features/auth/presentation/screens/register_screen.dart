@@ -157,10 +157,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       if (createdUid != null) {
         try {
           await repo.releaseUsername(username);
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('register: no se pudo liberar el username "$username": $e');
+        }
         try {
           await ref.read(authServiceProvider).currentUser?.delete();
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('register: no se pudo borrar la cuenta huérfana: $e');
+        }
       }
       if (mounted) {
         Navigator.of(context).pop(); // cierra loading

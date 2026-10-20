@@ -47,7 +47,9 @@ Future<void> checkInactivityAndNotify(WidgetRef ref) async {
           int.parse(parts[2]),
         );
         if (lastFood == null || day.isAfter(lastFood)) lastFood = day;
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('inactivity_check: fecha inválida "${log.date}": $e');
+      }
     }
 
     final startToday = DateTime(today.year, today.month, today.day);

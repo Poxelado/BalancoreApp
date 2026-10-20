@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 part 'user_profile_account.dart';
 part 'user_profile_routine.dart';
 part 'user_profile_food.dart';
@@ -20,6 +22,8 @@ DateTime _parseDate(dynamic v) {
   try {
     final d = v.toDate();
     if (d is DateTime) return d;
-  } catch (_) {}
+  } catch (e) {
+    debugPrint('user_profile: fecha no parseable ($v): $e');
+  }
   return DateTime.now();
 }
