@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/utils/input_limits.dart';
 
 /// Cambio de contraseña en la app (pide la actual + nueva).
 /// También ofrece enviar un correo de restablecimiento si no la recuerda.
@@ -49,9 +50,9 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       _snack('Ingresa tu contraseña actual', error: true);
       return;
     }
-    if (next.length < 6) {
-      _snack('La nueva contraseña debe tener al menos 6 caracteres',
-          error: true);
+    final passwordError = Validators.password(next);
+    if (passwordError != null) {
+      _snack('Nueva contraseña: $passwordError', error: true);
       return;
     }
     if (next != confirm) {
@@ -115,6 +116,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
             TextField(
               controller: _currentController,
               obscureText: _obscureCurrent,
+              inputFormatters: InputFormatters.text(InputLimits.passwordMax),
               decoration: InputDecoration(
                 labelText: 'Contraseña actual',
                 prefixIcon: const Icon(Icons.lock_outline),
@@ -132,6 +134,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
             TextField(
               controller: _newController,
               obscureText: _obscureNew,
+              inputFormatters: InputFormatters.text(InputLimits.passwordMax),
               decoration: InputDecoration(
                 labelText: 'Nueva contraseña',
                 prefixIcon: const Icon(Icons.lock_reset),
@@ -148,6 +151,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
             TextField(
               controller: _confirmController,
               obscureText: _obscureNew,
+              inputFormatters: InputFormatters.text(InputLimits.passwordMax),
               decoration: const InputDecoration(
                 labelText: 'Repite la nueva contraseña',
                 prefixIcon: Icon(Icons.lock_reset),

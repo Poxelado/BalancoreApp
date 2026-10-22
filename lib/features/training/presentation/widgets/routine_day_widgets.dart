@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../profile/domain/user_profile.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/input_limits.dart';
 
 class RestTimeSheet extends StatefulWidget {
   final int initialSeconds;
@@ -259,6 +260,16 @@ class ExerciseEditorPanelState extends State<ExerciseEditorPanel> {
   }
 
   void _addSet() {
+    if (_sets.length >= InputLimits.maxSetsPerExercise) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            listLimitMessage('series por ejercicio', InputLimits.maxSetsPerExercise),
+          ),
+        ),
+      );
+      return;
+    }
     final last = _sets.isNotEmpty ? _sets.last : const PlannedSet();
     setState(() {
       _sets.add(PlannedSet(weight: last.weight, reps: last.reps));
@@ -294,6 +305,7 @@ class ExerciseEditorPanelState extends State<ExerciseEditorPanel> {
           TextField(
             controller: _notesCtrl,
             maxLines: 2,
+            inputFormatters: InputFormatters.text(InputLimits.notesMax),
             decoration: const InputDecoration(
               hintText: 'Agregar notas de rutina aquí',
               border: OutlineInputBorder(),
@@ -390,6 +402,7 @@ class ExerciseEditorPanelState extends State<ExerciseEditorPanel> {
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
+                      inputFormatters: InputFormatters.decimal(maxLength: 6),
                       decoration: const InputDecoration(
                         hintText: '0',
                         isDense: true,
@@ -407,6 +420,7 @@ class ExerciseEditorPanelState extends State<ExerciseEditorPanel> {
                     child: TextField(
                       controller: _repsCtrls[i],
                       keyboardType: TextInputType.number,
+                      inputFormatters: InputFormatters.digits(maxLength: 3),
                       decoration: const InputDecoration(
                         isDense: true,
                         border: OutlineInputBorder(),

@@ -36,7 +36,7 @@ extension ProfileRoutines on ProfileRepository {
       final ref = _userDoc(uid).doc(uid).collection('routines').doc(r.day.toLowerCase());
       batch.set(ref, r.toMap());
     }
-    await batch.commit();
+    await batch.commit().timeout(ProfileRepository._writeTimeout);
   }
 
   List<RoutineDay> _defaultRoutines() {

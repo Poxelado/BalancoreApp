@@ -40,12 +40,24 @@ service cloud.firestore {
     }
 
     // Cada usuario sólo accede a su propio documento y subcolecciones, y sólo
-    // con el correo verificado. La única excepción es el alta inicial del perfil
-    // (create), que ocurre durante el registro, antes de verificar el correo.
+    // con el correo verificado. Excepciones: el alta inicial del perfil
+    // (create, en el registro) y el onboarding, que ocurre antes de verificar
+    // el correo (read/update mientras `onboardingCompleted` no sea true).
+    function onboardingPending() {
+      return !resource.data.keys().hasAny(['onboardingCompleted'])
+        || resource.data.onboardingCompleted == false;
+    }
+
     match /users/{uid} {
       allow create: if isOwner(uid);
-      allow read, update, delete: if isOwner(uid) && isVerified();
+      allow read, update: if isOwner(uid) && (isVerified() || onboardingPending());
+      allow delete: if isOwner(uid) && isVerified();
 
+      // Las subcolecciones (peso, rutinas, logs…) sí exigen verificación,
+      // salvo el primer peso que escribe el onboarding.
+      match /weightHistory/{id} {
+        allow read, write: if isOwner(uid) && (isVerified() || onboardingPending());
+      }
       match /{sub=**} {
         allow read, write: if isOwner(uid) && isVerified();
       }

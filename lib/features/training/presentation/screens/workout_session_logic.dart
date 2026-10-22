@@ -526,6 +526,7 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
           controller: ctrl,
           maxLines: 3,
           autofocus: true,
+          inputFormatters: InputFormatters.text(InputLimits.notesMax),
           decoration: const InputDecoration(
             hintText: 'Sensaciones, técnica, ajustes...',
             border: OutlineInputBorder(),
@@ -869,9 +870,18 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
     );
   }
 
+  void _showLimit(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<void> _addSet(int exerciseIndex) async {
     final exercises = List<WorkoutExerciseLog>.from(_session.exercises);
     final ex = exercises[exerciseIndex];
+    if (ex.sets.length >= InputLimits.maxSetsPerExercise) {
+      _showLimit(listLimitMessage('series por ejercicio', InputLimits.maxSetsPerExercise));
+      return;
+    }
     final sets = List<WorkoutSetLog>.from(ex.sets);
     final last = sets.isNotEmpty ? sets.last : null;
     final newSet = WorkoutSetLog(
@@ -895,15 +905,27 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
   /// Se usa en entrenamientos libres (y rutinas extra) para armar la sesión
   /// sobre la marcha.
   Future<void> _addExercisesToSession() async {
+    if (_session.exercises.length >= InputLimits.maxExercisesPerSession) {
+      _showLimit(
+          listLimitMessage('ejercicios por sesión', InputLimits.maxExercisesPerSession));
+      return;
+    }
     final picked = await Navigator.push<List<Exercise>>(
       context,
       MaterialPageRoute(builder: (_) => const PickExerciseScreen()),
     );
     if (picked == null || picked.isEmpty) return;
 
+    final room = InputLimits.maxExercisesPerSession - _session.exercises.length;
+    final toAdd = picked.take(room).toList();
+    if (toAdd.length < picked.length) {
+      _showLimit(
+          listLimitMessage('ejercicios por sesión', InputLimits.maxExercisesPerSession));
+    }
+
     final user = ref.read(authServiceProvider).currentUser;
     final added = <WorkoutExerciseLog>[];
-    for (final exercise in picked) {
+    for (final exercise in toAdd) {
       added.add(
         await buildWorkoutExerciseLog(
           repo: ref.read(profileRepositoryProvider),
@@ -1042,6 +1064,7 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
           controller: ctrl,
           maxLines: 4,
           autofocus: true,
+          inputFormatters: InputFormatters.text(InputLimits.notesMax),
           decoration: const InputDecoration(
             hintText: 'Forma, molestias, tips...',
             border: OutlineInputBorder(),
@@ -1074,6 +1097,7 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
           controller: ctrl,
           maxLines: 4,
           autofocus: true,
+          inputFormatters: InputFormatters.text(InputLimits.notesMax),
           decoration: const InputDecoration(
             hintText: 'Cómo te sentiste hoy...',
             border: OutlineInputBorder(),
@@ -1154,6 +1178,7 @@ mixin _WorkoutSessionLogic on ConsumerState<WorkoutSessionScreen> {
                 TextField(
                   controller: restCtrl,
                   keyboardType: TextInputType.number,
+                  inputFormatters: InputFormatters.digits(maxLength: 4),
                   decoration: const InputDecoration(
                     labelText: 'Personalizado (segundos)',
                     border: OutlineInputBorder(),

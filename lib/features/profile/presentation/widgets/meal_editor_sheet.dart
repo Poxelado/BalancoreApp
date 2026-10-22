@@ -6,6 +6,7 @@ import '../providers/profile_provider.dart';
 import '../screens/food_search_screen.dart';
 import 'saved_food_chips.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/input_limits.dart';
 
 Future<void> openMealEditor(
     BuildContext context,
@@ -261,6 +262,7 @@ Future<void> openMealEditor(
                     controller: nameCtrl,
                     readOnly: macrosLocked,
                     textCapitalization: TextCapitalization.sentences,
+                    inputFormatters: InputFormatters.text(InputLimits.titleMax),
                     decoration: const InputDecoration(
                       labelText: 'Nombre',
                       border: OutlineInputBorder(),
@@ -271,6 +273,7 @@ Future<void> openMealEditor(
                     controller: calCtrl,
                     readOnly: macrosLocked,
                     keyboardType: TextInputType.number,
+                    inputFormatters: InputFormatters.digits(maxLength: 5),
                     decoration: const InputDecoration(
                       labelText: 'Calorías (kcal) *',
                       border: OutlineInputBorder(),
@@ -284,6 +287,7 @@ Future<void> openMealEditor(
                           controller: proteinCtrl,
                           readOnly: macrosLocked,
                           keyboardType: TextInputType.number,
+                          inputFormatters: InputFormatters.digits(maxLength: 4),
                           decoration: const InputDecoration(
                             labelText: 'Prot (g)',
                             border: OutlineInputBorder(),
@@ -296,6 +300,7 @@ Future<void> openMealEditor(
                           controller: carbsCtrl,
                           readOnly: macrosLocked,
                           keyboardType: TextInputType.number,
+                          inputFormatters: InputFormatters.digits(maxLength: 4),
                           decoration: const InputDecoration(
                             labelText: 'Carb (g)',
                             border: OutlineInputBorder(),
@@ -308,6 +313,7 @@ Future<void> openMealEditor(
                           controller: fatCtrl,
                           readOnly: macrosLocked,
                           keyboardType: TextInputType.number,
+                          inputFormatters: InputFormatters.digits(maxLength: 4),
                           decoration: const InputDecoration(
                             labelText: 'Grasa (g)',
                             border: OutlineInputBorder(),
@@ -341,6 +347,7 @@ Future<void> openMealEditor(
                     readOnly: macrosLocked,
                     keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: InputFormatters.decimal(maxLength: 6),
                     decoration: InputDecoration(
                       labelText: 'Cantidad',
                       border: const OutlineInputBorder(),

@@ -9,6 +9,7 @@ import 'pick_exercise_screen.dart';
 import '../widgets/exercise_list_widgets.dart';
 import '../widgets/routine_day_widgets.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/input_limits.dart';
 
 class EditRoutineDayScreen extends ConsumerStatefulWidget {
   final RoutineDay day;
@@ -108,14 +109,22 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
   }
 
   Future<void> _addExercise() async {
+    if (_exercises.length >= InputLimits.maxExercisesPerRoutine) {
+      _snackLimit();
+      return;
+    }
     final picked = await Navigator.push<List<Exercise>>(
       context,
       MaterialPageRoute(builder: (_) => const PickExerciseScreen()),
     );
     if (picked == null || picked.isEmpty) return;
 
+    final room = InputLimits.maxExercisesPerRoutine - _exercises.length;
+    final toAdd = picked.take(room).toList();
+    if (toAdd.length < picked.length) _snackLimit();
+
     final added = <RoutineExercise>[];
-    for (final exercise in picked) {
+    for (final exercise in toAdd) {
       added.add(await _buildRoutineExercise(exercise));
     }
 
@@ -124,6 +133,16 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
       _isRestDay = false;
       _expandedIndex = _exercises.length - 1;
     });
+  }
+
+  void _snackLimit() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          listLimitMessage('ejercicios por día', InputLimits.maxExercisesPerRoutine),
+        ),
+      ),
+    );
   }
 
   Future<RoutineExercise> _buildRoutineExercise(Exercise exercise) async {
@@ -243,6 +262,7 @@ class _EditRoutineDayScreenState extends ConsumerState<EditRoutineDayScreen> {
           TextField(
             controller: _titleCtrl,
             enabled: !_isRestDay,
+            inputFormatters: InputFormatters.text(InputLimits.titleMax),
             decoration: const InputDecoration(
               labelText: 'Título (ej. Pecho, Pierna)',
               border: OutlineInputBorder(),

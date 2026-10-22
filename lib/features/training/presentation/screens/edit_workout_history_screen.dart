@@ -6,6 +6,7 @@ import '../../../profile/presentation/providers/profile_provider.dart';
 import '../widgets/exercise_list_widgets.dart';
 import '../../domain/workout_calories.dart';
 import '../../../../../core/theme/app_theme.dart';
+import '../../../../../core/utils/input_limits.dart';
 
 /// Editar una sesión ya guardada (historial).
 class EditWorkoutHistoryScreen extends ConsumerStatefulWidget {
@@ -86,6 +87,7 @@ class _EditWorkoutHistoryScreenState
         content: TextField(
           controller: ctrl,
           maxLines: 4,
+          inputFormatters: InputFormatters.text(InputLimits.notesMax),
           decoration: const InputDecoration(
             hintText: 'Notas de este ejercicio...',
             border: OutlineInputBorder(),
@@ -129,11 +131,13 @@ class _EditWorkoutHistoryScreenState
                 controller: wCtrl,
                 keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: InputFormatters.decimal(maxLength: 6),
                 decoration: const InputDecoration(labelText: 'Peso (kg)'),
               ),
               TextField(
                 controller: rCtrl,
                 keyboardType: TextInputType.number,
+                inputFormatters: InputFormatters.digits(maxLength: 3),
                 decoration: const InputDecoration(labelText: 'Reps'),
               ),
               SwitchListTile(
@@ -206,6 +210,7 @@ class _EditWorkoutHistoryScreenState
         children: [
           TextField(
             controller: _titleCtrl,
+            inputFormatters: InputFormatters.text(InputLimits.titleMax),
             decoration: const InputDecoration(
               labelText: 'Título',
               border: OutlineInputBorder(),
@@ -215,6 +220,7 @@ class _EditWorkoutHistoryScreenState
           TextField(
             controller: _sessionNotesCtrl,
             maxLines: 3,
+            inputFormatters: InputFormatters.text(InputLimits.notesMax),
             decoration: const InputDecoration(
               labelText: 'Notas de la sesión',
               border: OutlineInputBorder(),

@@ -9,6 +9,7 @@ import 'pick_exercise_screen.dart';
 import '../widgets/exercise_list_widgets.dart';
 import '../widgets/routine_day_widgets.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/input_limits.dart';
 
 /// Crea o edita una rutina extra (además de la rutina semanal).
 /// Una rutina agrupa varios entrenamientos y cada uno sus ejercicios.
@@ -97,6 +98,17 @@ class _EditCustomRoutineScreenState
   }
 
   void _addWorkout() {
+    if (_workouts.length >= InputLimits.maxWorkoutsPerRoutine) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            listLimitMessage(
+                'entrenamientos por rutina', InputLimits.maxWorkoutsPerRoutine),
+          ),
+        ),
+      );
+      return;
+    }
     setState(() {
       _workouts.add(
         CustomWorkout(
@@ -161,14 +173,23 @@ class _EditCustomRoutineScreenState
   }
 
   Future<void> _addExercisesToWorkout(int index) async {
+    final current = _workouts[index].exercises.length;
+    if (current >= InputLimits.maxExercisesPerRoutine) {
+      _snackLimit();
+      return;
+    }
     final picked = await Navigator.push<List<Exercise>>(
       context,
       MaterialPageRoute(builder: (_) => const PickExerciseScreen()),
     );
     if (picked == null || picked.isEmpty) return;
 
+    final room = InputLimits.maxExercisesPerRoutine - current;
+    final toAdd = picked.take(room).toList();
+    if (toAdd.length < picked.length) _snackLimit();
+
     final added = <RoutineExercise>[];
-    for (final exercise in picked) {
+    for (final exercise in toAdd) {
       added.add(await _buildRoutineExercise(exercise));
     }
     if (!mounted) return;
@@ -176,6 +197,17 @@ class _EditCustomRoutineScreenState
       final w = _workouts[index];
       _workouts[index] = w.copyWith(exercises: [...w.exercises, ...added]);
     });
+  }
+
+  void _snackLimit() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          listLimitMessage(
+              'ejercicios por entrenamiento', InputLimits.maxExercisesPerRoutine),
+        ),
+      ),
+    );
   }
 
   void _updateExercise(int wi, int ei, RoutineExercise updated) {

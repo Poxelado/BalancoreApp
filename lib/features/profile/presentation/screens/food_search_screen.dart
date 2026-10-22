@@ -6,6 +6,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/input_limits.dart';
 
 part 'food_search_sheet.dart';
 

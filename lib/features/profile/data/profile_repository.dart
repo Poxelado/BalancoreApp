@@ -31,6 +31,11 @@ class ProfileRepository {
   final LocalCache _cache;
   final bool Function()? _isOnline;
 
+  /// Tope para las escrituras críticas (registro/onboarding): si Firestore no
+  /// responde en este tiempo, se lanza para que la UI muestre el error en vez
+  /// de quedarse cargando para siempre.
+  static const _writeTimeout = Duration(seconds: 12);
+
   CollectionReference _userDoc(String uid) => _db.collection('users');
 
   // ─── Perfil ─────────────────────────────────────────────
@@ -63,14 +68,14 @@ class ProfileRepository {
 
   Future<void> saveProfile(UserProfile profile) async {
     await _userDoc(profile.uid).doc(profile.uid).set(
-      profile.toMap(),
-      SetOptions(merge: true),
-    );
+          profile.toMap(),
+          SetOptions(merge: true),
+        ).timeout(_writeTimeout);
   }
 
   Future<void> updateProfileFields(String uid, Map<String, dynamic> fields) async {
     fields['updatedAt'] = DateTime.now().toIso8601String();
-    await _userDoc(uid).doc(uid).update(fields);
+    await _userDoc(uid).doc(uid).update(fields).timeout(_writeTimeout);
   }
 
   // ─── Historial de peso ──────────────────────────────────
@@ -88,7 +93,11 @@ class ProfileRepository {
 
   Future<void> addWeightEntry(String uid, double weight, DateTime date) async {
     final entry = WeightEntry(id: '', weight: weight, date: date);
-    await _userDoc(uid).doc(uid).collection('weightHistory').add(entry.toMap());
+    await _userDoc(uid)
+        .doc(uid)
+        .collection('weightHistory')
+        .add(entry.toMap())
+        .timeout(_writeTimeout);
 
     // Peso actual + agua recomendada proporcional al peso
     final waterMl = UserProfile.calculateWaterMl(weightKg: weight);

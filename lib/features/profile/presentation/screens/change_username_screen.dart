@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/user_profile.dart';
+import '../../../../core/utils/input_limits.dart';
 import '../providers/profile_provider.dart';
 
 /// Cambio del @nombre de usuario, respetando el límite de 3 cambios/30 días.
@@ -31,10 +32,10 @@ class _ChangeUsernameScreenState extends ConsumerState<ChangeUsernameScreen> {
   }
 
   Future<void> _save(UserProfile profile) async {
-    final newUsername =
-        _controller.text.trim().replaceAll('@', '').toLowerCase();
-    if (newUsername.length < 3) {
-      _snack('El usuario debe tener al menos 3 caracteres', error: true);
+    final newUsername = Validators.cleanUsername(_controller.text);
+    final usernameError = Validators.username(newUsername);
+    if (usernameError != null) {
+      _snack(usernameError, error: true);
       return;
     }
     final oldU = (profile.username ?? '').toLowerCase();
@@ -113,6 +114,7 @@ class _ChangeUsernameScreenState extends ConsumerState<ChangeUsernameScreen> {
             controller: _controller,
             autocorrect: false,
             enabled: profile.canChangeUsername,
+            inputFormatters: InputFormatters.text(InputLimits.usernameMax),
             decoration: InputDecoration(
               labelText: 'Nuevo usuario',
               prefixIcon: const Icon(Icons.alternate_email),

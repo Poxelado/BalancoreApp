@@ -4,6 +4,7 @@ import '../../../../core/preferences/units_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/user_profile.dart';
 import '../../../../core/errors/app_exception.dart';
+import '../../../../core/utils/input_limits.dart';
 import '../providers/profile_provider.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
@@ -80,13 +81,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   /// Peso del formulario convertido a kg (unidad interna de cálculo).
   double _weightKg() {
-    final v = double.tryParse(_weightController.text);
+    final v = double.tryParse(_weightController.text.replaceAll(',', '.'));
     return v == null ? widget.profile.currentWeight : _units.weightToKg(v);
   }
 
   /// Altura del formulario convertida a cm (unidad interna de cálculo).
   double _heightCm() {
-    final v = double.tryParse(_heightController.text);
+    final v = double.tryParse(_heightController.text.replaceAll(',', '.'));
     return v == null ? widget.profile.height : _units.heightToCm(v);
   }
 
@@ -129,29 +130,77 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     }
   }
 
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Theme.of(context).colorScheme.error,
+      ),
+    );
+  }
+
+  /// Valida en unidades internas (kg/cm) para no depender de la unidad visible.
+  String? _validateRanges({
+    required double weightKg,
+    required double heightCm,
+    required int age,
+  }) {
+    return Validators.doubleInRange(
+          '$weightKg',
+          min: InputLimits.weightKgMin,
+          max: InputLimits.weightKgMax,
+          label: 'Peso',
+        ) ??
+        Validators.doubleInRange(
+          '$heightCm',
+          min: InputLimits.heightCmMin,
+          max: InputLimits.heightCmMax,
+          label: 'Altura',
+        ) ??
+        Validators.intInRange(
+          '$age',
+          min: InputLimits.ageMin,
+          max: InputLimits.ageMax,
+          label: 'Edad',
+        );
+  }
+
   Future<void> _save() async {
-    final rawWeight = double.tryParse(_weightController.text);
-    final rawHeight = double.tryParse(_heightController.text);
+    final rawWeight = double.tryParse(_weightController.text.replaceAll(',', '.'));
+    final rawHeight = double.tryParse(_heightController.text.replaceAll(',', '.'));
     final age = int.tryParse(_ageController.text);
 
     if (rawWeight == null || rawHeight == null || age == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Revisa peso, altura y edad'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      _showError('Revisa peso, altura y edad');
       return;
     }
     final weight = _units.weightToKg(rawWeight);
     final height = _units.heightToCm(rawHeight);
 
+    final rangeError = _validateRanges(
+      weightKg: weight,
+      heightCm: height,
+      age: age,
+    );
+    if (rangeError != null) {
+      _showError(rangeError);
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
-      final newUsername =
-      _usernameController.text.trim().replaceAll('@', '').toLowerCase();
-      if (newUsername.length < 3) {
-        throw const ValidationException('El usuario es obligatorio (mín. 3 caracteres).');
+      final newUsername = Validators.cleanUsername(_usernameController.text);
+      final usernameError = Validators.username(newUsername);
+      if (usernameError != null) {
+        throw ValidationException(usernameError);
+      }
+      if (_nameController.text.trim().length > InputLimits.nameMax) {
+        throw const ValidationException(
+            'El nombre es demasiado largo.');
+      }
+      if (_bioController.text.trim().length > InputLimits.bioMax) {
+        throw const ValidationException('La bio es demasiado larga.');
       }
 
       final oldU = (widget.profile.username ?? '').toLowerCase();
@@ -246,6 +295,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           const SizedBox(height: 8),
           TextField(
             controller: _nameController,
+            inputFormatters: InputFormatters.text(InputLimits.nameMax),
             decoration: const InputDecoration(
               labelText: 'Nombre (opcional)',
               border: OutlineInputBorder(),
@@ -268,6 +318,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           const SizedBox(height: 12),
           TextFormField(
             controller: _usernameController,
+            inputFormatters: InputFormatters.text(InputLimits.usernameMax),
             decoration: InputDecoration(
               labelText: 'Usuario *',
               border: const OutlineInputBorder(),
@@ -279,16 +330,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             enabled: widget.profile.canChangeUsername ||
                 _usernameController.text.trim().toLowerCase() ==
                     (widget.profile.username ?? ''),
-            validator: (v) {
-              final u = (v ?? '').trim().replaceAll('@', '').toLowerCase();
-              if (u.length < 3) return 'Mínimo 3 caracteres';
-              return null;
-            },
+            validator: Validators.username,
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _bioController,
             maxLines: 2,
+            inputFormatters: InputFormatters.text(InputLimits.bioMax),
             decoration: const InputDecoration(
               labelText: 'Bio',
               border: OutlineInputBorder(),
@@ -325,6 +373,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 child: TextField(
                   controller: _ageController,
                   keyboardType: TextInputType.number,
+                  inputFormatters: InputFormatters.digits(maxLength: 3),
                   decoration: const InputDecoration(
                     labelText: 'Edad',
                     border: OutlineInputBorder(),
@@ -344,6 +393,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   controller: _weightController,
                   keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: InputFormatters.decimal(maxLength: 6),
                   decoration: InputDecoration(
                     labelText: 'Peso (${_units.weightUnit})',
                     border: const OutlineInputBorder(),
@@ -359,6 +409,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   controller: _heightController,
                   keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: InputFormatters.decimal(maxLength: 6),
                   decoration: InputDecoration(
                     labelText: 'Altura (${_units.heightUnit})',
                     border: const OutlineInputBorder(),
@@ -441,6 +492,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           TextField(
             controller: _caloriesController,
             keyboardType: TextInputType.number,
+            inputFormatters: InputFormatters.digits(maxLength: 5),
             decoration: InputDecoration(
               labelText: 'Calorías objetivo (kcal)',
               border: const OutlineInputBorder(),
@@ -450,7 +502,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             ),
             onChanged: (v) {
               final n = int.tryParse(v);
-              if (n != null && n > 0) {
+              if (n != null && n > 0 && n <= InputLimits.caloriesMax) {
                 setState(() {
                   _targetCalories = n;
                   _manualCalories = true;

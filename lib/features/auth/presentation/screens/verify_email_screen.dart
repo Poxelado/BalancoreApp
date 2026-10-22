@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/auth_provider.dart';
+import '../../../profile/presentation/providers/profile_provider.dart';
 import '../../../../../core/theme/app_theme.dart';
 
 /// Pantalla bloqueante que se muestra mientras el correo no está verificado.
@@ -115,8 +116,10 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen>
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Te enviamos un enlace de confirmación a:\n$email\n\n'
-                  'Ábrelo y vuelve aquí. Sin verificarlo no podemos mostrarte tus datos.',
+          'Te enviamos un enlace de confirmación a:\n$email\n\n'
+                   'Ábrelo y vuelve aquí. Verificar tu correo protege tu cuenta '
+                   '(te permite recuperar la contraseña). Si aún no te llega, '
+                   'puedes reenviarlo o continuar por ahora.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 14, height: 1.4, color: Colors.grey.shade700),
                 ),
@@ -144,6 +147,20 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen>
                           ? 'Reenviar en ${_cooldown}s'
                           : 'Reenviar correo',
                     ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      final uid =
+                          ref.read(authServiceProvider).currentUser?.uid;
+                      ref
+                          .read(skipEmailVerificationProvider.notifier)
+                          .state = uid;
+                    },
+                    child: const Text('Continuar sin verificar'),
                   ),
                 ),
                 const SizedBox(height: 16),

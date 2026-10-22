@@ -4,7 +4,8 @@ extension ProfileAccount on ProfileRepository {
   Future<bool> isUsernameAvailable(String username, {String? exceptUid}) async {
     final key = username.trim().toLowerCase().replaceAll('@', '');
     if (key.length < 3) return false;
-    final doc = await _db.collection('usernames').doc(key).get();
+    final doc =
+        await _db.collection('usernames').doc(key).get().timeout(ProfileRepository._writeTimeout);
     if (!doc.exists) return true;
     final data = doc.data();
     if (exceptUid != null && data != null && data['uid'] == exceptUid) {
@@ -38,13 +39,13 @@ extension ProfileAccount on ProfileRepository {
         'username': key,
         'updatedAt': DateTime.now().toIso8601String(),
       });
-    });
+    }).timeout(ProfileRepository._writeTimeout);
   }
 
   Future<void> releaseUsername(String? username) async {
     if (username == null || username.trim().isEmpty) return;
     final key = username.trim().toLowerCase().replaceAll('@', '');
-    await _db.collection('usernames').doc(key).delete();
+    await _db.collection('usernames').doc(key).delete().timeout(ProfileRepository._writeTimeout);
   }
 
   Future<void> changeUsername({

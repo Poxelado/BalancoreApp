@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/input_limits.dart';
 
 /// Discos disponibles por lado (kg), de mayor a menor.
 const List<double> kAvailablePlates = [25, 20, 15, 10, 5, 2.5, 1.25];
@@ -155,6 +156,7 @@ class _PlateCalculatorSheetState extends State<PlateCalculatorSheet> {
                     autofocus: true,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: InputFormatters.decimal(maxLength: 6),
                     onChanged: (_) => setState(() {}),
                     decoration: const InputDecoration(
                       labelText: 'Peso total (kg)',

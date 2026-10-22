@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/ai/ai_key_store.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/input_limits.dart';
 
 /// Configuración de la IA: el usuario trae su propia clave de Gemini.
 ///
@@ -139,6 +140,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
               autocorrect: false,
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9_\-]')),
+                LengthLimitingTextInputFormatter(InputLimits.apiKeyMax),
               ],
               decoration: InputDecoration(
                 labelText: 'Clave (AIza…)',

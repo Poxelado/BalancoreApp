@@ -33,6 +33,7 @@ class IdentityPage extends StatelessWidget {
           TextFormField(
             controller: nameController,
             textCapitalization: TextCapitalization.words,
+            inputFormatters: InputFormatters.text(InputLimits.nameMax),
             decoration: const InputDecoration(
               labelText: 'Nombre (opcional)',
               prefixIcon: Icon(Icons.person_outline),
@@ -118,51 +119,57 @@ class BodyPage extends StatelessWidget {
           TextFormField(
             controller: ageController,
             keyboardType: TextInputType.number,
+            inputFormatters: InputFormatters.digits(maxLength: 3),
             decoration: const InputDecoration(
               labelText: 'Edad',
               prefixIcon: Icon(Icons.cake_outlined),
               border: OutlineInputBorder(),
               suffixText: 'años',
             ),
-            validator: (v) {
-              final n = int.tryParse(v ?? '');
-              if (n == null || n < 12 || n > 100) return 'Edad entre 12 y 100';
-              return null;
-            },
+            validator: (v) => Validators.intInRange(
+              v,
+              min: InputLimits.ageMin,
+              max: InputLimits.ageMax,
+              label: 'Edad',
+            ),
             onChanged: (_) => onFieldChanged(),
           ),
           const SizedBox(height: 16),
           TextFormField(
             controller: weightController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: InputFormatters.decimal(maxLength: 6),
             decoration: const InputDecoration(
               labelText: 'Peso actual',
               prefixIcon: Icon(Icons.monitor_weight_outlined),
               border: OutlineInputBorder(),
               suffixText: 'kg',
             ),
-            validator: (v) {
-              final n = double.tryParse(v ?? '');
-              if (n == null || n < 30 || n > 300) return 'Peso no válido';
-              return null;
-            },
+            validator: (v) => Validators.doubleInRange(
+              v,
+              min: InputLimits.weightKgMin,
+              max: InputLimits.weightKgMax,
+              label: 'Peso',
+            ),
             onChanged: (_) => onFieldChanged(),
           ),
           const SizedBox(height: 16),
           TextFormField(
             controller: heightController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: InputFormatters.decimal(maxLength: 6),
             decoration: const InputDecoration(
               labelText: 'Altura',
               prefixIcon: Icon(Icons.height),
               border: OutlineInputBorder(),
               suffixText: 'cm',
             ),
-            validator: (v) {
-              final n = double.tryParse(v ?? '');
-              if (n == null || n < 100 || n > 250) return 'Altura no válida';
-              return null;
-            },
+            validator: (v) => Validators.doubleInRange(
+              v,
+              min: InputLimits.heightCmMin,
+              max: InputLimits.heightCmMax,
+              label: 'Altura',
+            ),
             onChanged: (_) => onFieldChanged(),
           ),
           const SizedBox(height: 24),

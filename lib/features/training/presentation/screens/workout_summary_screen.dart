@@ -136,6 +136,13 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
     super.dispose();
   }
 
+  /// Vuelve al hub dejando seleccionada la pestaña Rutina, sin importar desde
+  /// dónde se arrancó la sesión (Rutina, Progreso o el mini reproductor).
+  void _close() {
+    ref.read(shellTabProvider.notifier).state = 3;
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
   WorkoutShareData get _data =>
       buildWorkoutShareData(widget.session ?? _emptySession());
 
@@ -323,7 +330,7 @@ class _WorkoutSummaryScreenState extends ConsumerState<WorkoutSummaryScreen> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
           child: FilledButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: _close,
             child: const Text('Listo'),
           ),
         ),

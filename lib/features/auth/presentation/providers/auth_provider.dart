@@ -25,7 +25,12 @@ class AuthService {
       'Correo o contraseña incorrectos. Si no tienes cuenta, regístrate.';
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
+
   User? get currentUser => _auth.currentUser;
+
+  /// Si el último intento de enviar el correo de verificación falló, aquí queda
+  /// el motivo para que la UI pueda avisarlo (no rompe el registro).
+  String? lastVerificationError;
 
   Future<UserCredential?> registerWithEmail({
     required String email,
@@ -37,9 +42,13 @@ class AuthService {
         password: password,
       );
       // Enviar correo de verificación (best-effort: no rompe el registro).
+      lastVerificationError = null;
       try {
         await cred.user?.sendEmailVerification();
       } catch (e) {
+        lastVerificationError = e is FirebaseAuthException
+            ? _handleAuthException(e)
+            : 'No se pudo enviar el correo de verificación.';
         debugPrint('auth: no se pudo enviar el correo de verificación: $e');
       }
       return cred;

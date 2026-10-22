@@ -5,6 +5,7 @@ import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import 'food_search_screen.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/input_limits.dart';
 
 /// Crear / editar un plato con ingredientes.
 class RecipeEditorScreen extends ConsumerStatefulWidget {
@@ -39,7 +40,24 @@ class _RecipeEditorScreenState extends ConsumerState<RecipeEditorScreen> {
   int get _c => _items.fold(0, (s, i) => s + i.carbsGrams);
   int get _f => _items.fold(0, (s, i) => s + i.fatGrams);
 
+  /// Impide pasar del tope de ingredientes (evita listas gigantes que
+  /// congelan la UI). Devuelve true si aún se puede agregar.
+  bool _canAddIngredient() {
+    if (_items.length >= InputLimits.maxRecipeIngredients) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Máximo ${InputLimits.maxRecipeIngredients} ingredientes por receta',
+          ),
+        ),
+      );
+      return false;
+    }
+    return true;
+  }
+
   Future<void> _addManual() async {
+    if (!_canAddIngredient()) return;
     final nameCtrl = TextEditingController();
     final calCtrl = TextEditingController();
     final pCtrl = TextEditingController(text: '0');
@@ -61,11 +79,13 @@ class _RecipeEditorScreenState extends ConsumerState<RecipeEditorScreen> {
                   controller: nameCtrl,
                   decoration: const InputDecoration(labelText: 'Nombre'),
                   textCapitalization: TextCapitalization.sentences,
+                  inputFormatters: InputFormatters.text(InputLimits.titleMax),
                 ),
                 TextField(
                   controller: calCtrl,
                   decoration: const InputDecoration(labelText: 'Calorías'),
                   keyboardType: TextInputType.number,
+                  inputFormatters: InputFormatters.digits(maxLength: 5),
                 ),
                 Row(
                   children: [
@@ -74,6 +94,7 @@ class _RecipeEditorScreenState extends ConsumerState<RecipeEditorScreen> {
                         controller: pCtrl,
                         decoration: const InputDecoration(labelText: 'Prot'),
                         keyboardType: TextInputType.number,
+                        inputFormatters: InputFormatters.digits(maxLength: 4),
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -82,6 +103,7 @@ class _RecipeEditorScreenState extends ConsumerState<RecipeEditorScreen> {
                         controller: cCtrl,
                         decoration: const InputDecoration(labelText: 'Carb'),
                         keyboardType: TextInputType.number,
+                        inputFormatters: InputFormatters.digits(maxLength: 4),
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -90,6 +112,7 @@ class _RecipeEditorScreenState extends ConsumerState<RecipeEditorScreen> {
                         controller: fCtrl,
                         decoration: const InputDecoration(labelText: 'Grasa'),
                         keyboardType: TextInputType.number,
+                        inputFormatters: InputFormatters.digits(maxLength: 4),
                       ),
                     ),
                   ],
@@ -100,6 +123,7 @@ class _RecipeEditorScreenState extends ConsumerState<RecipeEditorScreen> {
                     labelText: 'Gramos (opcional)',
                   ),
                   keyboardType: TextInputType.number,
+                  inputFormatters: InputFormatters.digits(maxLength: 5),
                 ),
               ],
             ),
@@ -138,6 +162,7 @@ class _RecipeEditorScreenState extends ConsumerState<RecipeEditorScreen> {
   }
 
   Future<void> _addFromSaved() async {
+    if (!_canAddIngredient()) return;
     final foods = await ref.read(savedFoodsProvider.future);
     if (!mounted) return;
     if (foods.isEmpty) {
@@ -191,11 +216,13 @@ class _RecipeEditorScreenState extends ConsumerState<RecipeEditorScreen> {
   }
 
   Future<void> _addFromOff() async {
+    if (!_canAddIngredient()) return;
     final result = await Navigator.push<FoodSearchResult>(
       context,
       MaterialPageRoute(builder: (_) => const FoodSearchScreen(saveToLibrary: true)),
     );
     if (result == null) return;
+    if (!_canAddIngredient()) return;
     setState(() {
       _items.add(
         RecipeIngredient(
@@ -284,6 +311,7 @@ class _RecipeEditorScreenState extends ConsumerState<RecipeEditorScreen> {
           TextField(
             controller: _nameCtrl,
             textCapitalization: TextCapitalization.sentences,
+            inputFormatters: InputFormatters.text(InputLimits.titleMax),
             decoration: const InputDecoration(
               labelText: 'Nombre del plato',
               hintText: 'Ej: Arroz con pollo',

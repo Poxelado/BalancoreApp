@@ -182,3 +182,8 @@ final habitsMetricProvider = StateProvider<int?>((ref) => null);
 
 /// Username elegido en el registro; el onboarding lo usa si el perfil aún no carga.
 final pendingUsernameProvider = StateProvider<String?>((ref) => null);
+
+/// Uid del usuario que decidió continuar sin verificar el correo por ahora.
+/// Guardar el uid (y no un bool) evita que el salto se herede a otra cuenta en
+/// el mismo dispositivo.
+final skipEmailVerificationProvider = StateProvider<String?>((ref) => null);

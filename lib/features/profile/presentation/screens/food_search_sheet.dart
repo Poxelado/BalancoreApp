@@ -125,6 +125,7 @@ Future<FoodSearchResult?> _quantitySheet(
                   controller: qtyCtrl,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: InputFormatters.decimal(maxLength: 6),
                   decoration: InputDecoration(
                     labelText: unitMode == 0
                         ? 'Gramos'

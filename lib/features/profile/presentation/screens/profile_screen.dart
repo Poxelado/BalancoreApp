@@ -107,7 +107,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Expanded(
             child: Stack(
               children: [
-                Positioned.fill(child: _buildPage(ref.watch(shellTabProvider))),
+                // IndexedStack conserva el estado de cada pestaña (carrusel,
+                // scroll, filtros) al cambiar de apartado.
+                Positioned.fill(
+                  child: IndexedStack(
+                    index: ref.watch(shellTabProvider),
+                    children: const [
+                      ProgressTab(),
+                      NutritionTab(),
+                      HomeTab(),
+                      RoutineTab(),
+                      ProfileTab(),
+                    ],
+                  ),
+                ),
                 const WorkoutMiniPlayer(),
               ],
             ),
@@ -127,23 +140,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ],
       ),
     );
-  }
-
-  Widget _buildPage(int index) {
-    switch (index) {
-      case 0:
-        return const ProgressTab();
-      case 1:
-        return const NutritionTab();
-      case 2:
-        return const HomeTab();
-      case 3:
-        return const RoutineTab();
-      case 4:
-        return const ProfileTab();
-      default:
-        return const HomeTab();
-    }
   }
 
 }

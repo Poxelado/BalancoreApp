@@ -22,6 +22,7 @@ import '../../domain/workout_calories.dart';
 import '../workout_builders.dart';
 import 'workout_summary_screen.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/input_limits.dart';
 
 part 'workout_session_logic.dart';
 const _kRestSecondsKey = 'balancore_rest_seconds';

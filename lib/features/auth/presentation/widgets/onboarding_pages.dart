@@ -3,6 +3,7 @@ import '../../../profile/domain/user_profile.dart';
 import '../../../training/domain/routine_generator.dart';
 import '../../../../core/notifications/notification_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/input_limits.dart';
 part 'onboarding_identity_body.dart';
 part 'onboarding_goal_reminders.dart';
 part 'onboarding_routine.dart';

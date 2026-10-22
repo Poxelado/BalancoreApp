@@ -32,12 +32,23 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
   /// (p. ej. cuando no hay conexión y el toque tarda en responder).
   bool _starting = false;
 
+  /// Carrusel de días: el controlador vive en el State para no perder el día
+  /// seleccionado cuando el widget se reconstruye (p. ej. al invalidar rutinas).
+  PageController? _routinePageController;
+  int _routinePageIndex = 0;
+
   @override
   void initState() {
     super.initState();
     // Prefetch del catálogo para que byId/plantillas resuelvan aunque el
     // usuario no pase primero por la Biblioteca.
     ref.read(exerciseRepositoryProvider).loadCatalog();
+  }
+
+  @override
+  void dispose() {
+    _routinePageController?.dispose();
+    super.dispose();
   }
 
   Future<void> _startWorkout(RoutineDay day) async {
@@ -424,13 +435,23 @@ class _RoutineTabState extends ConsumerState<RoutineTab> {
               if (routines.isEmpty) {
                 return const Center(child: Text('No hay rutinas'));
               }
-              // Empezar en el día de hoy si existe
+              // Empezar en el día de hoy si existe, pero respetando el día
+              // que el usuario ya tenía seleccionado.
               final todayIndex = routines.indexWhere((r) => r.day == todayName);
-              return PageView.builder(
-                controller: PageController(
+              final initial = todayIndex >= 0 ? todayIndex : 0;
+              if (_routinePageController == null ||
+                  _routinePageIndex >= routines.length) {
+                // Mantiene el mismo día si sigue existiendo.
+                _routinePageController?.dispose();
+                _routinePageController = PageController(
                   viewportFraction: 0.88,
-                  initialPage: todayIndex >= 0 ? todayIndex : 0,
-                ),
+                  initialPage: initial,
+                );
+                _routinePageIndex = initial;
+              }
+              return PageView.builder(
+                controller: _routinePageController,
+                onPageChanged: (i) => _routinePageIndex = i,
                 itemCount: routines.length,
                 itemBuilder: (context, index) {
                   final r = routines[index];

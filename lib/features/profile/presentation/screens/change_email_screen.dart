@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/utils/input_limits.dart';
 
 /// Cambio de correo electrónico de la cuenta.
 /// Pide la contraseña actual (reauth) y envía verificación al nuevo correo.
@@ -36,8 +37,9 @@ class _ChangeEmailScreenState extends ConsumerState<ChangeEmailScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
-    if (email.isEmpty || !email.contains('@')) {
-      _snack('Ingresa un correo válido', error: true);
+    final emailError = Validators.email(email);
+    if (emailError != null) {
+      _snack(emailError, error: true);
       return;
     }
     if (password.isEmpty) {
@@ -102,6 +104,7 @@ class _ChangeEmailScreenState extends ConsumerState<ChangeEmailScreen> {
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               autocorrect: false,
+              inputFormatters: InputFormatters.text(InputLimits.emailMax),
               decoration: const InputDecoration(
                 labelText: 'Nuevo correo',
                 prefixIcon: Icon(Icons.alternate_email),
@@ -116,6 +119,7 @@ class _ChangeEmailScreenState extends ConsumerState<ChangeEmailScreen> {
             TextField(
               controller: _passwordController,
               obscureText: _obscure,
+              inputFormatters: InputFormatters.text(InputLimits.passwordMax),
               decoration: InputDecoration(
                 labelText: 'Contraseña actual',
                 prefixIcon: const Icon(Icons.lock_outline),

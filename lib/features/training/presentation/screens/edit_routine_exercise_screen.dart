@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../profile/domain/user_profile.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/input_limits.dart';
 
 /// Edición detallada de un ejercicio dentro de la rutina del día.
 /// Pesos por serie, reps, descanso entre series, notas.
@@ -93,6 +94,16 @@ class _EditRoutineExerciseScreenState extends State<EditRoutineExerciseScreen> {
   }
 
   void _addSet() {
+    if (_sets.length >= InputLimits.maxSetsPerExercise) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            listLimitMessage('series por ejercicio', InputLimits.maxSetsPerExercise),
+          ),
+        ),
+      );
+      return;
+    }
     _syncSetsFromFields();
     final last = _sets.isNotEmpty ? _sets.last : const PlannedSet();
     setState(() {
@@ -169,6 +180,7 @@ class _EditRoutineExerciseScreenState extends State<EditRoutineExerciseScreen> {
           TextField(
             controller: _notesCtrl,
             maxLines: 2,
+            inputFormatters: InputFormatters.text(InputLimits.notesMax),
             decoration: const InputDecoration(
               hintText: 'Agregar notas de rutina aquí',
               border: OutlineInputBorder(),
@@ -190,6 +202,7 @@ class _EditRoutineExerciseScreenState extends State<EditRoutineExerciseScreen> {
                 child: TextField(
                   controller: _restMinCtrl,
                   keyboardType: TextInputType.number,
+                  inputFormatters: InputFormatters.digits(maxLength: 2),
                   textAlign: TextAlign.center,
                   decoration: const InputDecoration(
                     labelText: 'min',
@@ -208,6 +221,7 @@ class _EditRoutineExerciseScreenState extends State<EditRoutineExerciseScreen> {
                 child: TextField(
                   controller: _restSecCtrl,
                   keyboardType: TextInputType.number,
+                  inputFormatters: InputFormatters.digits(maxLength: 2),
                   textAlign: TextAlign.center,
                   decoration: const InputDecoration(
                     labelText: 'seg',
@@ -282,6 +296,7 @@ class _EditRoutineExerciseScreenState extends State<EditRoutineExerciseScreen> {
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
+                      inputFormatters: InputFormatters.decimal(maxLength: 6),
                       decoration: const InputDecoration(
                         hintText: '0',
                         isDense: true,
@@ -298,6 +313,7 @@ class _EditRoutineExerciseScreenState extends State<EditRoutineExerciseScreen> {
                     child: TextField(
                       controller: _repsCtrls[i],
                       keyboardType: TextInputType.number,
+                      inputFormatters: InputFormatters.digits(maxLength: 3),
                       decoration: const InputDecoration(
                         isDense: true,
                         border: OutlineInputBorder(),

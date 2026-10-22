@@ -4,6 +4,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/user_profile.dart';
 import '../providers/profile_provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/input_limits.dart';
 
 class SavedFoodsTab extends ConsumerWidget {
   const SavedFoodsTab({super.key});
@@ -172,6 +173,7 @@ class SavedFoodsTab extends ConsumerWidget {
                     const SizedBox(height: 12),
                     TextField(
                       controller: nameCtrl,
+                      inputFormatters: InputFormatters.text(InputLimits.titleMax),
                       decoration: const InputDecoration(
                         labelText: 'Nombre',
                         border: OutlineInputBorder(),
@@ -201,6 +203,7 @@ class SavedFoodsTab extends ConsumerWidget {
                       controller: qtyCtrl,
                       keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: InputFormatters.decimal(maxLength: 6),
                       decoration: InputDecoration(
                         labelText: 'Cantidad',
                         border: const OutlineInputBorder(),
@@ -225,6 +228,7 @@ class SavedFoodsTab extends ConsumerWidget {
                     TextField(
                       controller: calCtrl,
                       keyboardType: TextInputType.number,
+                      inputFormatters: InputFormatters.digits(maxLength: 5),
                       decoration: const InputDecoration(
                         labelText: 'Calorías (kcal)',
                         border: OutlineInputBorder(),
@@ -237,6 +241,7 @@ class SavedFoodsTab extends ConsumerWidget {
                           child: TextField(
                             controller: pCtrl,
                             keyboardType: TextInputType.number,
+                            inputFormatters: InputFormatters.digits(maxLength: 4),
                             decoration: const InputDecoration(
                               labelText: 'Prot',
                               border: OutlineInputBorder(),
@@ -248,6 +253,7 @@ class SavedFoodsTab extends ConsumerWidget {
                           child: TextField(
                             controller: cCtrl,
                             keyboardType: TextInputType.number,
+                            inputFormatters: InputFormatters.digits(maxLength: 4),
                             decoration: const InputDecoration(
                               labelText: 'Carb',
                               border: OutlineInputBorder(),
@@ -259,6 +265,7 @@ class SavedFoodsTab extends ConsumerWidget {
                           child: TextField(
                             controller: fCtrl,
                             keyboardType: TextInputType.number,
+                            inputFormatters: InputFormatters.digits(maxLength: 4),
                             decoration: const InputDecoration(
                               labelText: 'Grasa',
                               border: OutlineInputBorder(),

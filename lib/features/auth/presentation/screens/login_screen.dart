@@ -4,6 +4,7 @@ import '../providers/auth_provider.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/input_limits.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -120,20 +121,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
                           textInputAction: TextInputAction.next,
+                          inputFormatters: InputFormatters.text(InputLimits.emailMax),
                           decoration: const InputDecoration(
                             labelText: 'Correo',
                             prefixIcon: Icon(Icons.email_outlined),
                             border: OutlineInputBorder(),
                           ),
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
-                              return 'Ingresa tu correo';
-                            }
-                            if (!v.contains('@')) {
-                              return 'Correo no válido';
-                            }
-                            return null;
-                          },
+                          validator: Validators.email,
                         ),
                         const SizedBox(height: 16),
 
@@ -142,6 +136,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           controller: _passwordController,
                           obscureText: _obscurePassword,
                           textInputAction: TextInputAction.done,
+                          inputFormatters: InputFormatters.text(InputLimits.passwordMax),
                           onFieldSubmitted: (_) => _login(),
                           decoration: InputDecoration(
                             labelText: 'Contraseña',

@@ -270,17 +270,20 @@ mixin _DailyHistorySections on ConsumerState<DailyHistoryScreen> {
               TextField(
                 controller: calCtrl,
                 keyboardType: TextInputType.number,
+                inputFormatters: InputFormatters.digits(maxLength: 5),
                 decoration: const InputDecoration(labelText: 'Calorías (kcal)'),
               ),
               TextField(
                 controller: waterCtrl,
                 keyboardType: TextInputType.number,
+                inputFormatters: InputFormatters.digits(maxLength: 2),
                 decoration: const InputDecoration(labelText: 'Agua (vasos)'),
               ),
               TextField(
                 controller: sleepCtrl,
                 keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: InputFormatters.decimal(maxLength: 4),
                 decoration: const InputDecoration(labelText: 'Sueño (horas)'),
               ),
               const SizedBox(height: 8),
@@ -292,16 +295,19 @@ mixin _DailyHistorySections on ConsumerState<DailyHistoryScreen> {
               TextField(
                 controller: pCtrl,
                 keyboardType: TextInputType.number,
+                inputFormatters: InputFormatters.digits(maxLength: 4),
                 decoration: const InputDecoration(labelText: 'Proteína'),
               ),
               TextField(
                 controller: cCtrl,
                 keyboardType: TextInputType.number,
+                inputFormatters: InputFormatters.digits(maxLength: 4),
                 decoration: const InputDecoration(labelText: 'Carbohidratos'),
               ),
               TextField(
                 controller: fCtrl,
                 keyboardType: TextInputType.number,
+                inputFormatters: InputFormatters.digits(maxLength: 4),
                 decoration: const InputDecoration(labelText: 'Grasas'),
               ),
               if (log.meals.isNotEmpty)
@@ -336,14 +342,19 @@ mixin _DailyHistorySections on ConsumerState<DailyHistoryScreen> {
     await ref.read(profileRepositoryProvider).updateDailyLog(
       user.uid,
       log.date,
-      waterGlasses: int.tryParse(waterCtrl.text) ?? log.waterGlasses,
-      sleepHours: double.tryParse(sleepCtrl.text.replaceAll(',', '.')) ??
-          log.sleepHours,
-      consumedCalories:
-      int.tryParse(calCtrl.text) ?? log.consumedCalories,
-      proteinGrams: int.tryParse(pCtrl.text) ?? log.proteinGrams,
-      carbsGrams: int.tryParse(cCtrl.text) ?? log.carbsGrams,
-      fatGrams: int.tryParse(fCtrl.text) ?? log.fatGrams,
+      waterGlasses: (int.tryParse(waterCtrl.text) ?? log.waterGlasses)
+          .clamp(0, InputLimits.waterGlassesMax),
+      sleepHours: (double.tryParse(sleepCtrl.text.replaceAll(',', '.')) ??
+              log.sleepHours)
+          .clamp(0, InputLimits.sleepHoursMax),
+      consumedCalories: (int.tryParse(calCtrl.text) ?? log.consumedCalories)
+          .clamp(0, InputLimits.caloriesMax),
+      proteinGrams:
+          (int.tryParse(pCtrl.text) ?? log.proteinGrams).clamp(0, InputLimits.macroGramsMax),
+      carbsGrams:
+          (int.tryParse(cCtrl.text) ?? log.carbsGrams).clamp(0, InputLimits.macroGramsMax),
+      fatGrams:
+          (int.tryParse(fCtrl.text) ?? log.fatGrams).clamp(0, InputLimits.macroGramsMax),
     );
 
     ref.invalidate(dailyLogsHistoryProvider(_days));

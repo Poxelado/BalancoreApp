@@ -5,6 +5,7 @@ import '../../../profile/presentation/providers/profile_provider.dart';
 import '../../../profile/presentation/screens/legal_screen.dart';
 import '../../../../core/errors/app_exception.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/input_limits.dart';
 import '../../../profile/domain/user_profile.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -146,9 +147,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
       ref.invalidate(userProfileProvider);
 
+      final verifyError =
+          ref.read(authServiceProvider).lastVerificationError;
       if (mounted) {
         Navigator.of(context).pop(); // cierra loading
         Navigator.of(context).popUntil((route) => route.isFirst);
+        if (verifyError != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'No pudimos enviar el correo de verificación. Podrás '
+                'reenviarlo más tarde desde tu perfil.',
+              ),
+            ),
+          );
+        }
       }
     } catch (e) {
       // Si ya creamos la cuenta de Auth pero falló el resto (p. ej. el username
@@ -296,46 +309,32 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     controller: _usernameController,
                     textInputAction: TextInputAction.next,
                     autocorrect: false,
+                    inputFormatters: InputFormatters.text(InputLimits.usernameMax),
                     decoration: const InputDecoration(
                       labelText: 'Nombre de usuario *',
                       hintText: 'solo minúsculas, números, . y _',
                       prefixIcon: Icon(Icons.alternate_email),
                       border: OutlineInputBorder(),
                     ),
-                    validator: (value) {
-                      final v =
-                      (value ?? '').trim().replaceAll('@', '').toLowerCase();
-                      if (v.isEmpty) return 'El usuario es obligatorio';
-                      if (v.length < 3) return 'Mínimo 3 caracteres';
-                      if (!RegExp(r'^[a-z0-9._]+$').hasMatch(v)) {
-                        return 'Solo a-z, 0-9, punto y guión bajo';
-                      }
-                      return null;
-                    },
+                    validator: Validators.username,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
+                    inputFormatters: InputFormatters.text(InputLimits.emailMax),
                     decoration: const InputDecoration(
                       labelText: 'Correo electrónico',
                       prefixIcon: Icon(Icons.email_outlined),
                       border: OutlineInputBorder(),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Ingresa tu correo';
-                      }
-                      if (!value.contains('@')) {
-                        return 'Correo no válido';
-                      }
-                      return null;
-                    },
+                    validator: Validators.email,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
+                    inputFormatters: InputFormatters.text(InputLimits.passwordMax),
                     decoration: InputDecoration(
                       labelText: 'Contraseña',
                       prefixIcon: const Icon(Icons.lock_outlined),
@@ -354,20 +353,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         },
                       ),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Ingresa una contraseña';
-                      }
-                      if (value.length < 6) {
-                        return 'Mínimo 6 caracteres';
-                      }
-                      return null;
-                    },
+                    validator: Validators.password,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _confirmPasswordController,
                     obscureText: _obscureConfirm,
+                    inputFormatters: InputFormatters.text(InputLimits.passwordMax),
                     decoration: InputDecoration(
                       labelText: 'Confirmar contraseña',
                       prefixIcon: const Icon(Icons.lock_outlined),

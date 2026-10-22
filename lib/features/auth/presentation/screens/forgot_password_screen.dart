@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/input_limits.dart';
 import '../providers/auth_provider.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
@@ -96,20 +97,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
+            inputFormatters: InputFormatters.text(InputLimits.emailMax),
             decoration: const InputDecoration(
               labelText: 'Correo electrónico',
               prefixIcon: Icon(Icons.email_outlined),
               border: OutlineInputBorder(),
             ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Ingresa tu correo';
-              }
-              if (!value.contains('@')) {
-                return 'Correo no válido';
-              }
-              return null;
-            },
+            validator: Validators.email,
           ),
           const SizedBox(height: 24),
           ElevatedButton(

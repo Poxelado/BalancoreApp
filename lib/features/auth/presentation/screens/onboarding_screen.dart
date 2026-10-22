@@ -8,6 +8,7 @@ import '../providers/auth_provider.dart';
 import '../../../../core/errors/app_exception.dart';
 import '../../../../core/notifications/notification_preferences.dart';
 import '../../../../core/notifications/notification_service.dart';
+import '../../../../core/utils/input_limits.dart';
 import '../widgets/onboarding_pages.dart';
 import '../../../../core/theme/app_theme.dart';
 
@@ -106,8 +107,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   int get _previewCalories {
-    final w = double.tryParse(_weightController.text) ?? 70;
-    final h = double.tryParse(_heightController.text) ?? 170;
+    final w = double.tryParse(_weightController.text.replaceAll(',', '.')) ?? 70;
+    final h = double.tryParse(_heightController.text.replaceAll(',', '.')) ?? 170;
     final a = int.tryParse(_ageController.text) ?? 25;
     return UserProfile.calculateTMB(
       sex: _sex,
@@ -236,9 +237,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       final user = ref.read(authServiceProvider).currentUser;
       if (user == null) throw const AuthException('No hay usuario autenticado');
 
-      final weight = double.parse(_weightController.text);
-      final height = double.parse(_heightController.text);
-      final age = int.parse(_ageController.text);
+      final weight = Validators.parseDouble(_weightController.text);
+      final height = Validators.parseDouble(_heightController.text);
+      final age = Validators.parseInt(_ageController.text);
 
       // Asegura un username: del registro por email (pending/perfil) o
       // generado para usuarios de Google, que no pasan por esa pantalla.
@@ -321,9 +322,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       );
       await NotificationService.instance.init();
     } catch (e) {
+      debugPrint('onboarding: no se pudo guardar el perfil: $e');
       if (mounted) {
+        final msg = e is FormatException
+            ? e.message
+            : 'No se pudieron guardar tus datos. Revisa tu conexión e inténtalo de nuevo.';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e'), backgroundColor: Theme.of(context).colorScheme.error),
+          SnackBar(content: Text(msg)),
         );
       }
     } finally {

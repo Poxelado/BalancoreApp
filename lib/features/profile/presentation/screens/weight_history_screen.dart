@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/preferences/units_provider.dart';
+import '../../../../core/utils/input_limits.dart';
 import '../../../../core/widgets/empty_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/profile_provider.dart';
@@ -26,7 +27,7 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
   Future<void> _addWeight() async {
     final units = ref.read(unitsProvider);
     final text = _weightController.text.trim();
-    final value = double.tryParse(text);
+    final value = double.tryParse(text.replaceAll(',', '.'));
     if (value == null || value <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: const Text('Ingresa un peso válido'), backgroundColor: Theme.of(context).colorScheme.error),
@@ -34,6 +35,18 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
       return;
     }
     final weight = units.weightToKg(value);
+    final rangeError = Validators.doubleInRange(
+      '$weight',
+      min: InputLimits.weightKgMin,
+      max: InputLimits.weightKgMax,
+      label: 'Peso',
+    );
+    if (rangeError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(rangeError), backgroundColor: Theme.of(context).colorScheme.error),
+      );
+      return;
+    }
 
     setState(() => _isSaving = true);
     try {
@@ -87,6 +100,7 @@ class _WeightHistoryScreenState extends ConsumerState<WeightHistoryScreen> {
               TextField(
                 controller: _weightController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: InputFormatters.decimal(maxLength: 6),
                 decoration: InputDecoration(
                   labelText: 'Peso ($unit)',
                   border: const OutlineInputBorder(),

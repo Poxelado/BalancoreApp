@@ -6,6 +6,7 @@ import '../../domain/muscle_zones.dart';
 import '../providers/exercise_provider.dart';
 import '../widgets/exercise_list_widgets.dart';
 import '../../../../../core/theme/app_theme.dart';
+import '../../../../../core/utils/input_limits.dart';
 import '../../../../../core/utils/text_normalize.dart';
 
 /// Selector de ejercicios para añadir a una rutina.
@@ -25,6 +26,18 @@ class _PickExerciseScreenState extends ConsumerState<PickExerciseScreen> {
   final Map<String, Exercise> _selected = {};
 
   void _toggle(Exercise e) {
+    if (!_selected.containsKey(e.id) &&
+        _selected.length >= InputLimits.maxExercisesPerRoutine) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            listLimitMessage(
+                'ejercicios por rutina', InputLimits.maxExercisesPerRoutine),
+          ),
+        ),
+      );
+      return;
+    }
     setState(() {
       if (_selected.containsKey(e.id)) {
         _selected.remove(e.id);
