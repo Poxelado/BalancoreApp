@@ -16,6 +16,8 @@ class RoutinePage extends StatelessWidget {
   final ValueChanged<int> onMinutes;
   final void Function(String name, bool selected) onEquipment;
   final VoidCallback onGenerate;
+  final VoidCallback? onRegenerate;
+  final ValueChanged<RoutineExercise>? onExerciseTap;
 
   const RoutinePage({
     super.key,
@@ -33,6 +35,8 @@ class RoutinePage extends StatelessWidget {
     required this.onMinutes,
     required this.onEquipment,
     required this.onGenerate,
+    this.onRegenerate,
+    this.onExerciseTap,
   });
 
   static const equipmentOptions = [
@@ -59,72 +63,108 @@ class RoutinePage extends StatelessWidget {
               'puedes entrenar. Después puedes editarla o cambiarla cuando quieras.',
           step: 'PASO 4 DE 5',
         ),
-        _chip(
-          icon: Icons.flag_outlined,
-          text: 'Objetivo: ${goal.label}',
-        ),
-        const SizedBox(height: 20),
-        _label('Nivel'),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 4,
-          children: [
-            for (final l in RoutineLevel.values)
-              ChoiceChip(
-                label: Text(l.label),
-                selected: level == l,
-                onSelected: (_) => onLevel(l),
+        ParamSection(
+          title: 'Objetivo',
+          emphasized: true,
+          helper: 'Define la meta principal de tu entrenamiento.',
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: primary,
+                borderRadius: BorderRadius.circular(999),
               ),
-          ],
-        ),
-        const SizedBox(height: 18),
-        _label('Días por semana'),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: [
-            for (final n in [2, 3, 4, 5, 6])
-              ChoiceChip(
-                label: Text('$n'),
-                selected: days == n,
-                onSelected: (_) => onDays(n),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.flag_outlined, size: 16, color: cs.onPrimary),
+                  const SizedBox(width: 8),
+                  Text(
+                    goal.label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: cs.onPrimary,
+                    ),
+                  ),
+                ],
               ),
-          ],
+            ),
+          ),
         ),
-        const SizedBox(height: 18),
-        _label('Tiempo por sesión'),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: [
-            for (final m in [30, 45, 60, 75, 90])
-              ChoiceChip(
-                label: Text(m == 90 ? '90+ min' : '$m min'),
-                selected: minutes == m,
-                onSelected: (_) => onMinutes(m),
-              ),
-          ],
+        const SizedBox(height: 16),
+        ParamSection(
+          title: 'Nivel',
+          helper: 'Ajustamos series y descansos a tu experiencia.',
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final l in RoutineLevel.values)
+                ParamChoiceChip(
+                  label: l.label,
+                  selected: level == l,
+                  onTap: () => onLevel(l),
+                ),
+            ],
+          ),
         ),
-        const SizedBox(height: 18),
-        _label('Equipamiento disponible'),
-        const SizedBox(height: 2),
-        Text(
-          'Sin marcar nada se asume gimnasio completo.',
-          style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+        const SizedBox(height: 16),
+        ParamSection(
+          title: 'Días por semana',
+          emphasized: true,
+          helper: 'Los días que realmente puedes entrenar cada semana.',
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final n in [2, 3, 4, 5, 6])
+                ParamChoiceChip(
+                  label: '$n',
+                  compact: true,
+                  selected: days == n,
+                  onTap: () => onDays(n),
+                ),
+            ],
+          ),
         ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 4,
-          children: [
-            for (final e in equipmentOptions)
-              FilterChip(
-                label: Text(e),
-                selected: equipment.contains(e),
-                onSelected: (sel) => onEquipment(e, sel),
-              ),
-          ],
+        const SizedBox(height: 16),
+        ParamSection(
+          title: 'Tiempo por sesión',
+          helper: 'Cuánto tiempo tienes por sesión, descansos incluidos.',
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final m in [30, 45, 60, 75, 90])
+                ParamChoiceChip(
+                  label: m == 90 ? '90+ min' : '$m min',
+                  compact: true,
+                  selected: minutes == m,
+                  onTap: () => onMinutes(m),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        ParamSection(
+          title: 'Equipamiento disponible',
+          trailing: const ParamMultiBadge(),
+          helper: 'Sin marcar nada se asume gimnasio completo. '
+              'Puedes marcar varios.',
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final e in equipmentOptions)
+                ParamFilterChip(
+                  label: e,
+                  selected: equipment.contains(e),
+                  onSelected: (sel) => onEquipment(e, sel),
+                ),
+            ],
+          ),
         ),
         const SizedBox(height: 22),
         FilledButton.icon(
@@ -174,75 +214,22 @@ class RoutinePage extends StatelessWidget {
             style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
           ),
           const SizedBox(height: 12),
-          ...generated!.map((d) => _dayCard(context, d)),
+          ...generated!.map(
+            (d) => RoutinePreviewCard(
+              day: d,
+              onExerciseTap: onExerciseTap,
+            ),
+          ),
+          if (onRegenerate != null) ...[
+            const SizedBox(height: 6),
+            OutlinedButton.icon(
+              onPressed: generating ? null : onRegenerate,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Generar otra rutina'),
+            ),
+          ],
         ],
       ],
     );
   }
-
-  Widget _chip({required IconData icon, required String text}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: primary.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: primary.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: primary),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _dayCard(BuildContext context, RoutineDay d) {
-    final cs = Theme.of(context).colorScheme;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${d.day} · ${d.title}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-                Text(
-                  '${d.exercises.length} ej.',
-                  style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            for (final e in d.exercises)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 1),
-                child: Text(
-                  '· ${e.exerciseName} — ${e.effectiveSets.length}x${e.reps}',
-                  style: TextStyle(fontSize: 13, color: cs.onSurface),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _label(String text) => Text(
-        text,
-        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-      );
 }

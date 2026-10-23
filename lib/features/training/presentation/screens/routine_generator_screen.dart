@@ -1,15 +1,21 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/ai/ai_service.dart';
 import '../../../../core/ai/ai_key_store.dart';
+import '../../../../core/prefs/routine_regen_prefs.dart';
+import '../../../../core/widgets/param_chips.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../profile/domain/user_profile.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import '../../domain/exercise.dart';
 import '../../domain/routine_generator.dart';
 import '../providers/exercise_provider.dart';
+import '../widgets/routine_preview_widgets.dart';
 import 'ai_settings_screen.dart';
+import 'exercise_detail_screen.dart';
 import '../../../../core/theme/app_theme.dart';
 
 /// Pantalla del asistente: recoge los datos de la rutina y la genera.
@@ -36,6 +42,10 @@ class _RoutineGeneratorScreenState
   /// 'ai' = generada por el modelo, 'rules' = por reglas.
   String? _source;
   List<RoutineDay>? _preview;
+
+  /// Genera siempre con una semilla distinta para obtener una rutina distinta
+  /// al pulsar "Regenerar". El primer "Generar" también es aleatorio.
+  int _seed = Random().nextInt(1 << 31);
 
   @override
   void initState() {
@@ -64,6 +74,7 @@ class _RoutineGeneratorScreenState
 
   Future<void> _generate(List<Exercise> catalog) async {
     if (_generating) return;
+    _seed = Random().nextInt(1 << 31);
     setState(() => _generating = true);
     try {
       final req = RoutineRequest(
@@ -75,7 +86,7 @@ class _RoutineGeneratorScreenState
         minutesAvailable: _minutes,
       );
       // Capa 1: reglas. Siempre disponible.
-      var days = generateRoutine(req);
+      var days = generateRoutine(req, seed: _seed);
       var source = 'rules';
 
       // Capa 2: modelo de lenguaje, solo si el usuario trajo su clave.
@@ -131,6 +142,65 @@ class _RoutineGeneratorScreenState
     }
   }
 
+  /// Botón "Regenerar": pide confirmación (salvo que el usuario haya marcado
+  /// "no volver a preguntar") y vuelve a generar con los mismos parámetros.
+  Future<void> _regenerate(List<Exercise> catalog) async {
+    if (_generating) return;
+    final skipped = await RoutineRegenPrefs.dontAsk();
+    if (!skipped) {
+      if (!mounted) return;
+      final result = await _regenDialog(context);
+      if (result == null) return;
+      if (result.dontAskAgain) await RoutineRegenPrefs.setDontAsk(true);
+    }
+    await _generate(catalog);
+  }
+
+  Future<_RegenChoice?> _regenDialog(BuildContext context) async {
+    var dontAsk = false;
+    return showDialog<_RegenChoice>(
+      context: context,
+      builder: (dCtx) => StatefulBuilder(
+        builder: (dCtx, setLocal) => AlertDialog(
+          title: const Text('Generar otra rutina'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Se generará una rutina nueva con los mismos parámetros. '
+                'Si no te convenció la anterior, esta será distinta. '
+                '¿Continuar?',
+              ),
+              const SizedBox(height: 4),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: dontAsk,
+                onChanged: (v) => setLocal(() => dontAsk = v ?? false),
+                title: const Text(
+                  'No volver a preguntar',
+                  style: TextStyle(fontSize: 14),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dCtx),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () =>
+                  Navigator.pop(dCtx, _RegenChoice(dontAskAgain: dontAsk)),
+              child: const Text('Generar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _apply() async {
     final days = _preview;
     if (days == null) return;
@@ -164,7 +234,6 @@ class _RoutineGeneratorScreenState
 
   @override
   Widget build(BuildContext context) {
-    final primary = accentOf(context);
     final catalog = ref.watch(exercisesProvider);
 
     return Scaffold(
@@ -193,20 +262,108 @@ class _RoutineGeneratorScreenState
               return const Center(child: Text('Catálogo vacío'));
             }
             return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
               children: [
-                _goalSelector(primary),
-                const SizedBox(height: 16),
-                _levelSelector(primary),
-                const SizedBox(height: 16),
-                _daysSelector(primary),
-                const SizedBox(height: 16),
-                _timeSelector(primary),
-                const SizedBox(height: 16),
-                _equipmentSelector(primary),
-                const SizedBox(height: 8),
+                ParamSection(
+                  title: 'Objetivo',
+                  emphasized: true,
+                  dense: true,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final g in RoutineGoal.values)
+                        ParamChoiceChip(
+                          label: g.label,
+                          selected: _goal == g,
+                          onTap: () => setState(() => _goal = g),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                ParamSection(
+                  title: 'Nivel',
+                  dense: true,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final l in RoutineLevel.values)
+                        ParamChoiceChip(
+                          label: l.label,
+                          selected: _level == l,
+                          onTap: () => setState(() => _level = l),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                ParamSection(
+                  title: 'Días por semana',
+                  emphasized: true,
+                  dense: true,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final n in [2, 3, 4, 5, 6])
+                        ParamChoiceChip(
+                          label: '$n',
+                          compact: true,
+                          selected: _days == n,
+                          onTap: () => setState(() => _days = n),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                ParamSection(
+                  title: 'Tiempo por sesión',
+                  dense: true,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final m in const [30, 45, 60, 75, 90])
+                        ParamChoiceChip(
+                          label: m == 90 ? '90+ min' : '$m min',
+                          compact: true,
+                          selected: _minutes == m,
+                          onTap: () => setState(() => _minutes = m),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                ParamSection(
+                  title: 'Equipamiento disponible',
+                  dense: true,
+                  trailing: const ParamMultiBadge(),
+                  helper:
+                      'Sin marcar nada se asume gimnasio completo.',
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final e in _equipmentOptions)
+                        ParamFilterChip(
+                          label: e,
+                          selected: _equipment.contains(e),
+                          onSelected: (sel) => setState(() {
+                            if (sel) {
+                              _equipment.add(e);
+                            } else {
+                              _equipment.remove(e);
+                            }
+                          }),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
                 _aiNotice(),
-                const SizedBox(height: 16),
+                const SizedBox(height: 18),
                 FilledButton.icon(
                   onPressed:
                       _generating ? null : () => _generate(exercises),
@@ -246,11 +403,32 @@ class _RoutineGeneratorScreenState
                           ],
                         ),
                   const SizedBox(height: 8),
-                  ..._preview!.map(_dayCard),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: _apply,
-                    child: const Text('Aplicar a mi semana'),
+                  ..._preview!.map(
+                    (d) => RoutinePreviewCard(
+                      day: d,
+                      onExerciseTap: _openExercise,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _generating
+                              ? null
+                              : () => _regenerate(exercises),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Regenerar'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: _apply,
+                          child: const Text('Aplicar'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ],
@@ -261,28 +439,13 @@ class _RoutineGeneratorScreenState
     );
   }
 
-  Widget _dayCard(RoutineDay d) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${d.day} · ${d.title}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 6),
-            for (final e in d.exercises)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 1),
-                child: Text(
-                  '· ${e.exerciseName} — ${e.sets}x${e.reps} (${e.restSeconds}s)',
-                  style: const TextStyle(fontSize: 13),
-                ),
-              ),
-          ],
+  void _openExercise(RoutineExercise e) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ExerciseDetailScreen(
+          exerciseId: e.exerciseId,
+          exerciseName: e.exerciseName,
         ),
       ),
     );
@@ -317,130 +480,10 @@ class _RoutineGeneratorScreenState
     );
   }
 
-  Widget _goalSelector(Color primary) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _label('Objetivo', primary),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 8,
-          children: [
-            for (final g in RoutineGoal.values)
-              ChoiceChip(
-                label: Text(g.label),
-                selected: _goal == g,
-                onSelected: (_) => setState(() => _goal = g),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
+}
 
-  Widget _levelSelector(Color primary) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _label('Nivel', primary),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 8,
-          children: [
-            for (final l in RoutineLevel.values)
-              ChoiceChip(
-                label: Text(l.label),
-                selected: _level == l,
-                onSelected: (_) => setState(() => _level = l),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
+class _RegenChoice {
+  final bool dontAskAgain;
 
-  Widget _daysSelector(Color primary) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _label('Días por semana', primary),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 8,
-          children: [
-            for (final n in [2, 3, 4, 5, 6])
-              ChoiceChip(
-                label: Text('$n'),
-                selected: _days == n,
-                onSelected: (_) => setState(() => _days = n),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _timeSelector(Color primary) {
-    const options = [30, 45, 60, 75, 90];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _label('Tiempo por sesión', primary),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 8,
-          children: [
-            for (final m in options)
-              ChoiceChip(
-                label: Text(m == 90 ? '90+ min' : '$m min'),
-                selected: _minutes == m,
-                onSelected: (_) => setState(() => _minutes = m),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _equipmentSelector(Color primary) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _label('Equipamiento disponible', primary),
-        const SizedBox(height: 2),
-        Text(
-          'Sin marcar nada: se asume gimnasio completo',
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-        ),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 8,
-          runSpacing: 4,
-          children: [
-            for (final e in _equipmentOptions)
-              FilterChip(
-                label: Text(e),
-                selected: _equipment.contains(e),
-                onSelected: (sel) => setState(() {
-                  if (sel) {
-                    _equipment.add(e);
-                  } else {
-                    _equipment.remove(e);
-                  }
-                }),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _label(String text, Color primary) => Text(
-        text,
-        style: TextStyle(
-          fontWeight: FontWeight.w700,
-          fontSize: 15,
-          color: accentOf(context),
-        ),
-      );
+  const _RegenChoice({required this.dontAskAgain});
 }

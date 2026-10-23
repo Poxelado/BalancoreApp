@@ -1,7 +1,8 @@
+import 'dart:math';
+
 import '../../profile/domain/user_profile.dart';
 import 'exercise.dart';
 
-/// Objetivo del usuario. Alineado con `UserProfile.goal`.
 enum RoutineGoal {
   perderGrasa('Perder grasa'),
   mantenimiento('Mantenimiento'),
@@ -10,13 +11,16 @@ enum RoutineGoal {
   final String label;
   const RoutineGoal(this.label);
 
-  static RoutineGoal fromLabel(String? label) => values.firstWhere(
-        (g) => g.label.toLowerCase() == (label ?? '').toLowerCase(),
-        orElse: () => RoutineGoal.mantenimiento,
-      );
+  static RoutineGoal fromLabel(String? label) {
+    final v = (label ?? '').toLowerCase();
+    if (v.contains('fuerza') || v.contains('rendimiento')) return ganarMusculo;
+    for (final g in values) {
+      if (g.label.toLowerCase() == v) return g;
+    }
+    return RoutineGoal.mantenimiento;
+  }
 }
 
-/// Nivel de experiencia. Alineado con `Exercise.levelEs`.
 enum RoutineLevel {
   principiante('Principiante'),
   intermedio('Intermedio'),
@@ -31,20 +35,14 @@ enum RoutineLevel {
       );
 }
 
-/// Qué entra en la rutina.
 class RoutineRequest {
   final RoutineGoal goal;
   final RoutineLevel level;
   final int daysPerWeek;
-
-  /// Equipamiento disponible. Vacío = se asume que se puede todo.
   final Set<String> equipment;
-
-  /// Minutos disponibles por sesión. null = sin límite (volumen estándar).
   final int? minutesAvailable;
-
-  /// Catálogo del que se eligen ejercicios (biblioteca del usuario).
   final List<Exercise> catalog;
+  final int? seed;
 
   const RoutineRequest({
     required this.goal,
@@ -53,458 +51,468 @@ class RoutineRequest {
     required this.catalog,
     this.equipment = const {},
     this.minutesAvailable,
+    this.seed,
   });
 }
 
-/// Nº objetivo de ejercicios por día según el tiempo disponible.
-///
-/// Es una guía para dar volumen al día y para decirle al modelo cuántos
-/// ejercicios poner. Los días más frecuentes llevan menos ejercicios (son más
-/// específicos) y un principiante tolera algo menos de volumen.
-int targetExercisesFor({
-  required int minutes,
-  required int daysPerWeek,
-  required RoutineLevel level,
-}) {
-  var per = switch (minutes) {
-    <= 30 => 4,
-    <= 45 => 5,
-    <= 60 => 6,
-    <= 80 => 7,
-    _ => 8,
-  };
-  if (daysPerWeek >= 5) per -= 1;
-  if (level == RoutineLevel.principiante) per -= 1;
-  if (level == RoutineLevel.avanzado) per += 1;
-  return per.clamp(3, 9);
-}
+const _allDays = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
-/// Un espacio a llenar dentro de un día de la rutina.
-class _Slot {
+const _bannedWords = ['arrancada', 'cargada', 'envión', 'envion', 'snatch', 'clean', 'otis', 'aleteo', 'plié', 'plie', 'pallof', 'turco', 'renegado'];
+
+/// Ejercicio canónico permitido. Nunca se inventa un nombre: cada canónico se
+/// resuelve contra el catálogo real y, si no existe, ese hueco no se rellena.
+class _Canon {
+  final String name;
   final String muscle;
-  final int count;
+  final String equip;
+  final bool compound;
+  final List<String> all;
+  final List<String> any;
+  final List<String> none;
+  final List<String> prefer;
 
-  /// Compuesto principal: se leCréditan más series y más descanso.
-  final bool priority;
+  const _Canon({
+    required this.name,
+    required this.muscle,
+    required this.equip,
+    required this.compound,
+    this.all = const [],
+    this.any = const [],
+    this.none = const [],
+    this.prefer = const [],
+  });
 
-  const _Slot(this.muscle, this.count, {this.priority = false});
+  bool matches(String raw) {
+    final n = raw.toLowerCase();
+    for (final a in all) {
+      if (!n.contains(a)) return false;
+    }
+    if (any.isNotEmpty && !any.any(n.contains)) return false;
+    for (final x in none) {
+      if (n.contains(x)) return false;
+    }
+    return true;
+  }
 }
 
-class _DayPlan {
-  final String title;
-  final List<_Slot> slots;
+// ---------------- Upper / Push ----------------
+const _pressBancaM = _Canon(name: 'Press banca con mancuernas', muscle: 'Pecho', equip: 'Mancuernas', compound: true, all: ['press de banca'], none: ['inclinado', 'declinado', 'una mano', 'neutro', 'cerrado', 'invertido']);
+const _pressBancaB = _Canon(name: 'Press banca con barra', muscle: 'Pecho', equip: 'Barra', compound: true, all: ['press de banca'], none: ['inclinado', 'declinado', 'cerrado', 'invertido', 'smith', 'máquina', 'maquina', 'cadenas', 'bandas', 'powerlifting', 'guillotina', 'mancuerna', 'una mano']);
+const _pressInclinadoM = _Canon(name: 'Press inclinado con mancuernas', muscle: 'Pecho', equip: 'Mancuernas', compound: true, all: ['press inclinado'], none: ['bent press', 'smith', 'barra', 'kettlebell', 'pesa rusa']);
+const _fondos = _Canon(name: 'Fondos en paralelas', muscle: 'Pecho', equip: 'Peso corporal', compound: true, all: ['fondos'], none: ['banco', 'máquina', 'maquina'], prefer: ['Fondos en paralelas']);
+const _pressMilitarM = _Canon(name: 'Press militar con mancuernas', muscle: 'Hombro', equip: 'Mancuernas', compound: true, any: ['press militar', 'press de hombros'], none: ['barra', 'pesa rusa', 'máquina', 'maquina', 'una mano', 'smith', 'polea', 'banda', 'alterno'], prefer: ['Press de hombros con mancuernas']);
+const _pressMilitarB = _Canon(name: 'Press militar con barra', muscle: 'Hombro', equip: 'Barra', compound: true, any: ['press militar', 'press de hombros'], none: ['mancuerna', 'pesa rusa', 'máquina', 'maquina', 'una mano', 'smith', 'polea', 'banda', 'alterno'], prefer: ['Press militar de pie', 'Press de hombros con barra']);
+const _laterales = _Canon(name: 'Elevaciones laterales', muscle: 'Hombro', equip: 'Mancuernas', compound: false, all: ['elevaci', 'lateral'], none: ['posterior', 'inclinado', 'tumbado', 'polea', 'banda', 'frontal'], prefer: ['Elevación lateral', 'Elevaciones laterales a una mano']);
+const _tricepsPolea = _Canon(name: 'Extensiones de tríceps en polea', muscle: 'Brazo', equip: 'Polea', compound: false, all: ['extensión de tríceps'], none: ['inclinado'], prefer: ['Extensión de tríceps sobre la cabeza en polea con cuerda', 'Extensión de tríceps tumbado en polea']);
+const _pressFrances = _Canon(name: 'Press francés', muscle: 'Brazo', equip: 'Barra', compound: false, all: ['press francés'], none: ['banda'], prefer: ['Press francés con barra EZ']);
 
-  const _DayPlan(this.title, this.slots);
-}
+// ---------------- Pull ----------------
+const _dominadas = _Canon(name: 'Dominadas', muscle: 'Espalda', equip: 'Peso corporal', compound: true, all: ['dominada'], none: ['crunch', 'asistida', 'banda', 'mixto', 'supina a una mano']);
+const _jalones = _Canon(name: 'Jalones al pecho', muscle: 'Espalda', equip: 'Polea', compound: true, all: ['jal'], any: ['pecho'], none: ['brazos rectos', 'sumo'], prefer: ['Jalón al pecho de rango completo', 'Jalón al pecho con agarre amplio']);
+const _remoBarra = _Canon(name: 'Remo con barra', muscle: 'Espalda', equip: 'Barra', compound: true, all: ['remo'], none: ['mancuerna', 'pesa rusa', 'polea', 'máquina', 'maquina', 'una mano', 'banda', 'kettlebell', 'renegado'], prefer: ['Remo con barra inclinado']);
+const _remoMancuerna = _Canon(name: 'Remo a una mano con mancuerna', muscle: 'Espalda', equip: 'Mancuernas', compound: true, all: ['remo'], none: ['barra', 'polea', 'máquina', 'maquina', 'banda', 'kettlebell', 'renegado'], prefer: ['Remo inclinado a una mano con mancuerna', 'Remo con mancuerna']);
+const _facePulls = _Canon(name: 'Face pulls', muscle: 'Hombro', equip: 'Polea', compound: false, any: ['face pull', 'a la cara']);
+const _curlBarra = _Canon(name: 'Curl con barra', muscle: 'Brazo', equip: 'Barra', compound: false, all: ['curl'], any: ['barra'], none: ['mancuerna', 'polea', 'máquina', 'maquina', 'martillo', 'femoral', 'muñeca', 'predicador', 'inclinado', 'tumbado'], prefer: ['Curl con barra']);
+const _curlMancuernas = _Canon(name: 'Curl con mancuernas', muscle: 'Brazo', equip: 'Mancuernas', compound: false, all: ['curl'], any: ['mancuerna'], none: ['barra', 'polea', 'máquina', 'maquina', 'femoral', 'muñeca', 'predicador', 'inclinado', 'tumbado', 'martillo'], prefer: ['Curl de bíceps con mancuernas']);
 
-const _allDays = [
-  'Lunes',
-  'Martes',
-  'Miércoles',
-  'Jueves',
-  'Viernes',
-  'Sábado',
-  'Domingo',
+// ---------------- Lower ----------------
+const _sentadillaBarra = _Canon(name: 'Sentadilla con barra', muscle: 'Pierna', equip: 'Barra', compound: true, all: ['sentadilla'], none: ['goblet', 'búlgara', 'bulgara', 'hack', 'lateral', 'sissy', 'pistol', 'banco', 'cajón', 'cajon', 'turco', 'smith', 'mancuerna', 'kettlebell', 'una pierna', 'olímpica'], prefer: ['Sentadilla con barra']);
+const _sentadillaCajon = _Canon(name: 'Sentadilla de cajón', muscle: 'Pierna', equip: 'Barra', compound: true, all: ['sentadilla'], any: ['cajón', 'cajon']);
+const _prensa = _Canon(name: 'Prensa de piernas', muscle: 'Pierna', equip: 'Máquina', compound: true, all: ['prensa de piernas'], none: ['gemelo', 'estrecha', 'smith'], prefer: ['Prensa de piernas']);
+const _pesoMuertoRumano = _Canon(name: 'Peso muerto rumano', muscle: 'Pierna', equip: 'Barra', compound: true, all: ['peso muerto rumano'], none: ['déficit'], prefer: ['Peso muerto rumano']);
+const _hipThrust = _Canon(name: 'Hip thrust', muscle: 'Pierna', equip: 'Barra', compound: true, any: ['hip thrust', 'puente de glúteos'], none: ['una pierna', 'pelota'], prefer: ['Hip thrust', 'Puente de glúteos con barra']);
+const _zancadas = _Canon(name: 'Zancadas con mancuernas', muscle: 'Pierna', equip: 'Mancuernas', compound: true, all: ['zancada'], any: ['mancuerna'], none: ['barra', 'turco'], prefer: ['Zancadas con mancuernas']);
+const _bulgara = _Canon(name: 'Sentadilla búlgara', muscle: 'Pierna', equip: 'Mancuernas', compound: true, all: ['búlgara'], none: ['smith', 'suspensión'], prefer: ['Sentadilla búlgara con mancuernas']);
+const _femoral = _Canon(name: 'Curl femoral', muscle: 'Pierna', equip: 'Máquina', compound: false, all: ['curl femoral'], none: ['pelota', 'banda', 'manual'], prefer: ['Curl femoral tumbado', 'Curl femoral sentado']);
+const _gemelos = _Canon(name: 'Elevaciones de gemelos', muscle: 'Pierna', equip: 'Máquina', compound: false, all: ['gemelos'], none: ['encogimientos', 'prensa'], prefer: ['Elevación de gemelos de pie', 'Elevación de gemelos sentado con barra']);
+
+// ---------------- Core ----------------
+const _plancha = _Canon(name: 'Plancha', muscle: 'Core', equip: 'Peso corporal', compound: false, all: ['plancha'], none: ['lateral', 'flexión', 'caminando'], prefer: ['Plancha']);
+const _crunch = _Canon(name: 'Crunch', muscle: 'Core', equip: 'Peso corporal', compound: false, all: ['crunch'], none: ['polea', 'bosu', 'máquina', 'maquina', 'inverso', 'cruzando'], prefer: ['Crunch']);
+const _elevacionPiernas = _Canon(name: 'Elevación de piernas', muscle: 'Core', equip: 'Peso corporal', compound: false, all: ['elevación de piernas'], none: ['colgado', 'banco', 'bottoms'], prefer: ['Elevación de piernas']);
+
+const _upperPlan = [
+  [_pressBancaM, _pressBancaB, _pressInclinadoM],
+  [_dominadas, _jalones],
+  [_pressInclinadoM, _pressBancaM],
+  [_remoBarra, _remoMancuerna],
+  [_pressMilitarM, _pressMilitarB],
+  [_facePulls, _laterales],
+  [_curlBarra, _curlMancuernas],
+  [_tricepsPolea, _pressFrances],
 ];
 
-/// Genera una rutina de fuerza con reglas deterministas.
-///
-/// No usa red ni IA: el mismo pedido produce siempre la misma rutina. Es la
-/// base sobre la que opcionalmente se apoya el modelo de lenguaje, y sirve
-/// como respuesta cuando el modelo falla o no hay clave configurada.
-List<RoutineDay> generateRoutine(RoutineRequest req) {
-  final plan = _splitsFor(req.daysPerWeek);
-  final days = <RoutineDay>[];
-  // Se evita repetir ejercicio entre días mientras el catálogo lo permita;
-  // si no queda ninguno libre, se repite antes que dejar el día vacío.
-  final usedGlobally = <String>{};
-  for (var i = 0; i < plan.length; i++) {
-    final p = plan[i];
-    final counts = _dayCounts(req, p.slots);
-    final exercises = <RoutineExercise>[];
-    final usedInDay = <String>{};
+const _pushPlan = [
+  [_pressBancaM, _pressBancaB, _fondos],
+  [_pressInclinadoM, _pressBancaM],
+  [_pressMilitarM, _pressMilitarB],
+  [_laterales],
+  [_tricepsPolea, _pressFrances],
+  [_fondos, _pressBancaM],
+  [_pressFrances, _tricepsPolea],
+  [_laterales, _pressMilitarM],
+];
 
-    for (var j = 0; j < p.slots.length; j++) {
-      final slot = p.slots[j];
-      final picked = _pickFor(
-        req,
-        slot,
-        usedInDay,
-        usedGlobally,
-        count: counts[j],
-      );
-      for (final e in picked) {
-        usedInDay.add(e.id);
-        usedGlobally.add(e.id);
-        exercises.add(_toRoutineExercise(e, req, slot));
-      }
-    }
+const _pullPlan = [
+  [_dominadas, _jalones],
+  [_remoBarra, _remoMancuerna],
+  [_remoMancuerna, _remoBarra],
+  [_facePulls],
+  [_curlBarra, _curlMancuernas],
+  [_curlMancuernas, _curlBarra],
+  [_jalones, _dominadas],
+  [_facePulls],
+];
 
-    // Objetivo "Perder grasa": cada día termina con cardio.
-    if (req.goal == RoutineGoal.perderGrasa) {
-      final cardio = _pickCardio(req, usedInDay, usedGlobally);
-      if (cardio != null) {
-        exercises.add(_toRoutineExercise(cardio, req, const _Slot('Cardio', 1)));
-      }
-    }
+const _lowerPlan = [
+  [_sentadillaBarra, _sentadillaCajon, _prensa],
+  [_pesoMuertoRumano, _hipThrust],
+  [_zancadas, _bulgara],
+  [_femoral],
+  [_gemelos],
+  [_prensa, _sentadillaBarra],
+  [_hipThrust, _pesoMuertoRumano],
+  [_bulgara, _zancadas],
+];
 
-    days.add(
-      RoutineDay(
-        day: _allDays[i % _allDays.length],
-        title: p.title,
-        description: _describe(exercises),
-        duration: _estimateDuration(exercises),
-        exercises: exercises,
-      ),
-    );
+const _fullBodyPlan = [
+  [_sentadillaBarra, _sentadillaCajon, _prensa],
+  [_pressBancaM, _pressInclinadoM, _fondos],
+  [_remoBarra, _dominadas, _jalones],
+  [_pesoMuertoRumano, _hipThrust],
+  [_pressMilitarM, _pressMilitarB, _laterales],
+  [_plancha, _crunch, _elevacionPiernas],
+  [_curlBarra, _tricepsPolea],
+  [_gemelos],
+];
+
+List<String> splitFor(int days) {
+  switch (days) {
+    case 2:
+      return ['Full Body A', 'Full Body B'];
+    case 3:
+      return ['Full Body A', 'Full Body B', 'Full Body C'];
+    case 4:
+      return ['Upper', 'Lower', 'Upper', 'Lower'];
+    case 5:
+      return ['Push', 'Pull', 'Legs', 'Upper', 'Lower'];
+    case 6:
+      return ['Push', 'Pull', 'Legs', 'Push', 'Pull', 'Legs'];
+    default:
+      return ['Push', 'Pull', 'Legs', 'Push', 'Pull', 'Legs', 'Full Body'];
   }
-  return days;
 }
 
-/// Convierte un ejercicio del catálogo en ejercicio de rutina.
-RoutineExercise _toRoutineExercise(
-  Exercise e,
-  RoutineRequest req,
-  _Slot slot,
-) {
-  final reps = _repsFor(req, slot);
-  final sets = _setsFor(req, slot);
+String normalizeFocus(String focus) {
+  if (focus.contains('Full Body')) return 'Full Body';
+  if (focus == 'Upper') return 'Upper';
+  if (focus == 'Lower') return 'Lower';
+  if (focus == 'Push') return 'Push';
+  if (focus == 'Pull') return 'Pull';
+  if (focus == 'Legs') return 'Legs';
+  return 'Full Body';
+}
+
+List<List<_Canon>> _planFor(String focus) {
+  switch (normalizeFocus(focus)) {
+    case 'Upper':
+      return _upperPlan;
+    case 'Push':
+      return _pushPlan;
+    case 'Pull':
+      return _pullPlan;
+    case 'Lower':
+    case 'Legs':
+      return _lowerPlan;
+    default:
+      return _fullBodyPlan;
+  }
+}
+
+bool _banned(String raw) => _bannedWords.any(raw.toLowerCase().contains);
+
+bool _isDeadliftLikeName(String raw) {
+  final n = raw.toLowerCase();
+  if (n.contains('peso muerto') || n.contains('deadlift')) return true;
+  if (n.contains('sumo') || n.contains('stiff')) return true;
+  return false;
+}
+
+bool _isSquatLikeName(String raw) {
+  final n = raw.toLowerCase();
+  if (n.contains('sentadilla') || n.contains('squat')) return true;
+  if (n.contains('prensa')) return true;
+  if (n.contains('zancada') || n.contains('lunge') || n.contains('búlgar') || n.contains('bulgar')) return true;
+  return false;
+}
+
+bool _isHipThrustLikeName(String raw) {
+  final n = raw.toLowerCase();
+  return n.contains('hip thrust') || (n.contains('puente') && n.contains('glúte')) || n.contains('glute bridge');
+}
+
+bool _isAllowedName(String raw, String focus) {
+  final n = raw.toLowerCase();
+  if (_banned(n)) return false;
+  final f = normalizeFocus(focus);
+  if (f == 'Upper' || f == 'Push' || f == 'Pull') {
+    if (_isDeadliftLikeName(n) || _isSquatLikeName(n) || _isHipThrustLikeName(n)) return false;
+  }
+  return true;
+}
+
+Exercise? _resolve(_Canon canon, List<Exercise> catalog, Set<String> equipment) {
+  final matches = catalog.where((e) => canon.matches(e.name) && !_banned(e.name)).toList();
+  if (matches.isEmpty) return null;
+
+  bool equipmentOk(Exercise e) {
+    if (equipment.isEmpty) return true;
+    if (e.equipment == 'Peso corporal') return true;
+    if (e.equipment == 'Gimnasio') return true;
+    return equipment.contains(e.equipment);
+  }
+
+  final withEquipment = matches.where(equipmentOk).toList();
+  final pool = withEquipment.isNotEmpty ? withEquipment : matches;
+  pool.sort((a, b) {
+    final ap = canon.prefer.contains(a.name) ? 0 : 1;
+    final bp = canon.prefer.contains(b.name) ? 0 : 1;
+    if (ap != bp) return ap.compareTo(bp);
+    final ae = a.equipment == canon.equip ? 0 : 1;
+    final be = b.equipment == canon.equip ? 0 : 1;
+    if (ae != be) return ae.compareTo(be);
+    return a.name.length.compareTo(b.name.length);
+  });
+  return pool.first;
+}
+
+bool _hasCanonicalCatalog(List<Exercise> catalog) {
+  for (final plan in [_upperPlan, _pushPlan, _pullPlan, _lowerPlan, _fullBodyPlan]) {
+    for (final tier in plan) {
+      for (final canon in tier) {
+        if (catalog.any((e) => canon.matches(e.name) && !_banned(e.name))) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+bool _isCompoundExercise(Exercise e) {
+  if (e.mechanic == 'compound') return true;
+  for (final plan in [_upperPlan, _pushPlan, _pullPlan, _lowerPlan, _fullBodyPlan]) {
+    for (final tier in plan) {
+      for (final canon in tier) {
+        if (canon.compound && canon.matches(e.name)) return true;
+      }
+    }
+  }
+  return false;
+}
+
+int _targetCount(int? minutes) {
+  final m = minutes ?? 60;
+  if (m <= 30) return 4;
+  if (m <= 45) return 5;
+  if (m <= 60) return 6;
+  if (m <= 75) return 7;
+  return 8;
+}
+
+int _restSeconds(String s) {
+  final matches = RegExp(r'(\d+)').allMatches(s);
+  if (matches.isEmpty) return 90;
+  var sum = 0;
+  for (final m in matches) {
+    sum += int.parse(m.group(1)!);
+  }
+  return (sum / matches.length).round();
+}
+
+int _setsFor(RoutineGoal goal, RoutineLevel level, bool compound) {
+  var sets = level == RoutineLevel.principiante ? 3 : (compound ? 4 : 3);
+  if (goal == RoutineGoal.ganarMusculo) sets += 1;
+  if (goal == RoutineGoal.perderGrasa) sets -= 1;
+  return sets.clamp(2, 5);
+}
+
+RoutineExercise _toRoutineExercise(Exercise e, RoutineRequest req) {
+  final compound = _isCompoundExercise(e);
+  final sets = _setsFor(req.goal, req.level, compound);
+  final range = compound ? '8-10' : '10-12';
+  final reps = compound ? 8 : 10;
+  final rest = compound
+      ? (e.muscleGroup == 'Pierna' ? '120-150s' : '90-120s')
+      : (e.muscleGroup == 'Pierna' ? '75-90s' : '45-60s');
   return RoutineExercise(
     exerciseId: e.id,
     exerciseName: e.name,
     muscleGroup: e.muscleGroup,
     sets: sets,
     reps: reps,
-    restSeconds: _restFor(e.muscleGroup, slot.priority),
-    plannedSets: List.generate(
-      sets,
-      (_) => PlannedSet(weight: 0, reps: reps),
-    ),
+    restSeconds: _restSeconds(rest),
+    notes: '${sets}x$range ($rest)',
+    plannedSets: List.generate(sets, (_) => PlannedSet(weight: 0, reps: reps)),
   );
 }
 
-/// Reparte el total de ejercicios del día entre los huecos, respetando el
-/// peso relativo de cada uno. Sin tiempo definido se usan los valores del
-/// reparto tal cual.
-List<int> _dayCounts(RoutineRequest req, List<_Slot> slots) {
-  final minutes = req.minutesAvailable;
-  if (minutes == null) return [for (final s in slots) s.count];
-  final target = targetExercisesFor(
-    minutes: minutes,
-    daysPerWeek: req.daysPerWeek,
-    level: req.level,
-  );
-  final base = slots.fold<int>(0, (a, s) => a + s.count);
-  if (base <= 0) return [for (final _ in slots) 0];
-  return [
-    for (final s in slots)
-      (s.count * target / base).round().clamp(1, 12),
-  ];
-}
-
-int _setsFor(RoutineRequest req, _Slot slot) {
-  final base = switch (req.level) {
-    RoutineLevel.principiante => 3,
-    RoutineLevel.intermedio => 4,
-    RoutineLevel.avanzado => 5,
-  };
-  var sets = slot.priority ? base : base - 1;
-  if (req.goal == RoutineGoal.ganarMusculo && slot.priority) {
-    sets += 1;
-  }
-  return sets.clamp(2, 8);
-}
-
-int _repsFor(RoutineRequest req, _Slot slot) {
-  final range = switch (req.goal) {
-    RoutineGoal.ganarMusculo => (8, 6),
-    RoutineGoal.perderGrasa => (15, 12),
-    RoutineGoal.mantenimiento => (12, 8),
-  };
-  // El compuesto principal va siempre por debajo del aislamiento.
-  final hi = slot.priority ? range.$1 - 2 : range.$1;
-  final lo = slot.priority ? range.$2 : range.$2;
-  return hi.clamp(lo, 20);
-}
-
-int _restFor(String muscle, bool priority) {
-  if (muscle == 'Core') return 45;
-  if (muscle == 'Brazo' || muscle == 'Hombro') return priority ? 75 : 60;
-  if (muscle == 'Pierna') return priority ? 150 : 105;
-  if (muscle == 'Cardio') return 60;
-  return priority ? 120 : 90;
-}
-
-String _describe(List<RoutineExercise> exercises) {
-  if (exercises.isEmpty) return '';
-  final groups = <String>{for (final e in exercises) e.muscleGroup};
-  return groups.join(' · ');
-}
-
-/// Estimación de duración, compartida con las rutinas personalizadas.
-String _estimateDuration(List<RoutineExercise> exercises) =>
-    RoutineExercise.estimateDayDuration(exercises);
-
-/// Elige los ejercicios de un slot, ordenados de mejor a peor opción.
-///
-/// [usedInDay] es excluyente (no se repite dentro del mismo día);
-/// [usedGlobally] solo se respeta mientras queden alternativas.
-List<Exercise> _pickFor(
+/// Elige de un plan de tiers: un ejercicio por tier, en orden estable, saltando
+/// los que ya están en el día. Añade variedad con [rng] pero sin perder la
+/// estructura (compuestos grandes primero).
+List<Exercise> _pickFromPlan(
+  List<List<_Canon>> plan,
   RoutineRequest req,
-  _Slot slot,
+  String focus,
+  int want,
   Set<String> usedInDay,
-  Set<String> usedGlobally, {
-  int? count,
-}) {
-  List<Exercise> candidates(Set<String> exclude) => req.catalog
-      .where((e) => e.muscleGroup == slot.muscle)
-      .where((e) => !usedInDay.contains(e.id))
-      .where((e) => !exclude.contains(e.id))
-      .where((e) => _equipmentOk(req, e))
-      .where((e) => _levelOk(req, e))
-      .toList();
-
-  var pool = candidates(usedGlobally);
-  // Se relaja el nivel antes que dejar el día sin nada: es preferible
-  // proponer un ejercicio de nivel superior a proponer una rutina vacía.
-  if (pool.isEmpty) {
-    pool = candidates(const {});
-    pool.addAll(req.catalog
-        .where((e) => e.muscleGroup == slot.muscle)
-        .where((e) => !usedInDay.contains(e.id))
-        .where((e) => !usedGlobally.contains(e.id))
-        .where((e) => _equipmentOk(req, e)));
+  Random rng,
+) {
+  final out = <Exercise>[];
+  for (var tierIndex = 0; tierIndex < plan.length; tierIndex++) {
+    if (out.length >= want) break;
+    final tier = plan[tierIndex];
+    final options = <Exercise>[];
+    for (final canon in tier) {
+      final ex = _resolve(canon, req.catalog, req.equipment);
+      if (ex == null) continue;
+      if (usedInDay.contains(ex.id)) continue;
+      if (options.any((o) => o.id == ex.id)) continue;
+      if (!_isAllowedName(ex.name, focus)) continue;
+      options.add(ex);
+    }
+    if (options.isEmpty) continue;
+    // El primer tier es el ejercicio principal: se respeta el orden de
+    // preferencia (sentadilla/press antes que la variante). El resto varía.
+    final chosen =
+        tierIndex == 0 ? options.first : options[rng.nextInt(options.length)];
+    out.add(chosen);
+    usedInDay.add(chosen.id);
   }
-  if (pool.isEmpty) {
-    pool = req.catalog
-        .where((e) => e.muscleGroup == slot.muscle)
+  return out;
+}
+
+bool _genericAllowed(Exercise e, String focus) {
+  if (_banned(e.name)) return false;
+  if (!_isAllowedName(e.name, focus)) return false;
+  switch (normalizeFocus(focus)) {
+    case 'Push':
+      return e.muscleGroup == 'Pecho' || e.muscleGroup == 'Hombro' || e.muscleGroup == 'Brazo';
+    case 'Pull':
+      return e.muscleGroup == 'Espalda' || e.muscleGroup == 'Brazo';
+    case 'Upper':
+      return e.muscleGroup == 'Pecho' || e.muscleGroup == 'Espalda' || e.muscleGroup == 'Hombro' || e.muscleGroup == 'Brazo';
+    case 'Lower':
+    case 'Legs':
+      return e.muscleGroup == 'Pierna' || e.muscleGroup == 'Core';
+    default:
+      return e.muscleGroup != 'Cardio';
+  }
+}
+
+List<Exercise> _pickGeneric(
+  RoutineRequest req,
+  String focus,
+  int want,
+  Set<String> usedInDay,
+  Set<String> usedGlobally,
+  Random rng,
+) {
+  List<Exercise> build({required bool enforceEquipment, required bool allowRepeats}) {
+    return req.catalog
+        .where((e) => _genericAllowed(e, focus))
         .where((e) => !usedInDay.contains(e.id))
-        .where((e) => _equipmentOk(req, e))
+        .where((e) => allowRepeats || !usedGlobally.contains(e.id))
+        .where((e) => !enforceEquipment ||
+            req.equipment.isEmpty ||
+            req.equipment.contains(e.equipment) ||
+            e.equipment == 'Peso corporal' ||
+            e.equipment == 'Gimnasio')
         .toList();
   }
 
-  pool.sort((a, b) {
-    final score = _score(b, slot).compareTo(_score(a, slot));
-    if (score != 0) return score;
-    return a.id.compareTo(b.id); // desempate estable
-  });
+  var pool = build(enforceEquipment: true, allowRepeats: false);
+  if (pool.isEmpty) pool = build(enforceEquipment: false, allowRepeats: false);
+  if (pool.isEmpty) pool = build(enforceEquipment: false, allowRepeats: true);
+  if (pool.isEmpty) return const [];
+  pool.shuffle(rng);
 
-  return pool.take(count ?? slot.count).toList();
-}
-
-/// Cardio: hay pocas opciones (trotadora y bici), así que se repiten entre
-/// días antes que dejar la sesión sin cierre cardiovascular.
-Exercise? _pickCardio(
-  RoutineRequest req,
-  Set<String> usedInDay,
-  Set<String> usedGlobally,
-) {
-  final options = [
-    ...ExerciseCatalog.extras.where((e) => e.muscleGroup == 'Cardio'),
-    ...req.catalog.where((e) => e.muscleGroup == 'Cardio'),
-  ];
-  final free = options
-      .where((e) => !usedInDay.contains(e.id) && !usedGlobally.contains(e.id));
-  for (final e in free) {
-    return e;
+  final groups = <String, List<Exercise>>{};
+  for (final e in pool) {
+    groups.putIfAbsent(e.muscleGroup, () => []).add(e);
   }
-  for (final e in options) {
-    if (!usedInDay.contains(e.id)) return e;
-  }
-  return null;
-}
-
-bool _equipmentOk(RoutineRequest req, Exercise e) {
-  if (req.equipment.isEmpty) return true;
-  return req.equipment.contains(e.equipment);
-}
-
-bool _levelOk(RoutineRequest req, Exercise e) {
-  final level = e.levelEs ?? e.level;
-  switch (req.level) {
-    case RoutineLevel.principiante:
-      return level == null || level.toLowerCase() == 'principiante';
-    case RoutineLevel.intermedio:
-      return level == null ||
-          level.toLowerCase() == 'principiante' ||
-          level.toLowerCase() == 'intermedio';
-    case RoutineLevel.avanzado:
-      return true;
-  }
-}
-
-/// Puntúa un ejercicio como candidato.heurística explicable:
-/// Se prioriza el movimiento compuesto y el trabajo del músculo principal
-/// sobre el secundario.
-int _score(Exercise e, _Slot slot) {
-  var score = 0;
-  final primary = e.primaryMuscles
-      .map((m) => m.toLowerCase())
-      .join(' ')
-      .toLowerCase();
-  final group = slot.muscle.toLowerCase();
-
-  if (primary.contains(group.split(' ').first)) score += 40;
-  if (primary.contains('pector') && group.contains('pecho')) score += 10;
-  if (primary.contains('back') && group.contains('espalda')) score += 10;
-  if (primary.contains('quad') && group.contains('pierna')) score += 10;
-  if (primary.contains('hamstring') && group.contains('pierna')) score += 5;
-
-  // Barra, máquina y polea son la mejor base para los compuestos.
-  switch (e.equipment) {
-    case 'Barra':
-    case 'Máquina':
-    case 'Polea':
-      score += 25;
-      break;
-    case 'Mancuernas':
-      score += 15;
-      break;
-    case 'Peso corporal':
-    case 'Bandas':
-      score += 8;
-      break;
+  for (final group in groups.values) {
+    group.sort((a, b) {
+      final ac = a.mechanic == 'compound' ? 0 : 1;
+      final bc = b.mechanic == 'compound' ? 0 : 1;
+      return ac.compareTo(bc);
+    });
   }
 
-  if (e.mechanic?.toLowerCase() == 'compound') score += slot.priority ? 22 : 0;
-
-  // En los huecos de aislamiento se busca justamente lo contrario: si no, los
-  // brazos se llenan de prensas y las piernas de sentadillas.
-  if (!slot.priority && e.mechanic?.toLowerCase() == 'isolation') score += 14;
-  if (!slot.priority && e.mechanic == null) score += 4;
-
-  if (e.instructionsEs.trim().isEmpty && e.instructions.trim().isEmpty) {
-    score -= 5;
+  final keys = groups.keys.toList()..shuffle(rng);
+  final out = <Exercise>[];
+  var exhausted = false;
+  while (out.length < want && !exhausted) {
+    exhausted = true;
+    for (final key in keys) {
+      if (out.length >= want) break;
+      final group = groups[key]!;
+      if (group.isEmpty) continue;
+      out.add(group.removeAt(0));
+      exhausted = false;
+    }
   }
-  return score;
+  return out;
 }
 
-/// Reparto de grupos musculares según los días por semana.
-List<_DayPlan> _splitsFor(int days) {
-  switch (days.clamp(2, 6)) {
-    case 2:
-      return const [
-        _DayPlan('Tren superior', [
-          _Slot('Pecho', 2, priority: true),
-          _Slot('Espalda', 2, priority: true),
-          _Slot('Hombro', 1),
-          _Slot('Brazo', 2),
-        ]),
-        _DayPlan('Tren inferior', [
-          _Slot('Pierna', 3, priority: true),
-          _Slot('Core', 2),
-          _Slot('Espalda', 1),
-        ]),
-      ];
-    case 3:
-      return const [
-        _DayPlan('Full body · fuerza', [
-          _Slot('Pierna', 1, priority: true),
-          _Slot('Espalda', 1, priority: true),
-          _Slot('Pecho', 1, priority: true),
-          _Slot('Hombro', 1),
-          _Slot('Brazo', 1),
-        ]),
-        _DayPlan('Full body · hipertrofia', [
-          _Slot('Pecho', 1, priority: true),
-          _Slot('Pierna', 1, priority: true),
-          _Slot('Espalda', 1, priority: true),
-          _Slot('Brazo', 2),
-        ]),
-        _DayPlan('Full body · conditioner', [
-          _Slot('Pierna', 1, priority: true),
-          _Slot('Espalda', 1),
-          _Slot('Hombro', 1, priority: true),
-          _Slot('Core', 2),
-        ]),
-      ];
-    case 4:
-      return const [
-        _DayPlan('Tren superior A', [
-          _Slot('Pecho', 2, priority: true),
-          _Slot('Espalda', 2, priority: true),
-          _Slot('Hombro', 1),
-          _Slot('Brazo', 2),
-        ]),
-        _DayPlan('Tren inferior A', [
-          _Slot('Pierna', 3, priority: true),
-          _Slot('Core', 2),
-        ]),
-        _DayPlan('Tren superior B', [
-          _Slot('Espalda', 2, priority: true),
-          _Slot('Pecho', 2, priority: true),
-          _Slot('Brazo', 2),
-        ]),
-        _DayPlan('Tren inferior B', [
-          _Slot('Pierna', 3, priority: true),
-          _Slot('Core', 2),
-          _Slot('Hombro', 1),
-        ]),
-      ];
-    case 5:
-      return const [
-        _DayPlan('Pecho y tríceps', [
-          _Slot('Pecho', 3, priority: true),
-          _Slot('Brazo', 1),
-        ]),
-        _DayPlan('Espalda y bíceps', [
-          _Slot('Espalda', 3, priority: true),
-          _Slot('Brazo', 1),
-        ]),
-        _DayPlan('Piernas', [
-          _Slot('Pierna', 3, priority: true),
-          _Slot('Core', 1),
-        ]),
-        _DayPlan('Hombros y core', [
-          _Slot('Hombro', 3, priority: true),
-          _Slot('Core', 2),
-        ]),
-        _DayPlan('Full body', [
-          _Slot('Pierna', 1, priority: true),
-          _Slot('Espalda', 1),
-          _Slot('Pecho', 1),
-          _Slot('Brazo', 1),
-        ]),
-      ];
-    default:
-      return const [
-        _DayPlan('Pecho', [
-          _Slot('Pecho', 3, priority: true),
-          _Slot('Brazo', 1),
-        ]),
-        _DayPlan('Espalda', [
-          _Slot('Espalda', 3, priority: true),
-          _Slot('Brazo', 1),
-        ]),
-        _DayPlan('Piernas', [
-          _Slot('Pierna', 3, priority: true),
-          _Slot('Core', 1),
-        ]),
-        _DayPlan('Hombros', [
-          _Slot('Hombro', 3, priority: true),
-        ]),
-        _DayPlan('Bíceps y tríceps', [
-          _Slot('Brazo', 3, priority: true),
-        ]),
-        _DayPlan('Core y movilidad', [
-          _Slot('Core', 3, priority: true),
-          _Slot('Espalda', 1),
-        ]),
-      ];
+List<RoutineDay> generateRoutine(RoutineRequest req, {int? seed}) {
+  final baseSeed = seed ?? req.seed ?? 20260101;
+  final splits = splitFor(req.daysPerWeek);
+  final canonical = _hasCanonicalCatalog(req.catalog);
+  final want = _targetCount(req.minutesAvailable);
+  final usedGlobally = <String>{};
+  final days = <RoutineDay>[];
+
+  for (var i = 0; i < splits.length; i++) {
+    final splitDay = splits[i];
+    final focus = normalizeFocus(splitDay);
+    final usedInDay = <String>{};
+    final rng = Random(baseSeed + i * 7919);
+
+    final picked = canonical
+        ? _pickFromPlan(_planFor(focus), req, focus, want, usedInDay, rng)
+        : _pickGeneric(req, focus, want, usedInDay, usedGlobally, rng);
+
+    if (canonical) {
+      final position = {for (var j = 0; j < picked.length; j++) picked[j].id: j};
+      picked.sort((a, b) {
+        final ac = _isCompoundExercise(a) ? 0 : 1;
+        final bc = _isCompoundExercise(b) ? 0 : 1;
+        if (ac != bc) return ac.compareTo(bc);
+        return position[a.id]!.compareTo(position[b.id]!);
+      });
+    }
+
+    for (final e in picked) {
+      usedGlobally.add(e.id);
+    }
+
+    final exercises = picked.map((e) => _toRoutineExercise(e, req)).toList();
+    final muscles = <String>{for (final e in picked) e.muscleGroup};
+
+    days.add(RoutineDay(
+      day: _allDays[i % _allDays.length],
+      title: 'Día ${i + 1} – $splitDay',
+      description: muscles.isEmpty ? focus : muscles.join(' · '),
+      duration: RoutineExercise.estimateDayDuration(exercises),
+      exercises: exercises,
+    ));
   }
+
+  return days;
 }
 
-/// Completa una rutina generada (p. ej. por el modelo) con otra de respaldo
-/// (las reglas) para que nunca tenga menos volumen del previsto.
-///
-/// El modelo tiende a proponer el mínimo de ejercicios; esta red de seguridad
-/// garantiza que cada día conserve la estructura y el volumen que las reglas
-/// ya calculan para el tiempo disponible. No duplica ejercicios y respeta el
-/// orden que propuso el modelo.
-List<RoutineDay> topUpRoutineDays(
-  List<RoutineDay> generated,
-  List<RoutineDay> fallback,
-) {
+List<RoutineDay> topUpRoutineDays(List<RoutineDay> generated, List<RoutineDay> fallback) {
   if (generated.isEmpty) return fallback;
   final out = <RoutineDay>[];
   for (var i = 0; i < fallback.length; i++) {
@@ -514,21 +522,31 @@ List<RoutineDay> topUpRoutineDays(
     }
     final g = generated[i];
     final f = fallback[i];
-    final items = [...g.exercises];
+    final items = <RoutineExercise>[...g.exercises];
     final ids = {for (final e in items) e.exerciseId};
     for (final e in f.exercises) {
       if (items.length >= f.exercises.length) break;
       if (ids.add(e.exerciseId)) items.add(e);
     }
-    out.add(
-      RoutineDay(
-        day: g.day,
-        title: g.title,
-        description: items.map((e) => e.muscleGroup).toSet().join(' · '),
-        duration: g.duration.isNotEmpty ? g.duration : f.duration,
-        exercises: items,
-      ),
-    );
+    out.add(RoutineDay(
+      day: g.day,
+      title: g.title,
+      description: (g.description?.isNotEmpty ?? false) ? g.description : f.description,
+      duration: g.duration.isNotEmpty ? g.duration : f.duration,
+      exercises: items,
+    ));
   }
   return out;
+}
+
+int targetExercisesFor({
+  required int minutes,
+  required int daysPerWeek,
+  required RoutineLevel level,
+}) {
+  var per = _targetCount(minutes);
+  if (daysPerWeek >= 5) per -= 1;
+  if (level == RoutineLevel.principiante) per -= 1;
+  if (level == RoutineLevel.avanzado && minutes >= 75) per += 1;
+  return per.clamp(3, 8);
 }

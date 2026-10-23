@@ -98,7 +98,7 @@ void main() {
   /// Desplaza hasta que el botón quede visible: el resumen queda bajo el
   /// pliegue en el viewport del test.
   Future<void> scrollToApply(WidgetTester tester) async {
-    final f = find.text('Aplicar a mi semana');
+    final f = find.text('Aplicar');
     // El botón queda tras las tarjetas de los días: el ListView aún no lo
     // construyó, así que hay que desplazarlo antes de poder tocarlo.
     if (f.evaluate().isEmpty) {
@@ -117,7 +117,16 @@ void main() {
 
     await open(tester);
 
-    await tester.tap(find.text('Generar rutina'));
+    final genBtn = find.text('Generar rutina');
+    if (genBtn.evaluate().isEmpty) {
+      await tester.scrollUntilVisible(
+        genBtn,
+        400,
+        scrollable: find.byType(Scrollable).first,
+      );
+    }
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(genBtn);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
@@ -126,28 +135,45 @@ void main() {
     // lo empuja fuera de la pantalla.
     expect(find.textContaining('Sin clave de IA'), findsOneWidget);
     await scrollToApply(tester);
-    expect(find.text('Aplicar a mi semana'), findsOneWidget);
+    expect(find.text('Aplicar'), findsOneWidget);
   });
 
   testWidgets('con clave de IA configurada lo anuncia',
       (WidgetTester tester) async {
     await AiKeyStore.save('AIzaTEST');
     await open(tester);
-    expect(find.textContaining('Se enviará tu objetivo'), findsOneWidget);
+    final notice = find.textContaining('Se enviará tu objetivo');
+    if (notice.evaluate().isEmpty) {
+      await tester.scrollUntilVisible(
+        notice,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+    }
+    expect(notice, findsOneWidget);
   });
 
   testWidgets('aplicar guarda la rutina generada en Firestore',
       (WidgetTester tester) async {
     await open(tester);
-    await tester.tap(find.text('Generar rutina'));
+
+    final genBtn = find.text('Generar rutina');
+    if (genBtn.evaluate().isEmpty) {
+      await tester.scrollUntilVisible(
+        genBtn,
+        400,
+        scrollable: find.byType(Scrollable).first,
+      );
+    }
+    await tester.tap(genBtn);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
     await scrollToApply(tester);
-    await tester.tap(find.text('Aplicar a mi semana'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Aplicar'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
-    await tester.tap(find.text('Aplicar'));
+    await tester.tap(find.widgetWithText(TextButton, 'Aplicar'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
@@ -161,17 +187,33 @@ void main() {
       (WidgetTester tester) async {
     await open(tester);
 
-    await tester.tap(find.widgetWithText(ChoiceChip, '5'));
+    final days5 = find.widgetWithText(ChoiceChip, '5');
+    if (days5.evaluate().isEmpty) {
+      await tester.scrollUntilVisible(
+        days5,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+    }
+    await tester.tap(days5);
     await tester.pump();
-    await tester.tap(find.text('Generar rutina'));
+    final genBtn = find.text('Generar rutina');
+    if (genBtn.evaluate().isEmpty) {
+      await tester.scrollUntilVisible(
+        genBtn,
+        400,
+        scrollable: find.byType(Scrollable).first,
+      );
+    }
+    await tester.tap(genBtn);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
     await scrollToApply(tester);
-    await tester.tap(find.text('Aplicar a mi semana'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Aplicar'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
-    await tester.tap(find.text('Aplicar'));
+    await tester.tap(find.widgetWithText(TextButton, 'Aplicar'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
@@ -181,16 +223,32 @@ void main() {
   testWidgets('el tiempo por sesión ajusta el volumen de la rutina',
       (WidgetTester tester) async {
     await open(tester);
-    await tester.tap(find.widgetWithText(ChoiceChip, '90+ min'));
+    final min90 = find.widgetWithText(ChoiceChip, '90+ min');
+    if (min90.evaluate().isEmpty) {
+      await tester.scrollUntilVisible(
+        min90,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+    }
+    await tester.tap(min90);
     await tester.pump();
-    await tester.tap(find.text('Generar rutina'));
+    final genBtn = find.text('Generar rutina');
+    if (genBtn.evaluate().isEmpty) {
+      await tester.scrollUntilVisible(
+        genBtn,
+        400,
+        scrollable: find.byType(Scrollable).first,
+      );
+    }
+    await tester.tap(genBtn);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     await scrollToApply(tester);
-    await tester.tap(find.text('Aplicar a mi semana'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Aplicar'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
-    await tester.tap(find.text('Aplicar'));
+    await tester.tap(find.widgetWithText(TextButton, 'Aplicar'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 

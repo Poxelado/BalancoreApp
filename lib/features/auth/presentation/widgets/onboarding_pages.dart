@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../profile/domain/user_profile.dart';
 import '../../../training/domain/routine_generator.dart';
+import '../../../training/presentation/widgets/routine_preview_widgets.dart';
 import '../../../../core/notifications/notification_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/param_chips.dart';
 import '../../../../core/utils/input_limits.dart';
 part 'onboarding_identity_body.dart';
 part 'onboarding_goal_reminders.dart';

@@ -1,11 +1,16 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../profile/domain/user_profile.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import '../../../training/domain/routine_generator.dart';
 import '../../../training/presentation/providers/exercise_provider.dart';
+import '../../../../core/ai/ai_key_store.dart';
+import '../../../../core/ai/ai_service.dart';
+import '../../../training/presentation/screens/exercise_detail_screen.dart';
+import '../../../../core/prefs/routine_regen_prefs.dart';
 import '../providers/auth_provider.dart';
-import '../../../../core/errors/app_exception.dart';
 import '../../../../core/notifications/notification_preferences.dart';
 import '../../../../core/notifications/notification_service.dart';
 import '../../../../core/utils/input_limits.dart';
@@ -46,6 +51,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final Set<String> _rEquipment = {};
   List<RoutineDay>? _generatedDays;
   bool _generatingRoutine = false;
+  bool _hasAiKey = false;
+  int _routineSeed = Random().nextInt(1 << 31);
 
   // Términos (para usuarios que no pasan por el registro por correo)
   bool _acceptedTerms = false;
@@ -57,6 +64,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _prefillFromAuth());
     // Prefetch del catálogo para poder generar la rutina en el paso 4.
     ref.read(exerciseRepositoryProvider).loadCatalog();
+    _loadAiKey();
+  }
+
+  Future<void> _loadAiKey() async {
+    final has = await AiKeyStore.isConfigured();
+    if (mounted) setState(() => _hasAiKey = has);
   }
 
   Future<void> _prefillFromAuth() async {
@@ -78,7 +91,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (catalog.isEmpty) return;
     setState(() => _generatingRoutine = true);
     try {
-      final days = generateRoutine(
+      _routineSeed = Random().nextInt(1 << 31);
+      var days = generateRoutine(
         RoutineRequest(
           goal: RoutineGoal.fromLabel(_goal),
           level: _rLevel,
@@ -87,12 +101,124 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           equipment: _rEquipment,
           catalog: catalog,
         ),
+        seed: _routineSeed,
       );
+
+      if (_hasAiKey) {
+        try {
+          final service = RoutineAiServiceImpl();
+          await service.load();
+          final profile = await ref.read(userProfileProvider.future);
+          final aiDays = await service.generate(
+            context: RoutineAiContext(
+              goal: RoutineGoal.fromLabel(_goal).label,
+              daysPerWeek: _rDays,
+              level: _rLevel.label,
+              equipment: _rEquipment.toList(),
+              weight: profile?.currentWeight,
+              age: profile?.age,
+              sex: profile?.sex,
+              minutesAvailable: _rMinutes,
+              targetExercisesPerDay: targetExercisesFor(
+                minutes: _rMinutes,
+                daysPerWeek: _rDays,
+                level: _rLevel,
+              ),
+            ),
+            allowedExercises: [
+              for (final e in catalog)
+                AiExercise(id: e.id, name: e.name, muscleGroup: e.muscleGroup),
+            ],
+          );
+          if (aiDays != null && aiDays.isNotEmpty) {
+            days = topUpRoutineDays(aiDays, days);
+          }
+        } catch (_) {
+          // Si falla la IA se queda con el generador de reglas.
+        }
+      }
+
       if (!mounted) return;
       setState(() => _generatedDays = days);
     } finally {
       if (mounted) setState(() => _generatingRoutine = false);
     }
+  }
+
+  Future<void> _regenerateRoutine() async {
+    if (_generatingRoutine) return;
+    final catalog = ref.read(exercisesProvider).valueOrNull ?? const [];
+    if (catalog.isEmpty) return;
+
+    final skipped = await RoutineRegenPrefs.dontAsk();
+    if (!skipped) {
+      if (!mounted) return;
+      final result = await _showRegenDialog();
+      if (result == null) return;
+      if (result.dontAskAgain) {
+        await RoutineRegenPrefs.setDontAsk(true);
+      }
+    }
+    await _generateRoutine();
+  }
+
+  Future<_OnbRegenChoice?> _showRegenDialog() {
+    var dontAsk = false;
+    return showDialog<_OnbRegenChoice>(
+      context: context,
+      builder: (dCtx) => StatefulBuilder(
+        builder: (dCtx, setLocal) => AlertDialog(
+          title: const Text('Generar otra rutina'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Se generará una rutina nueva con los mismos parámetros. '
+                'Si no te convenció la anterior, esta será distinta. '
+                '¿Continuar?',
+              ),
+              const SizedBox(height: 4),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: dontAsk,
+                onChanged: (v) => setLocal(() => dontAsk = v ?? false),
+                title: const Text(
+                  'No volver a preguntar',
+                  style: TextStyle(fontSize: 14),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dCtx),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(
+                    dCtx,
+                    _OnbRegenChoice(dontAskAgain: dontAsk),
+                  ),
+              child: const Text('Generar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openExercise(RoutineExercise e) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ExerciseDetailScreen(
+          exerciseId: e.exerciseId,
+          exerciseName: e.exerciseName,
+        ),
+      ),
+    );
   }
 
 
@@ -235,7 +361,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     setState(() => _isLoading = true);
     try {
       final user = ref.read(authServiceProvider).currentUser;
-      if (user == null) throw const AuthException('No hay usuario autenticado');
+      if (user == null) throw Exception('No hay usuario autenticado');
 
       final weight = Validators.parseDouble(_weightController.text);
       final height = Validators.parseDouble(_heightController.text);
@@ -482,6 +608,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         _generatedDays = null;
                       }),
                       onGenerate: _generateRoutine,
+                      onRegenerate: _regenerateRoutine,
+                      onExerciseTap: _openExercise,
                     ),
                     RemindersPage(
                       wantNotifs: _wantNotifs,
@@ -544,5 +672,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       ),
     );
   }
+}
 
+class _OnbRegenChoice {
+  final bool dontAskAgain;
+
+  const _OnbRegenChoice({required this.dontAskAgain});
 }

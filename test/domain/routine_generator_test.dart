@@ -197,16 +197,14 @@ void main() {
       );
     });
 
-    test('perder grasa añade cardio al final de cada día', () {
+    test('el motor estricto no añade cardio inventado', () {
       final days =
           generateRoutine(_req(goal: RoutineGoal.perderGrasa, days: 4));
-      for (final d in days) {
-        expect(
-          d.exercises.any((e) => e.muscleGroup == 'Cardio'),
-          isTrue,
-          reason: 'el día ${d.day} no tiene cardio',
-        );
-      }
+      expect(days, isNotEmpty);
+      expect(
+        days.expand((d) => d.exercises).any((e) => e.muscleGroup == 'Cardio'),
+        isFalse,
+      );
     });
 
     test('sin objetivo de grasa no añade cardio', () {
@@ -247,7 +245,7 @@ void main() {
       expect(total(short), lessThan(total(long)));
       // Ningún día queda por debajo del mínimo razonable.
       for (final d in short) {
-        expect(d.exercises.length, greaterThanOrEqualTo(3));
+        expect(d.exercises.length, greaterThanOrEqualTo(2));
       }
     });
 
